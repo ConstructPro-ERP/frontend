@@ -6,6 +6,12 @@ This repository contains the client-side code (web application) for the **Constr
 
 **Broader Project:** [ConstructPro ERP Organization](https://github.com/ConstructPro-ERP)
 
+## Technology Stack
+
+- **Framework**: Next.js (v16.2.6)
+- **UI Library**: React (v19.2.4)
+- **Styling & Linting**: Airbnb Style Guide, ESLint, Prettier
+
 ## Prerequisites
 
 - Node.js 22+
