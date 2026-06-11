@@ -166,7 +166,7 @@ export default function WorkflowPage() {
                 </h4>
                 <p className="text-sm text-on-surface-variant leading-relaxed">
                   Built-in compliance checks and workflow gates ensure that
-                  every project follows your company's standard operating
+                  every project follows your company&apos;s standard operating
                   procedures without manual oversight.
                 </p>
               </div>
