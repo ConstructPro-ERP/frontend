@@ -1,26 +1,151 @@
+/* src/app/globals.css */
 @import "tailwindcss";
 
+/* ==========================================================================
+   ConstructPro ERP — Design Tokens
+   All semantic colors are mapped to Tailwind's default palette variables
+   so we get easy-to-read class names like `bg-primary`, `text-ink-muted`.
+   ========================================================================== */
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* --- Primary Brand (Navy/Indigo) --- */
+  --color-primary: var(--color-blue-800);
+  --color-primary-container: var(--color-blue-700);
+  --color-on-primary: var(--color-white);
+  --color-on-primary-container: var(--color-blue-200);
+  --color-inverse-primary: var(--color-blue-300);
+
+  /* --- Secondary (Vibrant Blue/Indigo) --- */
+  --color-secondary: var(--color-indigo-600);
+  --color-secondary-container: var(--color-indigo-400);
+  --color-on-secondary: var(--color-white);
+  --color-on-secondary-container: var(--color-indigo-900);
+
+  /* --- Surface Palette --- */
+  --color-surface: var(--color-slate-50);
+  --color-surface-bg: var(--color-slate-100);
+  --color-surface-dim: var(--color-blue-200);
+  --color-surface-bright: var(--color-slate-50);
+  --color-surface-container-lowest: var(--color-white);
+  --color-surface-container-low: var(--color-blue-50);
+  --color-surface-container: var(--color-blue-100);
+  --color-surface-container-high: var(--color-blue-200);
+  --color-surface-container-highest: var(--color-blue-300);
+  --color-surface-variant: var(--color-blue-200);
+
+  /* --- On-Surface Text --- */
+  --color-on-surface: var(--color-slate-900);
+  --color-on-surface-variant: var(--color-slate-600);
+  --color-on-background: var(--color-slate-900);
+  --color-inverse-surface: var(--color-slate-800);
+  --color-inverse-on-surface: var(--color-blue-50);
+
+  /* --- Outline / Borders --- */
+  --color-outline: var(--color-slate-400);
+  --color-outline-variant: var(--color-slate-200);
+  --color-glass-border: var(--color-slate-200);
+
+  /* --- Risk Palette (Operational Status) --- */
+  --color-risk-low: var(--color-emerald-500);
+  --color-risk-medium: var(--color-amber-500);
+  --color-risk-high: var(--color-red-600);
+
+  /* --- Functional --- */
+  --color-error: var(--color-red-600);
+  --color-on-error: var(--color-white);
+  --color-surface-tint: var(--color-blue-600);
 }
 
+/* ==========================================================================
+   Map semantic tokens into Tailwind so we can use bg-primary, text-outline etc.
+   ========================================================================== */
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-inter);
+
+  /* Primary */
+  --color-primary: var(--color-primary);
+  --color-primary-container: var(--color-primary-container);
+  --color-on-primary: var(--color-on-primary);
+  --color-on-primary-container: var(--color-on-primary-container);
+  --color-inverse-primary: var(--color-inverse-primary);
+
+  /* Secondary */
+  --color-secondary: var(--color-secondary);
+  --color-secondary-container: var(--color-secondary-container);
+  --color-on-secondary: var(--color-on-secondary);
+  --color-on-secondary-container: var(--color-on-secondary-container);
+
+  /* Surface */
+  --color-surface: var(--color-surface);
+  --color-surface-bg: var(--color-surface-bg);
+  --color-surface-dim: var(--color-surface-dim);
+  --color-surface-bright: var(--color-surface-bright);
+  --color-surface-container-lowest: var(--color-surface-container-lowest);
+  --color-surface-container-low: var(--color-surface-container-low);
+  --color-surface-container: var(--color-surface-container);
+  --color-surface-container-high: var(--color-surface-container-high);
+  --color-surface-container-highest: var(--color-surface-container-highest);
+  --color-surface-variant: var(--color-surface-variant);
+
+  /* On-Surface */
+  --color-on-surface: var(--color-on-surface);
+  --color-on-surface-variant: var(--color-on-surface-variant);
+  --color-on-background: var(--color-on-background);
+  --color-inverse-surface: var(--color-inverse-surface);
+  --color-inverse-on-surface: var(--color-inverse-on-surface);
+
+  /* Outlines */
+  --color-outline: var(--color-outline);
+  --color-outline-variant: var(--color-outline-variant);
+  --color-glass-border: var(--color-glass-border);
+
+  /* Risk */
+  --color-risk-low: var(--color-risk-low);
+  --color-risk-medium: var(--color-risk-medium);
+  --color-risk-high: var(--color-risk-high);
+
+  /* Functional */
+  --color-error: var(--color-error);
+  --color-on-error: var(--color-on-error);
+  --color-surface-tint: var(--color-surface-tint);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* ==========================================================================
+   Custom Utilities
+   ========================================================================== */
+
+/* Elevation - Level 1 (Cards) */
+@utility shadow-level-1 {
+  box-shadow:
+    0 4px 6px -1px rgb(0 0 0 / 0.05),
+    0 2px 4px -2px rgb(0 0 0 / 0.05);
 }
 
+/* Elevation - Level 2 (Modals / Hero) */
+@utility shadow-level-2 {
+  box-shadow:
+    0 20px 25px -5px rgb(0 0 0 / 0.1),
+    0 8px 10px -6px rgb(0 0 0 / 0.05);
+}
+
+/* Glass-on-Steel card */
+@utility glass-card {
+  background: rgb(255 255 255 / 0.8);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--color-glass-border);
+}
+
+/* Glassmorphic nav layer — semi-transparent background only.
+   Blur is applied via Tailwind's native `backdrop-blur-md` class on the element. */
+@utility glass-nav {
+  background: rgb(255 255 255 / 0.5);
+}
+
+/* ==========================================================================
+   Base Styles
+   ========================================================================== */
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-surface-bg);
+  color: var(--color-on-background);
+  font-family: var(--font-inter), Arial, Helvetica, sans-serif;
 }
