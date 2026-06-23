@@ -86,7 +86,7 @@ export default function Header() {
           </button>
           <button
             type="button"
-            className="text-sm font-semibold bg-primary text-on-primary px-4 py-2 rounded-lg hover:bg-surface-tint transition-colors duration-200"
+            className="text-sm font-semibold bg-primary text-on-primary px-4 py-2 rounded-lg hover:bg-primary-hover transition-colors duration-200"
           >
             Get Started
           </button>
@@ -146,7 +146,7 @@ export default function Header() {
               </button>
               <button
                 type="button"
-                className="text-sm font-semibold bg-primary text-on-primary px-4 py-2 rounded-lg hover:bg-surface-tint transition-colors text-center"
+                className="text-sm font-semibold bg-primary text-on-primary px-4 py-2 rounded-lg hover:bg-primary-hover transition-colors text-center"
               >
                 Get Started
               </button>

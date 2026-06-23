@@ -213,14 +213,14 @@ export default function SecurityPage() {
         {/* Visual Abstract */}
         <section className="max-w-[1600px] mx-auto px-6 py-16">
           <FadeIn>
-            <div className="bg-primary rounded-2xl p-12 text-center overflow-hidden relative shadow-level-2">
-              <div className="absolute inset-0 bg-white/5" />
+            <div className="bg-hero rounded-2xl p-12 text-center overflow-hidden relative shadow-level-2">
+              <div className="absolute inset-0 bg-on-hero/5" />
               <div className="relative z-10 flex flex-col items-center">
-                <CloudCog size={48} className="text-white mb-6" />
-                <h2 className="text-2xl md:text-3xl font-bold text-white mb-4">
+                <CloudCog size={48} className="text-on-hero mb-6" />
+                <h2 className="text-2xl md:text-3xl font-bold text-on-hero mb-4">
                   Immutable Infrastructure Logging
                 </h2>
-                <p className="text-sm text-blue-100 max-w-2xl mx-auto leading-relaxed">
+                <p className="text-sm text-on-hero-muted max-w-2xl mx-auto leading-relaxed">
                   Comprehensive audit trails capture every system interaction.
                   Log integrity is guaranteed via cryptographic hashing,
                   ensuring forensic reliability for compliance audits.

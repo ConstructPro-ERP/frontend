@@ -198,7 +198,7 @@ export default function HomePage() {
             <div className="flex flex-col sm:flex-row gap-4 justify-center mb-16">
               <button
                 type="button"
-                className="bg-primary text-on-primary font-semibold px-8 py-3 rounded-lg hover:bg-surface-tint transition-colors text-sm"
+                className="bg-primary text-on-primary font-semibold px-8 py-3 rounded-lg hover:bg-primary-hover transition-colors text-sm"
               >
                 Get Started Free
               </button>
@@ -210,14 +210,16 @@ export default function HomePage() {
               </button>
             </div>
           </FadeIn>
+        </section>
 
-          {/* Dashboard Preview */}
+        {/* Dashboard Preview */}
+        <section className="max-w-[1600px] mx-auto px-6 py-16 flex justify-center">
           <FadeIn delay={0.15} className="w-full max-w-[1200px]">
             <div className="w-full rounded-xl shadow-level-2 bg-surface-container-lowest overflow-hidden border border-outline-variant">
               <div className="bg-surface-container h-8 flex items-center px-4 gap-2">
-                <span className="w-3 h-3 rounded-full bg-red-400" />
-                <span className="w-3 h-3 rounded-full bg-amber-400" />
-                <span className="w-3 h-3 rounded-full bg-emerald-400" />
+                <span className="w-3 h-3 rounded-full bg-risk-high" />
+                <span className="w-3 h-3 rounded-full bg-risk-medium" />
+                <span className="w-3 h-3 rounded-full bg-risk-low" />
               </div>
               <div className="bg-surface-container-low h-64 md:h-96 flex items-center justify-center text-on-surface-variant">
                 <div className="text-center">
@@ -396,14 +398,14 @@ export default function HomePage() {
           className="max-w-[1600px] mx-auto px-6 py-16 mb-12"
         >
           <FadeIn>
-            <div className="bg-primary rounded-2xl p-12 text-center overflow-hidden relative">
-              <span className="inline-block bg-white/10 text-white text-xs font-semibold px-3 py-1 rounded-full border border-white/20 mb-6 tracking-wide uppercase">
+            <div className="bg-hero rounded-2xl p-12 text-center overflow-hidden relative">
+              <span className="inline-block bg-on-hero/10 text-on-hero text-xs font-semibold px-3 py-1 rounded-full border border-on-hero/20 mb-6 tracking-wide uppercase">
                 Powered by RAG · LangChain
               </span>
-              <h2 className="text-2xl md:text-3xl font-bold text-white mb-4">
+              <h2 className="text-2xl md:text-3xl font-bold text-on-hero mb-4">
                 AI-Powered Risk Prediction
               </h2>
-              <p className="text-sm text-blue-100 max-w-2xl mx-auto mb-8 leading-relaxed">
+              <p className="text-sm text-on-hero-muted max-w-2xl mx-auto mb-8 leading-relaxed">
                 Proactively manage construction risks with advanced AI models
                 analysing historical data, payment patterns, and milestone
                 velocity.
@@ -411,13 +413,13 @@ export default function HomePage() {
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <button
                   type="button"
-                  className="bg-white text-primary font-semibold px-8 py-3 rounded-lg hover:bg-blue-50 transition-colors text-sm"
+                  className="bg-on-hero text-hero font-semibold px-8 py-3 rounded-lg hover:bg-hero-surface transition-colors text-sm"
                 >
                   Explore AI Features
                 </button>
                 <button
                   type="button"
-                  className="bg-white/10 text-white font-semibold px-8 py-3 rounded-lg border border-white/20 hover:bg-white/20 transition-colors text-sm"
+                  className="bg-on-hero/10 text-on-hero font-semibold px-8 py-3 rounded-lg border border-on-hero/20 hover:bg-on-hero/20 transition-colors text-sm"
                 >
                   Learn More
                 </button>
