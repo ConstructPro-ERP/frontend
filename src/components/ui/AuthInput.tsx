@@ -22,7 +22,7 @@ const AuthInput = forwardRef<HTMLInputElement, AuthInputProps>(
             id={id}
             ref={ref}
             className={[
-              "w-full py-3 bg-transparent text-sm text-slate-900 placeholder:text-slate-400",
+              "w-full py-3 px-4 bg-transparent text-sm text-slate-900 placeholder:text-slate-400",
               "border-0 border-b-2 outline-none transition-colors duration-200",
               icon ? "pr-10" : "pr-0", // make room for icon
               error
@@ -33,7 +33,7 @@ const AuthInput = forwardRef<HTMLInputElement, AuthInputProps>(
             {...props}
           />
           {icon && (
-            <div className="absolute right-2 text-slate-400 pointer-events-none">
+            <div className="absolute right-4 text-slate-400 pointer-events-none">
               {icon}
             </div>
           )}

@@ -15,31 +15,28 @@ const recoverSchema = z.object({
   email: z
     .string()
     .min(1, "Email is required")
-    .email("Please enter a valid email address"),
+    .pipe(z.email("Please enter a valid email address")),
 });
 
 type RecoverFormValues = z.infer<typeof recoverSchema>;
 
 export default function RecoverForm() {
-  const [submitted, setSubmitted] = useState(false);
+  const [submittedEmail, setSubmittedEmail] = useState<string | null>(null);
   const [serverError, setServerError] = useState<string | null>(null);
 
   const {
     register,
     handleSubmit,
-    watch,
     formState: { errors, isSubmitting },
   } = useForm<RecoverFormValues>({
     resolver: zodResolver(recoverSchema),
   });
 
-  const emailValue = watch("email");
-
   const onSubmit = async (data: RecoverFormValues) => {
     setServerError(null);
     try {
       await apiClient.post("/auth/forgot-password", { email: data.email });
-      setSubmitted(true);
+      setSubmittedEmail(data.email);
     } catch (err: unknown) {
       const message =
         err instanceof Error
@@ -49,7 +46,7 @@ export default function RecoverForm() {
     }
   };
 
-  if (submitted) {
+  if (submittedEmail) {
     return (
       <div className="w-full text-center">
         {/* Success state */}
@@ -76,12 +73,12 @@ export default function RecoverForm() {
         <p className="text-sm text-slate-500 mb-2 font-medium">
           We sent a password reset link to
         </p>
-        <p className="text-sm font-bold text-[#5E81F4] mb-8">{emailValue}</p>
+        <p className="text-sm font-bold text-[#5E81F4] mb-8">{submittedEmail}</p>
         <p className="text-xs text-slate-400 mb-6 font-medium">
           Didn&apos;t receive it? Check your spam folder, or{" "}
           <button
             type="button"
-            onClick={() => setSubmitted(false)}
+            onClick={() => setSubmittedEmail(null)}
             className="text-[#5E81F4] hover:underline font-bold"
           >
             try again
