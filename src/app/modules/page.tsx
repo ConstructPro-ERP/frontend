@@ -185,31 +185,33 @@ export default function ModulesPage() {
               );
             })}
 
-            {/* Intelligence & Analytics Card - Special Style */}
+            {/* Intelligence & Analytics Card */}
             <FadeIn delay={modules.length * 0.07} className="h-full">
-              <div className="bg-primary p-6 rounded-xl border border-primary-container shadow-level-1 h-full flex flex-col group relative overflow-hidden">
-                <div className="absolute inset-0 bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity" />
-                <div className="flex items-center gap-3 mb-4 relative z-10">
-                  <div className="w-10 h-10 rounded-lg bg-white/20 flex items-center justify-center">
-                    <BarChart2 size={20} className="text-white" />
+              <div className="bg-surface-container-lowest p-6 rounded-xl border border-outline-variant shadow-level-1 h-full flex flex-col group hover:border-primary/50 transition-colors">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-10 h-10 rounded-lg bg-surface-container flex items-center justify-center group-hover:bg-primary/10 transition-colors">
+                    <BarChart2 size={20} className="text-primary" />
                   </div>
-                  <h4 className="text-base font-semibold text-white">
+                  <h4 className="text-base font-semibold text-on-background">
                     Intelligence & Analytics
                   </h4>
                 </div>
-                <p className="text-sm text-blue-100 leading-relaxed flex-1 mb-6 relative z-10">
+
+                <p className="text-sm text-on-surface-variant leading-relaxed flex-1 mb-6">
                   Cross-module reporting, predictive risk modeling, and
                   configurable executive dashboards for operational oversight.
                 </p>
-                <div className="pt-4 border-t border-white/20 flex justify-between items-center relative z-10">
+
+                <div className="pt-4 border-t border-outline-variant flex justify-between items-center">
                   <div>
-                    <div className="text-[10px] font-semibold text-blue-200 uppercase tracking-wider mb-1">
+                    <div className="text-[10px] font-semibold text-on-surface-variant uppercase tracking-wider mb-1">
                       Reports
                     </div>
-                    <div className="text-sm font-bold text-white">08</div>
+                    <div className="text-sm font-bold text-primary">08</div>
                   </div>
+
                   <div className="text-right">
-                    <button className="text-white text-xs font-bold flex items-center gap-1 group-hover:translate-x-1 transition-transform">
+                    <button className="text-primary text-xs font-bold flex items-center gap-1 group-hover:translate-x-1 transition-transform">
                       View Dashboards <ArrowRight size={14} />
                     </button>
                   </div>

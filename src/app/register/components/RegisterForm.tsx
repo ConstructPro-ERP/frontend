@@ -78,12 +78,12 @@ export default function RegisterForm() {
     <div className="w-full">
       {/* Heading */}
       <div className="mb-10">
-        <h1 className="text-3xl font-bold text-slate-900 mb-2 leading-tight">
+        <h1 className="text-3xl font-bold text-on-background mb-2 leading-tight">
           Welcome to ConstructPro
           <br />
           Sign Up to getting started.
         </h1>
-        <p className="text-sm text-slate-500 font-medium">
+        <p className="text-sm text-on-surface-muted font-medium">
           Enter your details to proceed further
         </p>
       </div>
@@ -91,7 +91,7 @@ export default function RegisterForm() {
       {serverError && (
         <div
           role="alert"
-          className="mb-6 px-4 py-3 rounded-lg bg-red-50 border border-red-200 text-red-600 text-sm font-medium"
+          className="mb-6 px-4 py-3 rounded-lg bg-error-container border border-error-outline text-on-error-container text-sm font-medium"
         >
           {serverError}
         </div>
@@ -149,18 +149,18 @@ export default function RegisterForm() {
               {...register("agreeToTerms")}
             />
             <span
-              className="w-5 h-5 rounded-full border-2 border-slate-300 flex items-center justify-center
-                group-has-checked:border-[#5E81F4] transition-colors"
+              className="w-5 h-5 rounded-full border-2 border-outline flex items-center justify-center
+                group-has-checked:border-action transition-colors"
               aria-hidden="true"
             >
-              <span className="w-2.5 h-2.5 rounded-full bg-[#5E81F4] opacity-0 group-has-checked:opacity-100 transition-opacity" />
+              <span className="w-2.5 h-2.5 rounded-full bg-action opacity-0 group-has-checked:opacity-100 transition-opacity" />
             </span>
-            <span className="text-sm font-bold text-slate-900">
+            <span className="text-sm font-bold text-on-background">
               I agree with terms &amp; conditions
             </span>
           </label>
           {errors.agreeToTerms && (
-            <p className="text-xs text-red-500 mt-1.5">
+            <p className="text-xs text-error mt-1.5">
               {errors.agreeToTerms.message}
             </p>
           )}

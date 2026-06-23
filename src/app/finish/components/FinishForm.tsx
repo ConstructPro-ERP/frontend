@@ -47,12 +47,12 @@ export default function FinishForm() {
     <div className="w-full">
       {/* Heading */}
       <div className="mb-10">
-        <h1 className="text-3xl font-bold text-slate-900 mb-2 leading-tight">
+        <h1 className="text-3xl font-bold text-on-background mb-2 leading-tight">
           Registration complete.
           <br />
           Subscribe to our newsletters.
         </h1>
-        <p className="text-sm text-slate-500 font-medium">
+        <p className="text-sm text-on-surface-muted font-medium">
           Now you can setup your projects and teams
         </p>
       </div>
@@ -60,7 +60,7 @@ export default function FinishForm() {
       {serverError && (
         <div
           role="alert"
-          className="mb-6 px-4 py-3 rounded-lg bg-red-50 border border-red-200 text-red-600 text-sm font-medium"
+          className="mb-6 px-4 py-3 rounded-lg bg-error-container border border-error-outline text-on-error-container text-sm font-medium"
         >
           {serverError}
         </div>

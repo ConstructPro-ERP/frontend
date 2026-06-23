@@ -24,7 +24,6 @@ const workflowSteps = [
     title: "Lead Intake",
     description:
       "Omni-channel capture with AI-driven qualification and automated routing.",
-    highlight: false,
   },
   {
     num: "2",
@@ -32,7 +31,6 @@ const workflowSteps = [
     title: "Precision Quote",
     description:
       "Intelligent material takeoff and historical data analysis for accurate bids.",
-    highlight: false,
   },
   {
     num: "3",
@@ -40,7 +38,6 @@ const workflowSteps = [
     title: "Contract Execution",
     description:
       "Digital signatures and automated compliance verification for faster starts.",
-    highlight: false,
   },
   {
     num: "4",
@@ -48,7 +45,6 @@ const workflowSteps = [
     title: "Active Production",
     description:
       "Real-time site management, field logs, and schedule synchronization.",
-    highlight: true,
   },
   {
     num: "5",
@@ -56,7 +52,6 @@ const workflowSteps = [
     title: "Closeout",
     description:
       "Automated punch lists, warranty activation, and archival of project records.",
-    highlight: false,
   },
 ];
 
@@ -94,45 +89,30 @@ export default function WorkflowPage() {
           <div className="flex flex-col lg:flex-row gap-5 items-stretch">
             {workflowSteps.map((step, i) => {
               const Icon = step.icon;
+
               return (
                 <div
                   key={step.num}
                   className="flex flex-col lg:flex-row items-center gap-5 flex-1"
                 >
                   <FadeIn delay={i * 0.1} className="flex-1 w-full h-full">
-                    <div
-                      className={`p-6 rounded-xl border shadow-level-1 h-full transition-colors ${
-                        step.highlight
-                          ? "bg-primary text-white border-primary-container"
-                          : "bg-surface-container-lowest border-outline-variant text-on-background"
-                      }`}
-                    >
+                    <div className="p-6 rounded-xl border border-outline-variant bg-surface-container-lowest text-on-background shadow-level-1 h-full transition-colors">
                       <div className="flex items-center gap-3 mb-4">
-                        <div
-                          className={`w-9 h-9 rounded-lg flex items-center justify-center ${
-                            step.highlight
-                              ? "bg-white/20"
-                              : "bg-surface-container-low"
-                          }`}
-                        >
-                          <Icon
-                            size={18}
-                            className={
-                              step.highlight ? "text-white" : "text-primary"
-                            }
-                          />
+                        <div className="w-9 h-9 rounded-lg bg-surface-container-low flex items-center justify-center">
+                          <Icon size={18} className="text-primary" />
                         </div>
+
                         <h4 className="text-base font-semibold">
                           {step.num}. {step.title}
                         </h4>
                       </div>
-                      <p
-                        className={`text-sm leading-relaxed ${step.highlight ? "text-blue-100" : "text-on-surface-variant"}`}
-                      >
+
+                      <p className="text-sm leading-relaxed text-on-surface-variant">
                         {step.description}
                       </p>
                     </div>
                   </FadeIn>
+
                   {i < workflowSteps.length - 1 && (
                     <ArrowRight
                       size={20}

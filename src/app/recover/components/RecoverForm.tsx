@@ -6,7 +6,7 @@ import Image from "next/image";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Mail, ArrowLeft } from "lucide-react";
+import { Mail, ArrowLeft, Check } from "lucide-react";
 import AuthInput from "@/components/ui/AuthInput";
 import AuthButton from "@/components/ui/AuthButton";
 import apiClient from "@/lib/axios";
@@ -50,36 +50,22 @@ export default function RecoverForm() {
     return (
       <div className="w-full text-center">
         {/* Success state */}
-        <div className="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center mx-auto mb-6">
-          <svg
-            width="32"
-            height="32"
-            viewBox="0 0 24 24"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <path
-              d="M20 6L9 17L4 12"
-              stroke="#10B981"
-              strokeWidth="2.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
+        <div className="w-16 h-16 rounded-full bg-risk-low-container text-risk-low flex items-center justify-center mx-auto mb-6">
+          <Check className="h-8 w-8" strokeWidth={2.5} aria-hidden="true" />
         </div>
-        <h1 className="text-3xl font-bold text-slate-900 mb-3">
+        <h1 className="text-3xl font-bold text-on-background mb-3">
           Check your email
         </h1>
-        <p className="text-sm text-slate-500 mb-2 font-medium">
+        <p className="text-sm text-on-surface-muted mb-2 font-medium">
           We sent a password reset link to
         </p>
-        <p className="text-sm font-bold text-[#5E81F4] mb-8">{submittedEmail}</p>
-        <p className="text-xs text-slate-400 mb-6 font-medium">
+        <p className="text-sm font-bold text-action mb-8">{submittedEmail}</p>
+        <p className="text-xs text-on-surface-subtle mb-6 font-medium">
           Didn&apos;t receive it? Check your spam folder, or{" "}
           <button
             type="button"
             onClick={() => setSubmittedEmail(null)}
-            className="text-[#5E81F4] hover:underline font-bold"
+            className="text-action hover:underline font-bold"
           >
             try again
           </button>
@@ -88,7 +74,7 @@ export default function RecoverForm() {
         <Link
           href="/login"
           id="back-to-login-link"
-          className="text-sm text-slate-500 hover:text-slate-700 font-semibold transition-colors flex items-center justify-center gap-1.5"
+          className="text-sm text-on-surface-muted hover:text-on-surface-variant font-semibold transition-colors flex items-center justify-center gap-1.5"
         >
           <ArrowLeft className="w-4 h-4" />
           Back to sign in
@@ -101,12 +87,12 @@ export default function RecoverForm() {
     <div className="w-full">
       {/* Heading */}
       <div className="mb-10">
-        <h1 className="text-3xl font-bold text-slate-900 mb-2 leading-tight">
+        <h1 className="text-3xl font-bold text-on-background mb-2 leading-tight">
           Lost your password?
           <br />
           Enter your details to recover.
         </h1>
-        <p className="text-sm text-slate-500 font-medium">
+        <p className="text-sm text-on-surface-muted font-medium">
           Enter your details to proceed further
         </p>
       </div>
@@ -114,7 +100,7 @@ export default function RecoverForm() {
       {serverError && (
         <div
           role="alert"
-          className="mb-6 px-4 py-3 rounded-lg bg-red-50 border border-red-200 text-red-600 text-sm font-medium"
+          className="mb-6 px-4 py-3 rounded-lg bg-error-container border border-error-outline text-on-error-container text-sm font-medium"
         >
           {serverError}
         </div>
