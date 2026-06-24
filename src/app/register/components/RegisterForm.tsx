@@ -9,6 +9,7 @@ import { z } from "zod";
 import { User, Mail, Lock } from "lucide-react";
 import AuthInput from "@/components/ui/AuthInput";
 import AuthButton from "@/components/ui/AuthButton";
+import AuthCheckbox from "@/components/ui/AuthCheckbox";
 import apiClient from "@/lib/axios";
 import { useRouter } from "next/navigation";
 
@@ -138,27 +139,11 @@ export default function RegisterForm() {
 
         {/* Terms & conditions */}
         <div>
-          <label
-            htmlFor="register-agree-terms"
-            className="group flex items-center gap-2.5 cursor-pointer select-none"
-          >
-            <input
-              id="register-agree-terms"
-              type="checkbox"
-              className="sr-only"
-              {...register("agreeToTerms")}
-            />
-            <span
-              className="w-5 h-5 rounded-full border-2 border-outline flex items-center justify-center
-                group-has-checked:border-action transition-colors"
-              aria-hidden="true"
-            >
-              <span className="w-2.5 h-2.5 rounded-full bg-action opacity-0 group-has-checked:opacity-100 transition-opacity" />
-            </span>
-            <span className="text-sm font-bold text-on-background">
-              I agree with terms &amp; conditions
-            </span>
-          </label>
+          <AuthCheckbox
+            id="register-agree-terms"
+            label="I agree with terms & conditions"
+            {...register("agreeToTerms")}
+          />
           {errors.agreeToTerms && (
             <p className="text-xs text-error mt-1.5">
               {errors.agreeToTerms.message}
@@ -166,27 +151,31 @@ export default function RegisterForm() {
           )}
         </div>
 
-        {/* Sign Up / Sign In toggle buttons */}
-        <div className="flex gap-4 mt-2">
+        {/* Primary action and account switch link */}
+        <div className="flex flex-col gap-4 mt-2">
           <AuthButton
             id="register-submit-btn"
             type="submit"
             variant="primary"
             isLoading={isSubmitting}
-            className="flex-1"
+            className="w-full"
           >
             Sign Up
           </AuthButton>
-          <Link href="/login" className="flex-1">
-            <AuthButton variant="secondary" type="button" className="w-full">
-              Sign In
-            </AuthButton>
-          </Link>
+          <p className="text-center text-sm font-medium text-on-surface-muted">
+            Already have an account?{" "}
+            <Link
+              href="/login"
+              className="font-bold text-action hover:text-action-hover transition-colors"
+            >
+              Sign in
+            </Link>
+          </p>
         </div>
       </form>
 
       {/* Social Login Row */}
-      <div className="mt-10">
+      <div className="mt-8">
         <AuthButton type="button" variant="google" onClick={() => {}}>
           <Image
             src="/logos/google-icon.svg"

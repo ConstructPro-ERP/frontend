@@ -2,7 +2,6 @@
 // src/app/recover/components/RecoverForm.tsx
 import { useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -116,7 +115,7 @@ export default function RecoverForm() {
           id="recover-email"
           label="Email"
           type="email"
-          placeholder="Start typing..."
+          placeholder="Enter your email"
           autoComplete="email"
           icon={<Mail className="w-5 h-5" />}
           error={errors.email?.message}
@@ -130,23 +129,20 @@ export default function RecoverForm() {
           isLoading={isSubmitting}
           className="w-full"
         >
-          Recover
+          Send reset link
         </AuthButton>
       </form>
 
-      {/* Social Login Row */}
-      <div className="mt-10">
-        <AuthButton type="button" variant="google" onClick={() => {}}>
-          <Image
-            src="/logos/google-icon.svg"
-            alt=""
-            width={20}
-            height={20}
-            aria-hidden="true"
-          />
-          Sign in with Google
-        </AuthButton>
-      </div>
+      {/* Account navigation */}
+      <p className="mt-6 text-center text-sm font-medium text-on-surface-muted">
+        Remember your password?{" "}
+        <Link
+          href="/login"
+          className="font-bold text-action hover:text-action-hover transition-colors"
+        >
+          Sign in
+        </Link>
+      </p>
     </div>
   );
 }
