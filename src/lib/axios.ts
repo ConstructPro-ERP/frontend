@@ -1,5 +1,5 @@
 // src/lib/axios.ts
-import axios, { AxiosRequestConfig, AxiosResponse } from "axios";
+import axios, { AxiosRequestConfig } from "axios";
 import { store } from "@/store";
 import { setAccessToken, logout } from "@/store/slices/authSlice";
 import { getRefreshToken, setRefreshToken, clearTokens } from "./token";
@@ -143,7 +143,7 @@ const apiClient = {
   },
   post: <T>(
     url: string,
-    data?: any,
+    data?: unknown,
     config?: AxiosRequestConfig,
   ): Promise<ApiResponse<T>> => {
     return axiosInstance
@@ -152,7 +152,7 @@ const apiClient = {
   },
   patch: <T>(
     url: string,
-    data?: any,
+    data?: unknown,
     config?: AxiosRequestConfig,
   ): Promise<ApiResponse<T>> => {
     return axiosInstance
@@ -161,7 +161,7 @@ const apiClient = {
   },
   put: <T>(
     url: string,
-    data?: any,
+    data?: unknown,
     config?: AxiosRequestConfig,
   ): Promise<ApiResponse<T>> => {
     return axiosInstance
