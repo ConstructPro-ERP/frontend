@@ -4,7 +4,11 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { useSelector, useDispatch } from "react-redux";
+import type { RootState, AppDispatch } from "@/store";
+import { logout } from "@/store/slices/authSlice";
+import { clearTokens } from "@/lib/token";
 import { Menu, X } from "lucide-react";
 
 const navLinks = [
@@ -21,6 +25,15 @@ const navLinks = [
 export default function Header() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const pathname = usePathname();
+  const router = useRouter();
+  const dispatch = useDispatch<AppDispatch>();
+  const { isAuthenticated } = useSelector((state: RootState) => state.auth);
+
+  const handleSignOut = () => {
+    dispatch(logout());
+    clearTokens();
+    router.push("/");
+  };
 
   return (
     <header className="glass-nav backdrop-blur-md fixed top-0 w-full z-50 border-b border-outline-variant h-[72px] flex items-center">
@@ -78,18 +91,38 @@ export default function Header() {
 
         {/* Desktop CTA Buttons */}
         <div className="hidden md:flex items-center gap-3">
-          <Link
-            href="/login"
-            className="text-sm font-semibold text-primary px-4 py-2 rounded-lg hover:bg-surface-container transition-colors duration-200"
-          >
-            Login
-          </Link>
-          <Link
-            href="/register"
-            className="text-sm font-semibold bg-primary text-on-primary px-4 py-2 rounded-lg hover:bg-primary-hover transition-colors duration-200"
-          >
-            Get Started
-          </Link>
+          {isAuthenticated ? (
+            <>
+              <Link
+                href="/"
+                className="text-sm font-semibold text-primary px-4 py-2 rounded-lg hover:bg-surface-container transition-colors duration-200"
+              >
+                Dashboard
+              </Link>
+              <button
+                type="button"
+                onClick={handleSignOut}
+                className="text-sm font-semibold bg-primary text-on-primary px-4 py-2 rounded-lg hover:bg-primary-hover transition-colors duration-200"
+              >
+                Sign Out
+              </button>
+            </>
+          ) : (
+            <>
+              <Link
+                href="/login"
+                className="text-sm font-semibold text-primary px-4 py-2 rounded-lg hover:bg-surface-container transition-colors duration-200"
+              >
+                Login
+              </Link>
+              <Link
+                href="/register"
+                className="text-sm font-semibold bg-primary text-on-primary px-4 py-2 rounded-lg hover:bg-primary-hover transition-colors duration-200"
+              >
+                Get Started
+              </Link>
+            </>
+          )}
         </div>
 
         {/* Mobile Menu Toggle */}
@@ -138,20 +171,44 @@ export default function Header() {
             })}
             <hr className="border-outline-variant" />
             <div className="flex flex-col gap-2">
-              <Link
-                href="/login"
-                onClick={() => setMobileOpen(false)}
-                className="text-sm font-semibold text-primary text-left py-1"
-              >
-                Login
-              </Link>
-              <Link
-                href="/register"
-                onClick={() => setMobileOpen(false)}
-                className="text-sm font-semibold bg-primary text-on-primary px-4 py-2 rounded-lg hover:bg-primary-hover transition-colors text-center"
-              >
-                Get Started
-              </Link>
+              {isAuthenticated ? (
+                <>
+                  <Link
+                    href="/"
+                    onClick={() => setMobileOpen(false)}
+                    className="text-sm font-semibold text-primary text-left py-1"
+                  >
+                    Dashboard
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMobileOpen(false);
+                      handleSignOut();
+                    }}
+                    className="text-sm font-semibold bg-primary text-on-primary px-4 py-2 rounded-lg hover:bg-primary-hover transition-colors text-center"
+                  >
+                    Sign Out
+                  </button>
+                </>
+              ) : (
+                <>
+                  <Link
+                    href="/login"
+                    onClick={() => setMobileOpen(false)}
+                    className="text-sm font-semibold text-primary text-left py-1"
+                  >
+                    Login
+                  </Link>
+                  <Link
+                    href="/register"
+                    onClick={() => setMobileOpen(false)}
+                    className="text-sm font-semibold bg-primary text-on-primary px-4 py-2 rounded-lg hover:bg-primary-hover transition-colors text-center"
+                  >
+                    Get Started
+                  </Link>
+                </>
+              )}
             </div>
           </nav>
         </div>
