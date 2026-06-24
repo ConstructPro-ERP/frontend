@@ -78,18 +78,18 @@ export default function Header() {
 
         {/* Desktop CTA Buttons */}
         <div className="hidden md:flex items-center gap-3">
-          <button
-            type="button"
+          <Link
+            href="/login"
             className="text-sm font-semibold text-primary px-4 py-2 rounded-lg hover:bg-surface-container transition-colors duration-200"
           >
             Login
-          </button>
-          <button
-            type="button"
+          </Link>
+          <Link
+            href="/register"
             className="text-sm font-semibold bg-primary text-on-primary px-4 py-2 rounded-lg hover:bg-primary-hover transition-colors duration-200"
           >
             Get Started
-          </button>
+          </Link>
         </div>
 
         {/* Mobile Menu Toggle */}
@@ -138,18 +138,20 @@ export default function Header() {
             })}
             <hr className="border-outline-variant" />
             <div className="flex flex-col gap-2">
-              <button
-                type="button"
+              <Link
+                href="/login"
+                onClick={() => setMobileOpen(false)}
                 className="text-sm font-semibold text-primary text-left py-1"
               >
                 Login
-              </button>
-              <button
-                type="button"
+              </Link>
+              <Link
+                href="/register"
+                onClick={() => setMobileOpen(false)}
                 className="text-sm font-semibold bg-primary text-on-primary px-4 py-2 rounded-lg hover:bg-primary-hover transition-colors text-center"
               >
                 Get Started
-              </button>
+              </Link>
             </div>
           </nav>
         </div>

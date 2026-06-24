@@ -19,6 +19,7 @@ import AuthInput from "@/components/ui/AuthInput";
 import AuthButton from "@/components/ui/AuthButton";
 import AuthCheckbox from "@/components/ui/AuthCheckbox";
 import apiClient from "@/lib/axios";
+import { setRefreshToken } from "@/lib/token";
 import type { AuthResponse } from "@/types/auth";
 
 const loginSchema = z.object({
@@ -57,6 +58,11 @@ export default function LoginForm() {
         email: data.email,
         password: data.password,
       });
+
+      if (res.data.refreshToken) {
+        setRefreshToken(res.data.refreshToken);
+      }
+
       dispatch(
         loginSuccess({
           user: res.data.user,
