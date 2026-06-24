@@ -11,7 +11,7 @@ export default function AuthLayout({
   illustration,
 }: AuthLayoutProps) {
   return (
-    <div className="min-h-screen flex bg-action">
+    <div className="min-h-screen flex bg-[#305FE8]">
       {/* Left: Form Panel */}
       <div className="relative w-full lg:w-[55%] flex flex-col justify-center px-8 py-12 lg:px-20 bg-surface-container-lowest lg:rounded-r-[40px] z-10 shadow-2xl">
         {/* Company Logo */}

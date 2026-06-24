@@ -17,6 +17,7 @@ import {
 import type { AppDispatch } from "@/store";
 import AuthInput from "@/components/ui/AuthInput";
 import AuthButton from "@/components/ui/AuthButton";
+import AuthCheckbox from "@/components/ui/AuthCheckbox";
 import apiClient from "@/lib/axios";
 import type { AuthResponse } from "@/types/auth";
 
@@ -126,26 +127,11 @@ export default function LoginForm() {
 
         {/* Remember me / Recover password row */}
         <div className="flex items-center justify-between">
-          <label
-            htmlFor="login-remember-me"
-            className="group flex items-center gap-2.5 cursor-pointer select-none"
-          >
-            <input
-              id="login-remember-me"
-              type="checkbox"
-              className="sr-only"
-              {...register("rememberMe")}
-            />
-            <span
-              className="w-5 h-5 rounded-full border-2 border-outline flex items-center justify-center group-has-checked:border-action transition-colors"
-              aria-hidden="true"
-            >
-              <span className="w-2.5 h-2.5 rounded-full bg-action opacity-0 group-has-checked:opacity-100 transition-opacity" />
-            </span>
-            <span className="text-sm font-bold text-on-background">
-              Remember me
-            </span>
-          </label>
+          <AuthCheckbox
+            id="login-remember-me"
+            label="Remember me"
+            {...register("rememberMe")}
+          />
           <Link
             href="/recover"
             id="forgot-password-link"
@@ -155,27 +141,31 @@ export default function LoginForm() {
           </Link>
         </div>
 
-        {/* Sign In / Sign Up toggle buttons */}
-        <div className="flex gap-4 mt-2">
+        {/* Primary action and account switch link */}
+        <div className="flex flex-col gap-4 mt-2">
           <AuthButton
             id="login-submit-btn"
             type="submit"
             variant="primary"
             isLoading={isSubmitting}
-            className="flex-1"
+            className="w-full"
           >
             Sign In
           </AuthButton>
-          <Link href="/register" className="flex-1">
-            <AuthButton variant="secondary" type="button" className="w-full">
-              Sign Up
-            </AuthButton>
-          </Link>
+          <p className="text-center text-sm font-medium text-on-surface-muted">
+            Don&apos;t have an account?{" "}
+            <Link
+              href="/register"
+              className="font-bold text-action hover:text-action-hover transition-colors"
+            >
+              Sign up
+            </Link>
+          </p>
         </div>
       </form>
 
       {/* Social Login Row */}
-      <div className="mt-10">
+      <div className="mt-8">
         <AuthButton type="button" variant="google" onClick={() => {}}>
           <Image
             src="/logos/google-icon.svg"

@@ -1,98 +1,58 @@
 "use client";
 // src/app/finish/components/FinishForm.tsx
-import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
-import { Mail } from "lucide-react";
-import AuthInput from "@/components/ui/AuthInput";
+import { CheckCircle2 } from "lucide-react";
 import AuthButton from "@/components/ui/AuthButton";
-
-const finishSchema = z.object({
-  email: z
-    .string()
-    .min(1, "Email is required")
-    .pipe(z.email("Please enter a valid email address")),
-});
-
-type FinishFormValues = z.infer<typeof finishSchema>;
 
 export default function FinishForm() {
   const router = useRouter();
-  const [serverError, setServerError] = useState<string | null>(null);
 
-  const {
-    register,
-    handleSubmit,
-    formState: { errors, isSubmitting },
-  } = useForm<FinishFormValues>({
-    resolver: zodResolver(finishSchema),
-  });
-
-  const onSubmit = async () => {
-    setServerError(null);
-    try {
-      router.push("/modules");
-    } catch (err: unknown) {
-      const message =
-        err instanceof Error
-          ? err.message
-          : "Something went wrong. Please try again.";
-      setServerError(message);
-    }
+  const handleContinue = () => {
+    router.push("/modules");
   };
 
   return (
-    <div className="w-full">
+    <div className="w-full text-center">
+      {/* Completion state */}
+      <div className="w-16 h-16 rounded-full bg-risk-low-container text-risk-low flex items-center justify-center mx-auto mb-6">
+        <CheckCircle2
+          className="h-8 w-8"
+          strokeWidth={2.5}
+          aria-hidden="true"
+        />
+      </div>
+
       {/* Heading */}
-      <div className="mb-10">
-        <h1 className="text-3xl font-bold text-on-background mb-2 leading-tight">
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-on-background mb-3 leading-tight">
           Registration complete.
-          <br />
-          Subscribe to our newsletters.
         </h1>
-        <p className="text-sm text-on-surface-muted font-medium">
-          Now you can setup your projects and teams
+        <p className="text-sm text-on-surface-muted font-medium leading-relaxed">
+          Your account has been created successfully. You can now continue to
+          ConstructPro ERP and start setting up projects, teams, and modules.
         </p>
       </div>
 
-      {serverError && (
-        <div
-          role="alert"
-          className="mb-6 px-4 py-3 rounded-lg bg-error-container border border-error-outline text-on-error-container text-sm font-medium"
-        >
-          {serverError}
-        </div>
-      )}
-
-      <form
-        id="finish-form"
-        onSubmit={handleSubmit(onSubmit)}
-        noValidate
-        className="flex flex-col gap-6"
+      <AuthButton
+        id="finish-submit-btn"
+        type="button"
+        variant="primary"
+        onClick={handleContinue}
+        className="w-full"
       >
-        <AuthInput
-          id="finish-email"
-          label="Email"
-          type="email"
-          placeholder="Start typing..."
-          autoComplete="email"
-          icon={<Mail className="w-5 h-5" />}
-          error={errors.email?.message}
-          {...register("email")}
-        />
+        Continue to dashboard
+      </AuthButton>
 
-        <AuthButton
-          id="finish-submit-btn"
-          type="submit"
-          variant="primary"
-          isLoading={isSubmitting}
-          className="w-full"
+      <p className="mt-6 text-center text-sm font-medium text-on-surface-muted">
+        Want to use another account?{" "}
+        <Link
+          href="/login"
+          className="font-bold text-action hover:text-action-hover transition-colors"
         >
-          Finish
-        </AuthButton>
-      </form>
+          Sign in
+        </Link>
+      </p>
     </div>
   );
 }
