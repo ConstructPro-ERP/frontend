@@ -33,6 +33,17 @@ export default function DashboardSidebar({
   const pathname = usePathname();
   const sections = ["Main", "Finance", "Management"] as const;
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
+  const accountProfile = pathname.startsWith("/dashboard/finance")
+    ? {
+        initials: "MA",
+        name: "Malini Abeywadena",
+        role: "Finance Officer",
+      }
+    : {
+        initials: "AW",
+        name: "Admin Wickrama",
+        role: "Administrator",
+      };
 
   return (
     <>
@@ -137,14 +148,14 @@ export default function DashboardSidebar({
               onClick={() => setAccountMenuOpen((open) => !open)}
             >
               <div className="flex h-8 w-8 items-center justify-center rounded-full bg-linear-to-br from-blue-600 to-blue-800 text-[11px] font-bold text-white">
-                AW
+                {accountProfile.initials}
               </div>
               <div className="min-w-0 flex-1">
                 <div className="truncate text-[12.5px] font-semibold text-on-background">
-                  Admin Wickrama
+                  {accountProfile.name}
                 </div>
                 <div className="text-[11px] text-on-surface-muted">
-                  Administrator
+                  {accountProfile.role}
                 </div>
               </div>
               <ChevronDown

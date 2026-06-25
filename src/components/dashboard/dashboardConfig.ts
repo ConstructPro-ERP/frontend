@@ -5,9 +5,9 @@ import {
   FolderKanban,
   LayoutDashboard,
   ReceiptText,
+  Shield,
   TrendingUp,
   Users,
-  Shield,
 } from "lucide-react";
 
 export type DashboardNavItem = {
@@ -72,6 +72,7 @@ export type DashboardPageConfig = {
   title: string;
   description: string;
   breadcrumbs?: { label: string; href?: string }[];
+  searchPlaceholder?: string;
 };
 
 export const dashboardPageConfigs: Record<string, DashboardPageConfig> = {
@@ -79,6 +80,7 @@ export const dashboardPageConfigs: Record<string, DashboardPageConfig> = {
     title: "Dashboard",
     description: "Sunday, 12 April 2026 · Good morning, Admin",
     breadcrumbs: [{ label: "Dashboard" }],
+    searchPlaceholder: "Search anything...",
   },
   "/dashboard/users": {
     title: "User Management",
@@ -87,6 +89,7 @@ export const dashboardPageConfigs: Record<string, DashboardPageConfig> = {
       { label: "Dashboard", href: "/dashboard" },
       { label: "Users" },
     ],
+    searchPlaceholder: "Search anything...",
   },
   "/dashboard/leads": {
     title: "Leads",
@@ -95,6 +98,7 @@ export const dashboardPageConfigs: Record<string, DashboardPageConfig> = {
       { label: "Dashboard", href: "/dashboard" },
       { label: "Leads" },
     ],
+    searchPlaceholder: "Search anything...",
   },
   "/dashboard/quotations": {
     title: "Quotations",
@@ -103,6 +107,7 @@ export const dashboardPageConfigs: Record<string, DashboardPageConfig> = {
       { label: "Dashboard", href: "/dashboard" },
       { label: "Quotations" },
     ],
+    searchPlaceholder: "Search anything...",
   },
   "/dashboard/projects": {
     title: "Projects",
@@ -111,6 +116,7 @@ export const dashboardPageConfigs: Record<string, DashboardPageConfig> = {
       { label: "Dashboard", href: "/dashboard" },
       { label: "Projects" },
     ],
+    searchPlaceholder: "Search anything...",
   },
   "/dashboard/documents": {
     title: "Documents",
@@ -119,14 +125,16 @@ export const dashboardPageConfigs: Record<string, DashboardPageConfig> = {
       { label: "Dashboard", href: "/dashboard" },
       { label: "Documents" },
     ],
+    searchPlaceholder: "Search anything...",
   },
   "/dashboard/finance": {
     title: "Invoices & Payments",
-    description: "Sunday, 12 April 2026 · Good morning, Admin",
+    description: "LKR 6.8M outstanding · 5 overdue invoices",
     breadcrumbs: [
       { label: "Dashboard", href: "/dashboard" },
       { label: "Finance" },
     ],
+    searchPlaceholder: "Search invoices...",
   },
   "/dashboard/analytics": {
     title: "Analytics & AI",
@@ -135,5 +143,6 @@ export const dashboardPageConfigs: Record<string, DashboardPageConfig> = {
       { label: "Dashboard", href: "/dashboard" },
       { label: "Analytics" },
     ],
+    searchPlaceholder: "Search anything...",
   },
 };
