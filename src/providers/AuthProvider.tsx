@@ -17,7 +17,7 @@ export default function AuthProvider({
   useEffect(() => {
     const initializeAuth = async () => {
       const accessToken = getAccessToken();
-      
+
       if (!accessToken) {
         // No token in storage, just remain logged out
         return;
@@ -33,7 +33,7 @@ export default function AuthProvider({
         dispatch(
           loginSuccess({
             user: res.data,
-          })
+          }),
         );
       } catch (error) {
         // Token is invalid, expired, or user deleted. Wipe everything.

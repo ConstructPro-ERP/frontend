@@ -2,7 +2,13 @@
 import axios, { AxiosRequestConfig } from "axios";
 import { store } from "@/store";
 import { logout } from "@/store/slices/authSlice";
-import { getRefreshToken, setRefreshToken, setAccessToken, getAccessToken, clearTokens } from "./token";
+import {
+  getRefreshToken,
+  setRefreshToken,
+  setAccessToken,
+  getAccessToken,
+  clearTokens,
+} from "./token";
 import { ApiError } from "./ApiError";
 import type { ApiResponse } from "@/types/api";
 
