@@ -2,6 +2,8 @@ import { ApiError } from "@/lib/ApiError";
 import type {
   FinanceInvoice,
   FinanceInvoiceFilter,
+  FinancePaymentFormErrors,
+  FinancePaymentFormValues,
   FinanceInvoiceStatus,
   FinanceOutstandingItem,
   FinanceSummary,
@@ -105,6 +107,8 @@ export const financePreviewSummary: FinanceSummary = {
   outstandingBalance: 6_800_000,
   overdueAmount: 5_075_000,
 };
+
+export const defaultFinancePaymentMethod = "Bank Transfer";
 
 export function formatCurrency(value: number) {
   return new Intl.NumberFormat("en-LK", {
@@ -237,6 +241,92 @@ export function getFinanceStatusLabel(status: FinanceInvoiceStatus) {
     default:
       return "Pending";
   }
+}
+
+export function findFinanceInvoiceById(
+  invoices: FinanceInvoice[],
+  invoiceId: string,
+) {
+  return invoices.find((invoice) => invoice.id === invoiceId);
+}
+
+export function createFinancePaymentFormValues(
+  invoice?: FinanceInvoice,
+): FinancePaymentFormValues {
+  return {
+    invoiceId: invoice?.id ?? "",
+    paymentAmount:
+      invoice && invoice.outstandingBalance > 0
+        ? String(invoice.outstandingBalance)
+        : "",
+    paymentMethod: defaultFinancePaymentMethod,
+    paymentDate: "2026-04-12",
+    paymentReference: "",
+    notes: "",
+  };
+}
+
+export function validateFinancePaymentForm(
+  values: FinancePaymentFormValues,
+  invoices: FinanceInvoice[],
+): FinancePaymentFormErrors {
+  const errors: FinancePaymentFormErrors = {};
+  const selectedInvoice = findFinanceInvoiceById(invoices, values.invoiceId);
+  const parsedAmount = Number(values.paymentAmount);
+
+  if (!values.invoiceId.trim()) {
+    errors.invoiceId = "Invoice selection is required.";
+  }
+
+  if (!values.paymentAmount.trim()) {
+    errors.paymentAmount = "Payment amount is required.";
+  } else if (Number.isNaN(parsedAmount) || parsedAmount <= 0) {
+    errors.paymentAmount = "Payment amount must be greater than zero.";
+  } else if (
+    selectedInvoice &&
+    parsedAmount > selectedInvoice.outstandingBalance
+  ) {
+    errors.paymentAmount =
+      "Payment amount must not exceed the outstanding balance.";
+  }
+
+  if (!values.paymentDate.trim()) {
+    errors.paymentDate = "Payment date is required.";
+  }
+
+  if (!values.paymentReference.trim()) {
+    errors.paymentReference = "Payment reference is required.";
+  }
+
+  return errors;
+}
+
+export function applyFinancePaymentToInvoice(
+  invoice: FinanceInvoice,
+  paymentAmount: number,
+): FinanceInvoice {
+  const nextPaidAmount = invoice.paidAmount + paymentAmount;
+  const nextOutstandingBalance = Math.max(
+    invoice.invoiceAmount - nextPaidAmount,
+    0,
+  );
+
+  let nextStatus: FinanceInvoiceStatus = "PENDING";
+
+  if (nextOutstandingBalance === 0) {
+    nextStatus = "PAID";
+  } else if (invoice.status === "OVERDUE") {
+    nextStatus = "OVERDUE";
+  } else if (nextPaidAmount > 0) {
+    nextStatus = "PARTIAL";
+  }
+
+  return {
+    ...invoice,
+    paidAmount: nextPaidAmount,
+    outstandingBalance: nextOutstandingBalance,
+    status: nextStatus,
+  };
 }
 
 function readString(
