@@ -3,7 +3,13 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ChevronDown, CircleUserRound, LogOut, Settings, X } from "lucide-react";
+import {
+  ChevronDown,
+  CircleUserRound,
+  LogOut,
+  Settings,
+  X,
+} from "lucide-react";
 import { useState } from "react";
 import { dashboardNavItems } from "@/components/dashboard/dashboardConfig";
 
@@ -155,7 +161,10 @@ export default function DashboardSidebar({
                   type="button"
                   className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-on-background transition hover:bg-surface-container"
                 >
-                  <CircleUserRound size={16} className="text-on-surface-variant" />
+                  <CircleUserRound
+                    size={16}
+                    className="text-on-surface-variant"
+                  />
                   Profile
                 </button>
                 <button

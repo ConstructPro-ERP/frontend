@@ -83,12 +83,18 @@ export const dashboardPageConfigs: Record<string, DashboardPageConfig> = {
   "/dashboard/users": {
     title: "User Management",
     description: "Sunday, 12 April 2026 · Good morning, Admin",
-    breadcrumbs: [{ label: "Dashboard", href: "/dashboard" }, { label: "Users" }],
+    breadcrumbs: [
+      { label: "Dashboard", href: "/dashboard" },
+      { label: "Users" },
+    ],
   },
   "/dashboard/leads": {
     title: "Leads",
     description: "Sunday, 12 April 2026 · Good morning, Admin",
-    breadcrumbs: [{ label: "Dashboard", href: "/dashboard" }, { label: "Leads" }],
+    breadcrumbs: [
+      { label: "Dashboard", href: "/dashboard" },
+      { label: "Leads" },
+    ],
   },
   "/dashboard/quotations": {
     title: "Quotations",
