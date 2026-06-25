@@ -42,6 +42,7 @@ test("finance dashboard uses the shared API client and finance endpoints", () =>
     /apiClient\.get<unknown>\("\/finance\/invoices"\)/,
   );
   assert.match(clientSource, /apiClient\.get<unknown>\("\/finance\/summary"\)/);
+  assert.match(clientSource, /apiClient\.post\("\/finance\/payments"/);
 });
 
 test("finance utilities keep preview data, filter helpers, and summary helpers", () => {
@@ -52,15 +53,34 @@ test("finance utilities keep preview data, filter helpers, and summary helpers",
   assert.match(utilsSource, /calculateFinanceSummary/);
   assert.match(utilsSource, /normalizeFinanceStatus/);
   assert.match(utilsSource, /buildOutstandingBalances/);
+  assert.match(utilsSource, /validateFinancePaymentForm/);
+  assert.match(utilsSource, /applyFinancePaymentToInvoice/);
 });
 
-test("finance table source includes invoice actions and payment placeholder copy", () => {
+test("finance table source includes invoice actions and live payment workflow", () => {
   const clientSource = read(
     "src/components/dashboard/finance/FinanceDashboardClient.tsx",
   );
 
   assert.match(clientSource, /View/);
+  assert.match(clientSource, /Record/);
   assert.match(clientSource, /PDF/);
-  assert.match(clientSource, /DDP-37 will activate this workflow/);
+  assert.match(clientSource, /Export/);
   assert.match(clientSource, /Record Payment/);
+  assert.match(clientSource, /Payment Reference/);
+  assert.match(clientSource, /Recording\.\.\./);
+});
+
+test("finance payment validation messages are present for required workflow rules", () => {
+  const utilsSource = read("src/components/dashboard/finance/financeUtils.ts");
+
+  assert.match(utilsSource, /Invoice selection is required\./);
+  assert.match(utilsSource, /Payment amount is required\./);
+  assert.match(utilsSource, /Payment amount must be greater than zero\./);
+  assert.match(
+    utilsSource,
+    /Payment amount must not exceed the outstanding balance\./,
+  );
+  assert.match(utilsSource, /Payment date is required\./);
+  assert.match(utilsSource, /Payment reference is required\./);
 });
