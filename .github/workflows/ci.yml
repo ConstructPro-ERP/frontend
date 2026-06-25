@@ -15,7 +15,7 @@ on:
 
 jobs:
   frontend-ci:
-    name: Lint, Format, Build, and Security Scan
+    name: Lint, Format, Test, Build, and Security Scan
     runs-on: ubuntu-latest
 
     steps:
@@ -36,6 +36,9 @@ jobs:
 
       - name: Run format check
         run: npm run format:check
+
+      - name: Run dashboard tests
+        run: npm run test
 
       - name: Build Next.js frontend
         run: npm run build
