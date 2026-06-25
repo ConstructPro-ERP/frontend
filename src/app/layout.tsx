@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import ReduxProvider from "@/providers/ReduxProvider";
+import AuthProvider from "@/providers/AuthProvider";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -34,7 +35,9 @@ export default function RootLayout({
       data-scroll-behavior="smooth"
     >
       <body className="min-h-full flex flex-col bg-surface-bg text-on-background">
-        <ReduxProvider>{children}</ReduxProvider>
+        <ReduxProvider>
+          <AuthProvider>{children}</AuthProvider>
+        </ReduxProvider>
       </body>
     </html>
   );

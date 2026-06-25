@@ -1,8 +1,14 @@
 // src/lib/axios.ts
 import axios, { AxiosRequestConfig } from "axios";
 import { store } from "@/store";
-import { setAccessToken, logout } from "@/store/slices/authSlice";
-import { getRefreshToken, setRefreshToken, clearTokens } from "./token";
+import { logout } from "@/store/slices/authSlice";
+import {
+  getRefreshToken,
+  setRefreshToken,
+  setAccessToken,
+  getAccessToken,
+  clearTokens,
+} from "./token";
 import { ApiError } from "./ApiError";
 import type { ApiResponse } from "@/types/api";
 
@@ -18,8 +24,7 @@ const axiosInstance = axios.create({
 
 axiosInstance.interceptors.request.use(
   (config) => {
-    const state = store.getState();
-    const token = state.auth.accessToken;
+    const token = getAccessToken();
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -88,7 +93,7 @@ axiosInstance.interceptors.response.use(
               const newRefreshToken: string | undefined =
                 refreshData.refreshToken;
 
-              store.dispatch(setAccessToken(newToken));
+              setAccessToken(newToken);
               if (newRefreshToken) {
                 setRefreshToken(newRefreshToken);
               }
