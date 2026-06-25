@@ -35,7 +35,7 @@ test("dashboard shell wires shared header and sidebar with tighter content spaci
 test("dashboard header exposes the prototype search and notification actions", () => {
   const headerSource = read("src/components/dashboard/DashboardHeader.tsx");
 
-  assert.match(headerSource, /placeholder="Search anything\.\.\."/);
+  assert.match(headerSource, /searchPlaceholder: "Search anything\.\.\."/);
   assert.match(headerSource, /aria-label="Notifications"/);
   assert.doesNotMatch(headerSource, /Open account menu/);
 });

@@ -14,6 +14,7 @@ function getPageConfig(pathname: string) {
       title: "Dashboard",
       description: "Shared ConstructPro workspace.",
       breadcrumbs: [{ label: "Dashboard", href: "/dashboard" }],
+      searchPlaceholder: "Search anything...",
     }
   );
 }
@@ -52,8 +53,8 @@ export default function DashboardHeader({
             <Search size={14} className="text-on-surface-muted" />
             <input
               type="text"
-              placeholder="Search anything..."
-              aria-label="Search anything"
+              placeholder={pageConfig.searchPlaceholder ?? "Search anything..."}
+              aria-label={pageConfig.searchPlaceholder ?? "Search anything"}
               className="w-full bg-transparent text-[13px] text-on-background outline-none placeholder:text-on-surface-muted"
             />
           </div>
