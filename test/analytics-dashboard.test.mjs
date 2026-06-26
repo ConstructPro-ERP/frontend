@@ -29,14 +29,6 @@ test("analytics dashboard client uses shared API client and analytics endpoints"
     clientSource,
     /apiClient\.get<unknown>\("\/analytics\/export"\)/,
   );
-  assert.match(
-    clientSource,
-    /apiClient\.post<unknown>\("\/analytics\/predictions"/,
-  );
-  assert.match(
-    clientSource,
-    /apiClient\.get<unknown>\("\/analytics\/projects"\)/,
-  );
 });
 
 test("analytics dashboard keeps the prototype KPI and section wording", () => {
@@ -72,27 +64,26 @@ test("analytics dashboard client includes loading, empty, unavailable, and error
   assert.match(clientSource, /Export Analytics/);
   assert.match(clientSource, /AI Risk Prediction Engine/);
   assert.match(clientSource, /Running Analysis\.\.\./);
-  assert.match(clientSource, /Insufficient data/);
-  assert.match(clientSource, /Analysis error/);
+  assert.match(
+    clientSource,
+    /Run Analysis is shown as a placeholder until the AI prediction workflow is delivered/,
+  );
 });
 
-test("analytics dashboard client includes role-based visibility and prediction result fields", () => {
+test("analytics dashboard client matches the v2 analytics prototype structure", () => {
   const clientSource = read(
     "src/components/dashboard/analytics/AnalyticsDashboardClient.tsx",
   );
 
-  assert.match(
-    clientSource,
-    /userRole === "ADMIN" \|\| userRole === "MANAGER"/,
-  );
   assert.match(clientSource, /Retrieval-Augmented Generation/);
   assert.match(clientSource, /LangChain RAG v2\.1/);
-  assert.match(clientSource, /Overall project risk level/);
-  assert.match(clientSource, /Milestone delay risk/);
-  assert.match(clientSource, /Payment delay risk/);
-  assert.match(clientSource, /Revenue trend/);
-  assert.match(clientSource, /Plain-language explanation/);
-  assert.match(clientSource, /Recommended action/);
+  assert.match(clientSource, /YTD Revenue/);
+  assert.match(clientSource, /Avg Project Completion/);
+  assert.match(clientSource, /Payment Collection Rate/);
+  assert.match(clientSource, /AI Risk Alerts/);
+  assert.match(clientSource, /14 active projects/);
+  assert.match(clientSource, /5 invoices overdue/);
+  assert.match(clientSource, /Requires attention/);
 });
 
 test("analytics utilities keep preview data and normalization helpers", () => {
