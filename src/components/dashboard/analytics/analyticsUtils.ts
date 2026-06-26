@@ -136,11 +136,7 @@ export const analyticsPreviewData: AnalyticsDashboardData = {
         confidence: 91,
         summary:
           "Client has a 28-day overdue invoice of LKR 2.2M and the project is already three weeks behind schedule.",
-        factors: [
-          "Late payment history",
-          "Schedule delay",
-          "High balance",
-        ],
+        factors: ["Late payment history", "Schedule delay", "High balance"],
         level: "HIGH",
       },
       {
@@ -186,7 +182,11 @@ function readObject(value: unknown) {
     : null;
 }
 
-function readString(source: Record<string, unknown>, keys: string[], fallback = "") {
+function readString(
+  source: Record<string, unknown>,
+  keys: string[],
+  fallback = "",
+) {
   for (const key of keys) {
     const value = source[key];
 
@@ -198,7 +198,11 @@ function readString(source: Record<string, unknown>, keys: string[], fallback = 
   return fallback;
 }
 
-function readNumber(source: Record<string, unknown>, keys: string[], fallback = 0) {
+function readNumber(
+  source: Record<string, unknown>,
+  keys: string[],
+  fallback = 0,
+) {
   for (const key of keys) {
     const value = source[key];
 
@@ -219,7 +223,9 @@ function readNumber(source: Record<string, unknown>, keys: string[], fallback = 
 }
 
 function normalizeKpiTone(value: unknown): AnalyticsKpiTone {
-  const normalized = String(value ?? "").trim().toLowerCase();
+  const normalized = String(value ?? "")
+    .trim()
+    .toLowerCase();
 
   if (
     normalized === "success" ||
@@ -233,17 +239,27 @@ function normalizeKpiTone(value: unknown): AnalyticsKpiTone {
 }
 
 function normalizeRiskLevel(value: unknown): AnalyticsRiskLevel {
-  const normalized = String(value ?? "").trim().toUpperCase();
+  const normalized = String(value ?? "")
+    .trim()
+    .toUpperCase();
 
-  if (normalized === "HIGH" || normalized === "MEDIUM" || normalized === "LOW") {
+  if (
+    normalized === "HIGH" ||
+    normalized === "MEDIUM" ||
+    normalized === "LOW"
+  ) {
     return normalized;
   }
 
   return "LOW";
 }
 
-function normalizeExportAvailability(value: unknown): AnalyticsExportAvailability {
-  const normalized = String(value ?? "").trim().toLowerCase();
+function normalizeExportAvailability(
+  value: unknown,
+): AnalyticsExportAvailability {
+  const normalized = String(value ?? "")
+    .trim()
+    .toLowerCase();
 
   if (
     normalized === "available" ||
@@ -307,7 +323,9 @@ function normalizeRevenuePoints(payload: unknown): AnalyticsRevenuePoint[] {
     })
     .filter((item): item is AnalyticsRevenuePoint => item !== null);
 
-  return points.length > 0 ? points : analyticsPreviewData.revenueSummary.points;
+  return points.length > 0
+    ? points
+    : analyticsPreviewData.revenueSummary.points;
 }
 
 function normalizeSummaryMetrics(payload: unknown): AnalyticsSummaryMetric[] {
@@ -324,7 +342,9 @@ function normalizeSummaryMetrics(payload: unknown): AnalyticsSummaryMetric[] {
       }
 
       const points = Array.isArray(record.points)
-        ? record.points.filter((value): value is number => typeof value === "number")
+        ? record.points.filter(
+            (value): value is number => typeof value === "number",
+          )
         : [];
 
       return {

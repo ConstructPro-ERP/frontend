@@ -3,7 +3,8 @@ import AnalyticsDashboardClient from "@/components/dashboard/analytics/Analytics
 
 export const metadata: Metadata = {
   title: "Analytics | ConstructPro ERP",
-  description: "Analytics dashboard for KPI summaries, revenue, payments, projects, and risks.",
+  description:
+    "Analytics dashboard for KPI summaries, revenue, payments, projects, and risks.",
 };
 
 export default function AnalyticsPage() {

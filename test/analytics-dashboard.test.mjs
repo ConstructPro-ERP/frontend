@@ -21,8 +21,14 @@ test("analytics dashboard client uses shared API client and analytics endpoints"
     "src/components/dashboard/analytics/AnalyticsDashboardClient.tsx",
   );
 
-  assert.match(clientSource, /apiClient\.get<unknown>\("\/analytics\/dashboard"\)/);
-  assert.match(clientSource, /apiClient\.get<unknown>\("\/analytics\/export"\)/);
+  assert.match(
+    clientSource,
+    /apiClient\.get<unknown>\("\/analytics\/dashboard"\)/,
+  );
+  assert.match(
+    clientSource,
+    /apiClient\.get<unknown>\("\/analytics\/export"\)/,
+  );
 });
 
 test("analytics dashboard includes required KPI and summary section copy", () => {

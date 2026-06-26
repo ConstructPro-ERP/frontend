@@ -96,7 +96,10 @@ function FeedbackBanner({ feedback }: { feedback: AnalyticsFeedback }) {
       : "border-primary/20 bg-primary-soft text-on-surface-variant";
 
   return (
-    <div aria-live="polite" className={`rounded-xl border px-4 py-3 text-sm ${classes}`}>
+    <div
+      aria-live="polite"
+      className={`rounded-xl border px-4 py-3 text-sm ${classes}`}
+    >
       {feedback.message}
     </div>
   );
@@ -115,10 +118,14 @@ function KpiCard({ card }: { card: AnalyticsKpiCard }) {
   return (
     <article className="rounded-xl border border-outline-variant bg-surface-container-lowest px-5 py-4 shadow-level-1">
       <p className="text-[11.5px] text-on-surface-muted">{card.label}</p>
-      <p className={`mt-2 font-mono text-[22px] font-bold tracking-[-0.04em] ${toneClass}`}>
+      <p
+        className={`mt-2 font-mono text-[22px] font-bold tracking-[-0.04em] ${toneClass}`}
+      >
         {card.value}
       </p>
-      <p className="mt-2 text-[11px] leading-5 text-on-surface-variant">{card.note}</p>
+      <p className="mt-2 text-[11px] leading-5 text-on-surface-variant">
+        {card.note}
+      </p>
     </article>
   );
 }
@@ -139,7 +146,9 @@ function AnalyticsCardShell({
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-outline-variant px-5 py-4">
         <div>
           <h2 className="text-[14px] font-bold text-on-background">{title}</h2>
-          <p className="mt-0.5 text-[11.5px] text-on-surface-muted">{subtitle}</p>
+          <p className="mt-0.5 text-[11.5px] text-on-surface-muted">
+            {subtitle}
+          </p>
         </div>
         {action}
       </div>
@@ -180,7 +189,10 @@ function RevenueSummary({
               point.kind === "ACTUAL" ? "bg-primary" : "bg-slate-300";
 
             return (
-              <div key={point.month} className="flex flex-1 flex-col items-center gap-2">
+              <div
+                key={point.month}
+                className="flex flex-1 flex-col items-center gap-2"
+              >
                 <div className="flex h-full w-full items-end">
                   <div
                     role="img"
@@ -211,7 +223,13 @@ function RevenueSummary({
   );
 }
 
-function Sparkline({ points, strokeClass }: { points: number[]; strokeClass: string }) {
+function Sparkline({
+  points,
+  strokeClass,
+}: {
+  points: number[];
+  strokeClass: string;
+}) {
   if (points.length === 0) {
     return null;
   }
@@ -232,7 +250,12 @@ function Sparkline({ points, strokeClass }: { points: number[]; strokeClass: str
     .join(" ");
 
   return (
-    <svg width="100%" height="32" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none">
+    <svg
+      width="100%"
+      height="32"
+      viewBox={`0 0 ${width} ${height}`}
+      preserveAspectRatio="none"
+    >
       <polyline
         points={line}
         fill="none"
@@ -245,7 +268,11 @@ function Sparkline({ points, strokeClass }: { points: number[]; strokeClass: str
   );
 }
 
-function PaymentTrendSummary({ metrics }: { metrics: AnalyticsSummaryMetric[] }) {
+function PaymentTrendSummary({
+  metrics,
+}: {
+  metrics: AnalyticsSummaryMetric[];
+}) {
   return (
     <AnalyticsCardShell
       title="Payment Trend Summary"
@@ -272,13 +299,19 @@ function PaymentTrendSummary({ metrics }: { metrics: AnalyticsSummaryMetric[] })
               className="flex items-center gap-3 border-b border-outline-variant py-3 last:border-b-0"
             >
               <div className="w-36 shrink-0">
-                <p className="text-[12.5px] font-semibold text-on-background">{metric.name}</p>
-                <p className="text-[11px] text-on-surface-muted">{metric.value}</p>
+                <p className="text-[12.5px] font-semibold text-on-background">
+                  {metric.name}
+                </p>
+                <p className="text-[11px] text-on-surface-muted">
+                  {metric.value}
+                </p>
               </div>
               <div className="flex-1">
                 <Sparkline points={metric.points} strokeClass={lineColor} />
               </div>
-              <div className={`w-16 shrink-0 text-right font-mono text-[12px] font-bold ${trendColor}`}>
+              <div
+                className={`w-16 shrink-0 text-right font-mono text-[12px] font-bold ${trendColor}`}
+              >
                 {metric.delta}
               </div>
             </div>
@@ -331,16 +364,27 @@ function RiskBadge({ level }: { level: AnalyticsRiskItem["level"] }) {
       : level === "MEDIUM"
         ? "bg-risk-medium-container text-risk-medium"
         : "bg-risk-low-container text-risk-low";
-  const label = level === "HIGH" ? "High Risk" : level === "MEDIUM" ? "Med Risk" : "Low Risk";
+  const label =
+    level === "HIGH"
+      ? "High Risk"
+      : level === "MEDIUM"
+        ? "Med Risk"
+        : "Low Risk";
 
   return (
-    <span className={`inline-flex items-center rounded-full px-3 py-1 text-[11px] font-semibold ${classes}`}>
+    <span
+      className={`inline-flex items-center rounded-full px-3 py-1 text-[11px] font-semibold ${classes}`}
+    >
       {label}
     </span>
   );
 }
 
-function RiskSummary({ data }: { data: AnalyticsDashboardData["riskSummary"] }) {
+function RiskSummary({
+  data,
+}: {
+  data: AnalyticsDashboardData["riskSummary"];
+}) {
   return (
     <AnalyticsCardShell title={data.title} subtitle={data.subtitle}>
       <div className="grid gap-4 p-5 xl:grid-cols-3">
@@ -379,7 +423,9 @@ function RiskSummary({ data }: { data: AnalyticsDashboardData["riskSummary"] }) 
                   </p>
                 </div>
                 <div className="text-right">
-                  <p className={`font-mono text-[20px] font-extrabold ${confidenceClass}`}>
+                  <p
+                    className={`font-mono text-[20px] font-extrabold ${confidenceClass}`}
+                  >
                     {item.confidence}%
                   </p>
                   <p className="text-[10px] uppercase tracking-[0.08em] text-on-surface-muted">
@@ -390,7 +436,9 @@ function RiskSummary({ data }: { data: AnalyticsDashboardData["riskSummary"] }) 
               <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-surface-container-high">
                 <div
                   className={`h-full rounded-full ${meterClass}`}
-                  style={{ width: `${Math.min(Math.max(item.confidence, 0), 100)}%` }}
+                  style={{
+                    width: `${Math.min(Math.max(item.confidence, 0), 100)}%`,
+                  }}
                 />
               </div>
               <p className="mt-4 rounded-lg border border-outline-variant bg-surface-container px-3 py-3 text-[12.5px] leading-6 text-on-surface-variant">
@@ -572,9 +620,10 @@ export default function AnalyticsDashboardClient() {
               Analytics Dashboard Overview
             </h2>
             <p className="mt-2 max-w-3xl text-sm leading-6 text-blue-100/85">
-              The approved analytics prototype includes an AI section, but AI prediction
-              run flow is out of scope for DDP-38. This banner keeps the exact dashboard
-              visual rhythm and exposes a safe placeholder for future backend work.
+              The approved analytics prototype includes an AI section, but AI
+              prediction run flow is out of scope for DDP-38. This banner keeps
+              the exact dashboard visual rhythm and exposes a safe placeholder
+              for future backend work.
             </p>
             <div className="mt-4 flex flex-wrap gap-4 text-[11.5px] text-blue-100/80">
               <span>Last summary refresh: prototype preview</span>
@@ -608,7 +657,11 @@ export default function AnalyticsDashboardClient() {
           disabled={isExporting}
           className="inline-flex items-center gap-2 rounded-lg border border-outline-variant bg-transparent px-4 py-2 text-sm font-semibold text-on-surface-variant transition hover:bg-surface-container hover:text-on-background disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {isExporting ? <RefreshCcw size={14} className="animate-spin" /> : <Download size={14} />}
+          {isExporting ? (
+            <RefreshCcw size={14} className="animate-spin" />
+          ) : (
+            <Download size={14} />
+          )}
           {isExporting ? "Exporting..." : "Export Analytics"}
         </button>
       </div>
