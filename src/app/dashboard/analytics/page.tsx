@@ -1,17 +1,12 @@
 import type { Metadata } from "next";
-import DashboardPlaceholderPage from "@/components/dashboard/DashboardPlaceholderPage";
+import AnalyticsDashboardClient from "@/components/dashboard/analytics/AnalyticsDashboardClient";
 
 export const metadata: Metadata = {
   title: "Analytics | ConstructPro ERP",
-  description: "Analytics dashboard workspace for ConstructPro.",
+  description:
+    "Analytics dashboard for KPI summaries, revenue, payments, projects, and risks.",
 };
 
 export default function AnalyticsPage() {
-  return (
-    <DashboardPlaceholderPage
-      eyebrow="Analytics"
-      title="Analytics Module Layout"
-      description="This route shares the exact same dashboard shell as Finance, keeping navigation, header behavior, page-title presentation, breadcrumbs, and responsive sidebar handling consistent across modules."
-    />
-  );
+  return <AnalyticsDashboardClient />;
 }
