@@ -1,23 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useSelector } from "react-redux";
-import { BrainCircuit, Download, RefreshCcw } from "lucide-react";
+import { Download, Play, RefreshCcw, Radar } from "lucide-react";
 import apiClient from "@/lib/axios";
 import {
-  analyticsAiPredictionPreview,
-  analyticsAiProjectPreviewOptions,
   analyticsPreviewData,
   formatAnalyticsCompactCurrency,
   isAnalyticsUnavailableError,
-  normalizeAnalyticsAiPredictionResult,
-  normalizeAnalyticsAiProjectOptions,
   normalizeAnalyticsDashboardData,
 } from "@/components/dashboard/analytics/analyticsUtils";
-import type { RootState } from "@/store";
 import type {
-  AnalyticsAiPredictionResult,
-  AnalyticsAiProjectOption,
   AnalyticsDashboardData,
   AnalyticsKpiCard,
   AnalyticsRiskItem,
@@ -35,13 +27,6 @@ type AnalyticsFeedback = {
   tone: "info" | "error";
   message: string;
 };
-
-type AnalyticsPredictionState =
-  | { kind: "idle" }
-  | { kind: "loading" }
-  | { kind: "success"; result: AnalyticsAiPredictionResult }
-  | { kind: "insufficient-data"; message: string }
-  | { kind: "error"; message: string };
 
 const analyticsOverviewCards: AnalyticsKpiCard[] = [
   {
@@ -101,19 +86,6 @@ async function loadAnalyticsData(): Promise<AnalyticsState> {
           ? error.message
           : "Analytics data could not be loaded right now.",
     };
-  }
-}
-
-async function loadAiProjectOptions() {
-  try {
-    const response = await apiClient.get<unknown>("/analytics/projects");
-    return normalizeAnalyticsAiProjectOptions(response.data);
-  } catch (error) {
-    if (isAnalyticsUnavailableError(error)) {
-      return analyticsAiProjectPreviewOptions;
-    }
-
-    return [];
   }
 }
 
@@ -509,50 +481,45 @@ function RiskSummary({
 function LoadingView() {
   return (
     <div className="space-y-5">
-      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-        {[1, 2, 3, 4, 5].map((item) => (
+      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {[1, 2, 3, 4].map((item) => (
           <div
             key={item}
             className="h-24 animate-pulse rounded-lg border border-outline-variant bg-surface-container"
           />
         ))}
       </section>
-      {[1, 2, 3].map((item) => (
+      <div className="h-48 animate-pulse rounded-xl bg-gradient-to-br from-indigo-950 via-blue-900 to-slate-950" />
+      {[1, 2].map((item) => (
         <div
           key={item}
           className="h-64 animate-pulse rounded-xl border border-outline-variant bg-surface-container"
         />
       ))}
+      <div className="grid gap-4 xl:grid-cols-3">
+        {[1, 2, 3].map((item) => (
+          <div
+            key={item}
+            className="h-56 animate-pulse rounded-xl border border-outline-variant bg-surface-container"
+          />
+        ))}
+      </div>
     </div>
   );
 }
 
-function AiPredictionPanel({
-  canRunAnalysis,
-  projects,
-  selectedProjectId,
-  predictionState,
-  isUnavailableMode,
-  onProjectChange,
+function AiPredictionBanner({
+  isRunning,
   onRunAnalysis,
 }: {
-  canRunAnalysis: boolean;
-  projects: AnalyticsAiProjectOption[];
-  selectedProjectId: string;
-  predictionState: AnalyticsPredictionState;
-  isUnavailableMode: boolean;
-  onProjectChange: (value: string) => void;
+  isRunning: boolean;
   onRunAnalysis: () => void;
 }) {
-  const selectedProject =
-    projects.find((project) => project.id === selectedProjectId) ?? null;
-  const disabled = !canRunAnalysis || predictionState.kind === "loading";
-
   return (
     <section className="overflow-hidden rounded-xl bg-gradient-to-br from-indigo-950 via-blue-900 to-slate-950 px-6 py-5 text-on-hero shadow-level-2">
       <div className="flex flex-col gap-5 lg:flex-row lg:items-center">
         <div className="flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-xl bg-indigo-400/25 text-indigo-200">
-          <BrainCircuit size={24} />
+          <Radar size={24} strokeWidth={1.75} />
         </div>
         <div className="min-w-0 flex-1">
           <h2 className="text-[17px] font-extrabold tracking-[-0.3px] text-white">
@@ -584,240 +551,38 @@ function AiPredictionPanel({
         <button
           type="button"
           onClick={onRunAnalysis}
-          disabled={disabled || !selectedProjectId}
+          disabled={isRunning}
           className="inline-flex items-center justify-center gap-2 rounded-lg border border-white/20 bg-white/10 px-[18px] py-[10px] text-[13px] font-semibold text-white transition hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {predictionState.kind === "loading" ? (
+          {isRunning ? (
             <RefreshCcw size={14} className="animate-spin" />
           ) : (
-            <BrainCircuit size={14} />
+            <Play size={14} fill="currentColor" />
           )}
-          {predictionState.kind === "loading"
-            ? "Running Analysis..."
-            : "Run Analysis"}
+          {isRunning ? "Running Analysis..." : "Run Analysis"}
         </button>
-      </div>
-
-      <div className="mt-5 grid gap-4 xl:grid-cols-[280px_minmax(0,1fr)]">
-        <div className="rounded-xl border border-white/15 bg-white/10 p-4 text-white/90">
-          <label className="block">
-            <span className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.08em] text-white/65">
-              Project for analysis
-            </span>
-            <select
-              value={selectedProjectId}
-              onChange={(event) => onProjectChange(event.target.value)}
-              className="w-full rounded-lg border border-white/15 bg-white/10 px-3 py-2.5 text-sm text-white outline-none"
-              disabled={!canRunAnalysis || projects.length === 0}
-            >
-              {projects.length === 0 ? (
-                <option value="">No projects available</option>
-              ) : (
-                projects.map((project) => (
-                  <option
-                    key={project.id}
-                    value={project.id}
-                    className="text-slate-900"
-                  >
-                    {project.name}
-                  </option>
-                ))
-              )}
-            </select>
-          </label>
-          <p className="mt-3 text-[11.5px] leading-5 text-white/65">
-            {canRunAnalysis
-              ? selectedProject
-                ? `Selected project: ${selectedProject.name}`
-                : "Select a project to begin."
-              : "AI analysis is only available to management users with permission to review risk predictions."}
-          </p>
-          <p className="mt-2 text-[11.5px] leading-5 text-white/55">
-            {isUnavailableMode
-              ? "Backend pending, preview and placeholder handling enabled."
-              : "Live API request enabled when backend is available."}
-          </p>
-        </div>
-
-        <div className="rounded-2xl bg-white p-5 text-on-background shadow-level-1">
-          {predictionState.kind === "idle" ? (
-            <div>
-              <h3 className="text-[14px] font-bold text-on-background">
-                Prediction results
-              </h3>
-              <p className="mt-2 text-sm leading-6 text-on-surface-variant">
-                Select a project and run analysis to view overall project risk
-                level, milestone delay risk, payment delay risk, revenue trend,
-                a plain-language explanation, and a recommended action.
-              </p>
-            </div>
-          ) : null}
-
-          {predictionState.kind === "loading" ? (
-            <div className="space-y-3">
-              <h3 className="text-[14px] font-bold text-on-background">
-                Prediction results
-              </h3>
-              <p className="text-sm text-on-surface-variant">
-                AI analysis is processing. Duplicate submissions are disabled
-                until this request completes.
-              </p>
-              <div className="grid gap-3 md:grid-cols-2">
-                {[1, 2, 3, 4].map((item) => (
-                  <div
-                    key={item}
-                    className="h-20 animate-pulse rounded-xl bg-surface-container"
-                  />
-                ))}
-              </div>
-            </div>
-          ) : null}
-
-          {predictionState.kind === "insufficient-data" ? (
-            <div>
-              <h3 className="text-[14px] font-bold text-on-background">
-                Insufficient data
-              </h3>
-              <p className="mt-2 text-sm leading-6 text-on-surface-variant">
-                {predictionState.message}
-              </p>
-            </div>
-          ) : null}
-
-          {predictionState.kind === "error" ? (
-            <div>
-              <h3 className="text-[14px] font-bold text-on-background">
-                Analysis error
-              </h3>
-              <p className="mt-2 text-sm leading-6 text-on-surface-variant">
-                {predictionState.message}
-              </p>
-              <p className="mt-2 text-sm leading-6 text-on-surface-variant">
-                Retry the request when the backend AI prediction API is
-                available.
-              </p>
-            </div>
-          ) : null}
-
-          {predictionState.kind === "success" ? (
-            <div className="space-y-4">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <h3 className="text-[14px] font-bold text-on-background">
-                    Prediction results
-                  </h3>
-                  <p className="mt-1 text-[11.5px] text-on-surface-muted">
-                    Summary for {selectedProject?.name ?? "selected project"}
-                  </p>
-                </div>
-                <RiskBadge
-                  level={
-                    predictionState.result.overallRiskLevel === "High"
-                      ? "HIGH"
-                      : predictionState.result.overallRiskLevel === "Medium"
-                        ? "MEDIUM"
-                        : "LOW"
-                  }
-                />
-              </div>
-              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-                <div className="rounded-xl border border-outline-variant bg-surface-container p-4">
-                  <p className="text-[11px] text-on-surface-muted">
-                    Overall project risk level
-                  </p>
-                  <p className="mt-2 text-sm font-semibold text-on-background">
-                    {predictionState.result.overallRiskLevel}
-                  </p>
-                </div>
-                <div className="rounded-xl border border-outline-variant bg-surface-container p-4">
-                  <p className="text-[11px] text-on-surface-muted">
-                    Milestone delay risk
-                  </p>
-                  <p className="mt-2 text-sm font-semibold text-on-background">
-                    {predictionState.result.milestoneDelayRisk}
-                  </p>
-                </div>
-                <div className="rounded-xl border border-outline-variant bg-surface-container p-4">
-                  <p className="text-[11px] text-on-surface-muted">
-                    Payment delay risk
-                  </p>
-                  <p className="mt-2 text-sm font-semibold text-on-background">
-                    {predictionState.result.paymentDelayRisk}
-                  </p>
-                </div>
-                <div className="rounded-xl border border-outline-variant bg-surface-container p-4">
-                  <p className="text-[11px] text-on-surface-muted">
-                    Revenue trend
-                  </p>
-                  <p className="mt-2 text-sm font-semibold text-on-background">
-                    {predictionState.result.revenueTrend}
-                  </p>
-                </div>
-              </div>
-              <div className="grid gap-3 xl:grid-cols-2">
-                <div className="rounded-xl border border-outline-variant bg-surface-container px-4 py-4">
-                  <p className="text-[11px] text-on-surface-muted">
-                    Plain-language explanation
-                  </p>
-                  <p className="mt-2 text-sm leading-6 text-on-surface-variant">
-                    {predictionState.result.explanation}
-                  </p>
-                </div>
-                <div className="rounded-xl border border-outline-variant bg-surface-container px-4 py-4">
-                  <p className="text-[11px] text-on-surface-muted">
-                    Recommended action
-                  </p>
-                  <p className="mt-2 text-sm leading-6 text-on-surface-variant">
-                    {predictionState.result.recommendedAction}
-                  </p>
-                </div>
-              </div>
-            </div>
-          ) : null}
-        </div>
       </div>
     </section>
   );
 }
 
 export default function AnalyticsDashboardClient() {
-  const userRole = useSelector(
-    (state: RootState) => state.auth.user?.role ?? null,
-  );
   const [analyticsState, setAnalyticsState] = useState<AnalyticsState>({
     kind: "loading",
   });
   const [feedback, setFeedback] = useState<AnalyticsFeedback | null>(null);
   const [isExporting, setIsExporting] = useState(false);
-  const [analysisProjects, setAnalysisProjects] = useState<
-    AnalyticsAiProjectOption[]
-  >(analyticsAiProjectPreviewOptions);
-  const [selectedProjectId, setSelectedProjectId] = useState(
-    analyticsAiProjectPreviewOptions[0]?.id ?? "",
-  );
-  const [predictionState, setPredictionState] =
-    useState<AnalyticsPredictionState>({
-      kind: "idle",
-    });
+  const [isRunningAnalysis, setIsRunningAnalysis] = useState(false);
 
   useEffect(() => {
     let active = true;
 
     const hydrateAnalyticsPage = async () => {
       setAnalyticsState({ kind: "loading" });
-      const [nextState, nextProjects] = await Promise.all([
-        loadAnalyticsData(),
-        loadAiProjectOptions(),
-      ]);
+      const nextState = await loadAnalyticsData();
 
       if (active) {
         setAnalyticsState(nextState);
-        if (nextProjects.length > 0) {
-          setAnalysisProjects(nextProjects);
-          setSelectedProjectId(
-            (currentValue) => currentValue || nextProjects[0].id,
-          );
-        }
       }
     };
 
@@ -830,17 +595,7 @@ export default function AnalyticsDashboardClient() {
 
   const retryLoad = async () => {
     setAnalyticsState({ kind: "loading" });
-    const [nextState, nextProjects] = await Promise.all([
-      loadAnalyticsData(),
-      loadAiProjectOptions(),
-    ]);
-    setAnalyticsState(nextState);
-    if (nextProjects.length > 0) {
-      setAnalysisProjects(nextProjects);
-      setSelectedProjectId(
-        (currentValue) => currentValue || nextProjects[0].id,
-      );
-    }
+    setAnalyticsState(await loadAnalyticsData());
   };
 
   const data =
@@ -893,76 +648,20 @@ export default function AnalyticsDashboardClient() {
     }
   };
 
-  const canRunAnalysis = userRole === "ADMIN" || userRole === "MANAGER";
-
   const handleRunAnalysis = async () => {
-    if (
-      !canRunAnalysis ||
-      !selectedProjectId ||
-      predictionState.kind === "loading"
-    ) {
-      return;
-    }
-
     setFeedback(null);
-    setPredictionState({ kind: "loading" });
+    setIsRunningAnalysis(true);
 
-    try {
-      const response = await apiClient.post<unknown>("/analytics/predictions", {
-        projectId: selectedProjectId,
+    // DDP-40 keeps the approved analytics design and placeholder-safe UX
+    // without introducing the out-of-scope DDP-39 result workflow.
+    window.setTimeout(() => {
+      setIsRunningAnalysis(false);
+      setFeedback({
+        tone: "info",
+        message:
+          "Run Analysis is shown as a placeholder until the AI prediction workflow is delivered. The current risk cards remain available for frontend verification.",
       });
-      const resultPayload =
-        typeof response.data === "object" &&
-        response.data !== null &&
-        "result" in (response.data as Record<string, unknown>)
-          ? (response.data as Record<string, unknown>).result
-          : response.data;
-      const statusValue =
-        typeof response.data === "object" &&
-        response.data !== null &&
-        "status" in (response.data as Record<string, unknown>)
-          ? String(
-              (response.data as Record<string, unknown>).status,
-            ).toLowerCase()
-          : "success";
-
-      if (
-        statusValue === "insufficient-data" ||
-        statusValue === "insufficient_data"
-      ) {
-        setPredictionState({
-          kind: "insufficient-data",
-          message:
-            "Additional project history is required before reliable predictions can be generated for this project.",
-        });
-        return;
-      }
-
-      setPredictionState({
-        kind: "success",
-        result: normalizeAnalyticsAiPredictionResult(resultPayload),
-      });
-    } catch (error) {
-      if (isAnalyticsUnavailableError(error)) {
-        setPredictionState({
-          kind: "success",
-          result: analyticsAiPredictionPreview,
-        });
-        setFeedback({
-          tone: "info",
-          message:
-            "AI prediction API is not available yet. Showing approved placeholder analysis results for frontend verification.",
-        });
-      } else {
-        setPredictionState({
-          kind: "error",
-          message:
-            error instanceof Error
-              ? error.message
-              : "AI analysis could not be completed right now.",
-        });
-      }
-    }
+    }, 450);
   };
 
   if (analyticsState.kind === "error") {
@@ -1008,13 +707,8 @@ export default function AnalyticsDashboardClient() {
         ))}
       </section>
 
-      <AiPredictionPanel
-        canRunAnalysis={canRunAnalysis}
-        projects={analysisProjects}
-        selectedProjectId={selectedProjectId}
-        predictionState={predictionState}
-        isUnavailableMode={analyticsState.kind === "unavailable"}
-        onProjectChange={setSelectedProjectId}
+      <AiPredictionBanner
+        isRunning={isRunningAnalysis}
         onRunAnalysis={handleRunAnalysis}
       />
 
