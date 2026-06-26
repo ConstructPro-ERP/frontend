@@ -137,12 +137,12 @@ export const dashboardPageConfigs: Record<string, DashboardPageConfig> = {
     searchPlaceholder: "Search invoices...",
   },
   "/dashboard/analytics": {
-    title: "Analytics & AI",
-    description: "Sunday, 12 April 2026 · Good morning, Admin",
+    title: "Analytics & AI Risk Prediction",
+    description: "Powered by RAG · LangChain · Last analysed 2 hours ago",
     breadcrumbs: [
       { label: "Dashboard", href: "/dashboard" },
       { label: "Analytics" },
     ],
-    searchPlaceholder: "Search anything...",
+    searchPlaceholder: "Search analytics...",
   },
 };

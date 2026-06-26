@@ -1,15 +1,23 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Download, RefreshCcw, TriangleAlert } from "lucide-react";
+import { useSelector } from "react-redux";
+import { BrainCircuit, Download, RefreshCcw } from "lucide-react";
 import apiClient from "@/lib/axios";
 import {
+  analyticsAiPredictionPreview,
+  analyticsAiProjectPreviewOptions,
   analyticsPreviewData,
   formatAnalyticsCompactCurrency,
   isAnalyticsUnavailableError,
+  normalizeAnalyticsAiPredictionResult,
+  normalizeAnalyticsAiProjectOptions,
   normalizeAnalyticsDashboardData,
 } from "@/components/dashboard/analytics/analyticsUtils";
+import type { RootState } from "@/store";
 import type {
+  AnalyticsAiPredictionResult,
+  AnalyticsAiProjectOption,
   AnalyticsDashboardData,
   AnalyticsKpiCard,
   AnalyticsRiskItem,
@@ -27,6 +35,44 @@ type AnalyticsFeedback = {
   tone: "info" | "error";
   message: string;
 };
+
+type AnalyticsPredictionState =
+  | { kind: "idle" }
+  | { kind: "loading" }
+  | { kind: "success"; result: AnalyticsAiPredictionResult }
+  | { kind: "insufficient-data"; message: string }
+  | { kind: "error"; message: string };
+
+const analyticsOverviewCards: AnalyticsKpiCard[] = [
+  {
+    id: "ytd-revenue",
+    value: "LKR 48.2M",
+    label: "YTD Revenue",
+    note: "↑ 12.4% vs last year",
+    tone: "success",
+  },
+  {
+    id: "avg-project-completion",
+    value: "68%",
+    label: "Avg Project Completion",
+    note: "14 active projects",
+    tone: "info",
+  },
+  {
+    id: "payment-collection-rate",
+    value: "87.6%",
+    label: "Payment Collection Rate",
+    note: "5 invoices overdue",
+    tone: "warning",
+  },
+  {
+    id: "ai-risk-alerts",
+    value: "3",
+    label: "AI Risk Alerts",
+    note: "Requires attention",
+    tone: "danger",
+  },
+];
 
 async function loadAnalyticsData(): Promise<AnalyticsState> {
   try {
@@ -55,6 +101,19 @@ async function loadAnalyticsData(): Promise<AnalyticsState> {
           ? error.message
           : "Analytics data could not be loaded right now.",
     };
+  }
+}
+
+async function loadAiProjectOptions() {
+  try {
+    const response = await apiClient.get<unknown>("/analytics/projects");
+    return normalizeAnalyticsAiProjectOptions(response.data);
+  } catch (error) {
+    if (isAnalyticsUnavailableError(error)) {
+      return analyticsAiProjectPreviewOptions;
+    }
+
+    return [];
   }
 }
 
@@ -109,21 +168,23 @@ function KpiCard({ card }: { card: AnalyticsKpiCard }) {
   const toneClass =
     card.tone === "success"
       ? "text-risk-low"
-      : card.tone === "warning"
-        ? "text-risk-medium"
-        : card.tone === "danger"
-          ? "text-error"
-          : "text-on-background";
+      : card.tone === "info"
+        ? "text-primary"
+        : card.tone === "warning"
+          ? "text-risk-medium"
+          : card.tone === "danger"
+            ? "text-error"
+            : "text-on-background";
 
   return (
-    <article className="rounded-xl border border-outline-variant bg-surface-container-lowest px-5 py-4 shadow-level-1">
-      <p className="text-[11.5px] text-on-surface-muted">{card.label}</p>
-      <p
-        className={`mt-2 font-mono text-[22px] font-bold tracking-[-0.04em] ${toneClass}`}
-      >
+    <article className="rounded-lg border border-outline-variant bg-surface-container-lowest px-[18px] py-[14px] shadow-level-1">
+      <p className="font-mono text-[22px] font-bold tracking-[-0.04em] text-on-background">
         {card.value}
       </p>
-      <p className="mt-2 text-[11px] leading-5 text-on-surface-variant">
+      <p className="mt-[3px] text-[11.5px] text-on-surface-muted">
+        {card.label}
+      </p>
+      <p className={`mt-[6px] text-[10.5px] font-semibold ${toneClass}`}>
         {card.note}
       </p>
     </article>
@@ -182,22 +243,24 @@ function RevenueSummary({
       }
     >
       <div className="p-5">
-        <div className="flex h-40 items-end gap-2">
+        <div className="flex h-40 items-end gap-[6px]">
           {data.points.map((point) => {
             const height = `${Math.max((point.value / maxValue) * 100, 12)}%`;
             const barClass =
-              point.kind === "ACTUAL" ? "bg-primary" : "bg-slate-300";
+              point.kind === "ACTUAL"
+                ? "bg-primary"
+                : "bg-slate-300 opacity-50";
 
             return (
               <div
                 key={point.month}
-                className="flex flex-1 flex-col items-center gap-2"
+                className="flex flex-1 flex-col items-center gap-1"
               >
                 <div className="flex h-full w-full items-end">
                   <div
                     role="img"
                     aria-label={`${point.month} revenue ${formatAnalyticsCompactCurrency(point.value * 1_000_000)}`}
-                    className={`w-full rounded-t-md ${barClass}`}
+                    className={`w-full rounded-t-[4px] ${barClass}`}
                     style={{ height }}
                   />
                 </div>
@@ -215,7 +278,7 @@ function RevenueSummary({
           </span>
           <span className="inline-flex items-center gap-2">
             <span className="h-2 w-2 rounded-full bg-slate-300" />
-            Projected
+            Projected (AI)
           </span>
         </div>
       </div>
@@ -275,10 +338,10 @@ function PaymentTrendSummary({
 }) {
   return (
     <AnalyticsCardShell
-      title="Payment Trend Summary"
+      title="Performance Metrics"
       subtitle="Key indicators vs targets"
     >
-      <div className="p-5">
+      <div className="px-5 py-4">
         {metrics.map((metric) => {
           const trendColor =
             metric.trend === "up"
@@ -287,22 +350,26 @@ function PaymentTrendSummary({
                 ? "text-error"
                 : "text-on-surface-variant";
           const lineColor =
-            metric.trend === "up"
+            metric.name === "Lead Conversion"
               ? "text-primary"
-              : metric.trend === "down"
+              : metric.name === "Avg Project Duration"
                 ? "text-risk-medium"
-                : "text-on-surface-variant";
+                : metric.name === "Payment on Time"
+                  ? "text-risk-low"
+                  : metric.name === "Cost Overruns"
+                    ? "text-error"
+                    : "text-risk-low";
 
           return (
             <div
               key={metric.id}
-              className="flex items-center gap-3 border-b border-outline-variant py-3 last:border-b-0"
+              className="flex items-center gap-3 border-b border-outline-variant py-[10px] last:border-b-0"
             >
-              <div className="w-36 shrink-0">
+              <div className="w-[140px] shrink-0">
                 <p className="text-[12.5px] font-semibold text-on-background">
                   {metric.name}
                 </p>
-                <p className="text-[11px] text-on-surface-muted">
+                <p className="font-mono text-[11px] text-on-surface-muted">
                   {metric.value}
                 </p>
               </div>
@@ -310,48 +377,13 @@ function PaymentTrendSummary({
                 <Sparkline points={metric.points} strokeClass={lineColor} />
               </div>
               <div
-                className={`w-16 shrink-0 text-right font-mono text-[12px] font-bold ${trendColor}`}
+                className={`w-[60px] shrink-0 text-right font-mono text-[12px] font-bold ${trendColor}`}
               >
                 {metric.delta}
               </div>
             </div>
           );
         })}
-      </div>
-    </AnalyticsCardShell>
-  );
-}
-
-function ProjectStatusSummary({
-  data,
-}: {
-  data: AnalyticsDashboardData["projectStatusSummary"];
-}) {
-  return (
-    <AnalyticsCardShell title={data.title} subtitle={data.subtitle}>
-      <div className="grid gap-4 p-5 lg:grid-cols-[220px_minmax(0,1fr)]">
-        <div className="rounded-xl bg-surface-container p-4">
-          <p className="text-[11px] uppercase tracking-[0.08em] text-on-surface-muted">
-            Completion Rate
-          </p>
-          <p className="mt-2 font-mono text-3xl font-bold text-on-background">
-            {data.completionRate}
-          </p>
-          <div className="mt-4 space-y-2 text-sm text-on-surface-variant">
-            <p>Active Projects: {data.activeProjects}</p>
-            <p>Delayed Projects: {data.delayedProjects}</p>
-          </div>
-        </div>
-        <div className="space-y-3">
-          {data.notes.map((note) => (
-            <div
-              key={note}
-              className="rounded-xl border border-outline-variant bg-surface-container px-4 py-3 text-sm leading-6 text-on-surface-variant"
-            >
-              {note}
-            </div>
-          ))}
-        </div>
       </div>
     </AnalyticsCardShell>
   );
@@ -373,7 +405,7 @@ function RiskBadge({ level }: { level: AnalyticsRiskItem["level"] }) {
 
   return (
     <span
-      className={`inline-flex items-center rounded-full px-3 py-1 text-[11px] font-semibold ${classes}`}
+      className={`inline-flex items-center rounded-full px-[9px] py-[3px] text-[11px] font-semibold ${classes}`}
     >
       {label}
     </span>
@@ -386,8 +418,17 @@ function RiskSummary({
   data: AnalyticsDashboardData["riskSummary"];
 }) {
   return (
-    <AnalyticsCardShell title={data.title} subtitle={data.subtitle}>
-      <div className="grid gap-4 p-5 xl:grid-cols-3">
+    <section>
+      <div className="mb-[14px] flex items-center gap-2 text-[13px] font-bold text-on-background">
+        <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-error-container text-[10px] text-error">
+          !
+        </span>
+        {data.title}
+        <span className="ml-1 text-[11px] font-normal text-on-surface-muted">
+          {data.subtitle}
+        </span>
+      </div>
+      <div className="grid gap-4 xl:grid-cols-3">
         {data.items.map((item) => {
           const meterClass =
             item.level === "HIGH"
@@ -411,14 +452,14 @@ function RiskSummary({
           return (
             <article
               key={item.id}
-              className={`rounded-xl border border-outline-variant bg-surface-container-lowest p-5 shadow-level-1 ${borderClass}`}
+              className={`flex flex-col gap-3 rounded-xl border border-outline-variant bg-surface-container-lowest px-5 py-[18px] shadow-level-1 ${borderClass}`}
             >
-              <div className="flex items-start justify-between gap-3">
+              <div className="flex items-start justify-between gap-2">
                 <div>
                   <h3 className="text-[13.5px] font-bold text-on-background">
                     {item.projectName}
                   </h3>
-                  <p className="mt-1 text-[11.5px] text-on-surface-muted">
+                  <p className="mt-0.5 text-[11.5px] text-on-surface-muted">
                     {item.category}
                   </p>
                 </div>
@@ -428,12 +469,12 @@ function RiskSummary({
                   >
                     {item.confidence}%
                   </p>
-                  <p className="text-[10px] uppercase tracking-[0.08em] text-on-surface-muted">
+                  <p className="text-[10px] uppercase tracking-[0.05em] text-on-surface-muted">
                     Confidence
                   </p>
                 </div>
               </div>
-              <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-surface-container-high">
+              <div className="mt-1 h-[5px] overflow-hidden rounded-full bg-surface-container-high">
                 <div
                   className={`h-full rounded-full ${meterClass}`}
                   style={{
@@ -441,15 +482,15 @@ function RiskSummary({
                   }}
                 />
               </div>
-              <p className="mt-4 rounded-lg border border-outline-variant bg-surface-container px-3 py-3 text-[12.5px] leading-6 text-on-surface-variant">
+              <div className="rounded-md border-l-[3px] border-l-outline bg-surface-container px-3 py-2.5 text-[12.5px] leading-6 text-on-surface-variant">
                 {item.summary}
-              </p>
-              <div className="mt-4 flex items-center justify-between gap-3">
-                <div className="flex flex-wrap gap-2">
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex flex-wrap gap-1.5">
                   {item.factors.map((factor) => (
                     <span
                       key={factor}
-                      className="rounded-full bg-surface-container px-2.5 py-1 text-[10.5px] text-on-surface-variant"
+                      className="rounded-full bg-surface px-2 py-1 text-[10.5px] text-on-surface-variant"
                     >
                       {factor}
                     </span>
@@ -461,7 +502,7 @@ function RiskSummary({
           );
         })}
       </div>
-    </AnalyticsCardShell>
+    </section>
   );
 }
 
@@ -472,11 +513,11 @@ function LoadingView() {
         {[1, 2, 3, 4, 5].map((item) => (
           <div
             key={item}
-            className="h-28 animate-pulse rounded-xl border border-outline-variant bg-surface-container"
+            className="h-24 animate-pulse rounded-lg border border-outline-variant bg-surface-container"
           />
         ))}
       </section>
-      {[1, 2, 3, 4].map((item) => (
+      {[1, 2, 3].map((item) => (
         <div
           key={item}
           className="h-64 animate-pulse rounded-xl border border-outline-variant bg-surface-container"
@@ -486,22 +527,297 @@ function LoadingView() {
   );
 }
 
+function AiPredictionPanel({
+  canRunAnalysis,
+  projects,
+  selectedProjectId,
+  predictionState,
+  isUnavailableMode,
+  onProjectChange,
+  onRunAnalysis,
+}: {
+  canRunAnalysis: boolean;
+  projects: AnalyticsAiProjectOption[];
+  selectedProjectId: string;
+  predictionState: AnalyticsPredictionState;
+  isUnavailableMode: boolean;
+  onProjectChange: (value: string) => void;
+  onRunAnalysis: () => void;
+}) {
+  const selectedProject =
+    projects.find((project) => project.id === selectedProjectId) ?? null;
+  const disabled = !canRunAnalysis || predictionState.kind === "loading";
+
+  return (
+    <section className="overflow-hidden rounded-xl bg-gradient-to-br from-indigo-950 via-blue-900 to-slate-950 px-6 py-5 text-on-hero shadow-level-2">
+      <div className="flex flex-col gap-5 lg:flex-row lg:items-center">
+        <div className="flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-xl bg-indigo-400/25 text-indigo-200">
+          <BrainCircuit size={24} />
+        </div>
+        <div className="min-w-0 flex-1">
+          <h2 className="text-[17px] font-extrabold tracking-[-0.3px] text-white">
+            AI Risk Prediction Engine
+          </h2>
+          <p className="mt-1 max-w-3xl text-[12.5px] text-blue-100/60">
+            Retrieval-Augmented Generation · Analysing historical project data,
+            payment patterns, and milestone velocity to predict risks and delays
+          </p>
+          <div className="mt-3 flex flex-wrap gap-4 text-[11.5px] text-blue-100/55">
+            <span>
+              Last run:{" "}
+              <strong className="font-semibold text-white/85">
+                2 hours ago
+              </strong>
+            </span>
+            <span>
+              Data points analysed:{" "}
+              <strong className="font-semibold text-white/85">1,247</strong>
+            </span>
+            <span>
+              Model:{" "}
+              <strong className="font-semibold text-white/85">
+                LangChain RAG v2.1
+              </strong>
+            </span>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={onRunAnalysis}
+          disabled={disabled || !selectedProjectId}
+          className="inline-flex items-center justify-center gap-2 rounded-lg border border-white/20 bg-white/10 px-[18px] py-[10px] text-[13px] font-semibold text-white transition hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {predictionState.kind === "loading" ? (
+            <RefreshCcw size={14} className="animate-spin" />
+          ) : (
+            <BrainCircuit size={14} />
+          )}
+          {predictionState.kind === "loading"
+            ? "Running Analysis..."
+            : "Run Analysis"}
+        </button>
+      </div>
+
+      <div className="mt-5 grid gap-4 xl:grid-cols-[280px_minmax(0,1fr)]">
+        <div className="rounded-xl border border-white/15 bg-white/10 p-4 text-white/90">
+          <label className="block">
+            <span className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.08em] text-white/65">
+              Project for analysis
+            </span>
+            <select
+              value={selectedProjectId}
+              onChange={(event) => onProjectChange(event.target.value)}
+              className="w-full rounded-lg border border-white/15 bg-white/10 px-3 py-2.5 text-sm text-white outline-none"
+              disabled={!canRunAnalysis || projects.length === 0}
+            >
+              {projects.length === 0 ? (
+                <option value="">No projects available</option>
+              ) : (
+                projects.map((project) => (
+                  <option
+                    key={project.id}
+                    value={project.id}
+                    className="text-slate-900"
+                  >
+                    {project.name}
+                  </option>
+                ))
+              )}
+            </select>
+          </label>
+          <p className="mt-3 text-[11.5px] leading-5 text-white/65">
+            {canRunAnalysis
+              ? selectedProject
+                ? `Selected project: ${selectedProject.name}`
+                : "Select a project to begin."
+              : "AI analysis is only available to management users with permission to review risk predictions."}
+          </p>
+          <p className="mt-2 text-[11.5px] leading-5 text-white/55">
+            {isUnavailableMode
+              ? "Backend pending, preview and placeholder handling enabled."
+              : "Live API request enabled when backend is available."}
+          </p>
+        </div>
+
+        <div className="rounded-2xl bg-white p-5 text-on-background shadow-level-1">
+          {predictionState.kind === "idle" ? (
+            <div>
+              <h3 className="text-[14px] font-bold text-on-background">
+                Prediction results
+              </h3>
+              <p className="mt-2 text-sm leading-6 text-on-surface-variant">
+                Select a project and run analysis to view overall project risk
+                level, milestone delay risk, payment delay risk, revenue trend,
+                a plain-language explanation, and a recommended action.
+              </p>
+            </div>
+          ) : null}
+
+          {predictionState.kind === "loading" ? (
+            <div className="space-y-3">
+              <h3 className="text-[14px] font-bold text-on-background">
+                Prediction results
+              </h3>
+              <p className="text-sm text-on-surface-variant">
+                AI analysis is processing. Duplicate submissions are disabled
+                until this request completes.
+              </p>
+              <div className="grid gap-3 md:grid-cols-2">
+                {[1, 2, 3, 4].map((item) => (
+                  <div
+                    key={item}
+                    className="h-20 animate-pulse rounded-xl bg-surface-container"
+                  />
+                ))}
+              </div>
+            </div>
+          ) : null}
+
+          {predictionState.kind === "insufficient-data" ? (
+            <div>
+              <h3 className="text-[14px] font-bold text-on-background">
+                Insufficient data
+              </h3>
+              <p className="mt-2 text-sm leading-6 text-on-surface-variant">
+                {predictionState.message}
+              </p>
+            </div>
+          ) : null}
+
+          {predictionState.kind === "error" ? (
+            <div>
+              <h3 className="text-[14px] font-bold text-on-background">
+                Analysis error
+              </h3>
+              <p className="mt-2 text-sm leading-6 text-on-surface-variant">
+                {predictionState.message}
+              </p>
+              <p className="mt-2 text-sm leading-6 text-on-surface-variant">
+                Retry the request when the backend AI prediction API is
+                available.
+              </p>
+            </div>
+          ) : null}
+
+          {predictionState.kind === "success" ? (
+            <div className="space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <h3 className="text-[14px] font-bold text-on-background">
+                    Prediction results
+                  </h3>
+                  <p className="mt-1 text-[11.5px] text-on-surface-muted">
+                    Summary for {selectedProject?.name ?? "selected project"}
+                  </p>
+                </div>
+                <RiskBadge
+                  level={
+                    predictionState.result.overallRiskLevel === "High"
+                      ? "HIGH"
+                      : predictionState.result.overallRiskLevel === "Medium"
+                        ? "MEDIUM"
+                        : "LOW"
+                  }
+                />
+              </div>
+              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                <div className="rounded-xl border border-outline-variant bg-surface-container p-4">
+                  <p className="text-[11px] text-on-surface-muted">
+                    Overall project risk level
+                  </p>
+                  <p className="mt-2 text-sm font-semibold text-on-background">
+                    {predictionState.result.overallRiskLevel}
+                  </p>
+                </div>
+                <div className="rounded-xl border border-outline-variant bg-surface-container p-4">
+                  <p className="text-[11px] text-on-surface-muted">
+                    Milestone delay risk
+                  </p>
+                  <p className="mt-2 text-sm font-semibold text-on-background">
+                    {predictionState.result.milestoneDelayRisk}
+                  </p>
+                </div>
+                <div className="rounded-xl border border-outline-variant bg-surface-container p-4">
+                  <p className="text-[11px] text-on-surface-muted">
+                    Payment delay risk
+                  </p>
+                  <p className="mt-2 text-sm font-semibold text-on-background">
+                    {predictionState.result.paymentDelayRisk}
+                  </p>
+                </div>
+                <div className="rounded-xl border border-outline-variant bg-surface-container p-4">
+                  <p className="text-[11px] text-on-surface-muted">
+                    Revenue trend
+                  </p>
+                  <p className="mt-2 text-sm font-semibold text-on-background">
+                    {predictionState.result.revenueTrend}
+                  </p>
+                </div>
+              </div>
+              <div className="grid gap-3 xl:grid-cols-2">
+                <div className="rounded-xl border border-outline-variant bg-surface-container px-4 py-4">
+                  <p className="text-[11px] text-on-surface-muted">
+                    Plain-language explanation
+                  </p>
+                  <p className="mt-2 text-sm leading-6 text-on-surface-variant">
+                    {predictionState.result.explanation}
+                  </p>
+                </div>
+                <div className="rounded-xl border border-outline-variant bg-surface-container px-4 py-4">
+                  <p className="text-[11px] text-on-surface-muted">
+                    Recommended action
+                  </p>
+                  <p className="mt-2 text-sm leading-6 text-on-surface-variant">
+                    {predictionState.result.recommendedAction}
+                  </p>
+                </div>
+              </div>
+            </div>
+          ) : null}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 export default function AnalyticsDashboardClient() {
+  const userRole = useSelector(
+    (state: RootState) => state.auth.user?.role ?? null,
+  );
   const [analyticsState, setAnalyticsState] = useState<AnalyticsState>({
     kind: "loading",
   });
   const [feedback, setFeedback] = useState<AnalyticsFeedback | null>(null);
   const [isExporting, setIsExporting] = useState(false);
+  const [analysisProjects, setAnalysisProjects] = useState<
+    AnalyticsAiProjectOption[]
+  >(analyticsAiProjectPreviewOptions);
+  const [selectedProjectId, setSelectedProjectId] = useState(
+    analyticsAiProjectPreviewOptions[0]?.id ?? "",
+  );
+  const [predictionState, setPredictionState] =
+    useState<AnalyticsPredictionState>({
+      kind: "idle",
+    });
 
   useEffect(() => {
     let active = true;
 
     const hydrateAnalyticsPage = async () => {
       setAnalyticsState({ kind: "loading" });
-      const nextState = await loadAnalyticsData();
+      const [nextState, nextProjects] = await Promise.all([
+        loadAnalyticsData(),
+        loadAiProjectOptions(),
+      ]);
 
       if (active) {
         setAnalyticsState(nextState);
+        if (nextProjects.length > 0) {
+          setAnalysisProjects(nextProjects);
+          setSelectedProjectId(
+            (currentValue) => currentValue || nextProjects[0].id,
+          );
+        }
       }
     };
 
@@ -514,7 +830,17 @@ export default function AnalyticsDashboardClient() {
 
   const retryLoad = async () => {
     setAnalyticsState({ kind: "loading" });
-    setAnalyticsState(await loadAnalyticsData());
+    const [nextState, nextProjects] = await Promise.all([
+      loadAnalyticsData(),
+      loadAiProjectOptions(),
+    ]);
+    setAnalyticsState(nextState);
+    if (nextProjects.length > 0) {
+      setAnalysisProjects(nextProjects);
+      setSelectedProjectId(
+        (currentValue) => currentValue || nextProjects[0].id,
+      );
+    }
   };
 
   const data =
@@ -567,6 +893,78 @@ export default function AnalyticsDashboardClient() {
     }
   };
 
+  const canRunAnalysis = userRole === "ADMIN" || userRole === "MANAGER";
+
+  const handleRunAnalysis = async () => {
+    if (
+      !canRunAnalysis ||
+      !selectedProjectId ||
+      predictionState.kind === "loading"
+    ) {
+      return;
+    }
+
+    setFeedback(null);
+    setPredictionState({ kind: "loading" });
+
+    try {
+      const response = await apiClient.post<unknown>("/analytics/predictions", {
+        projectId: selectedProjectId,
+      });
+      const resultPayload =
+        typeof response.data === "object" &&
+        response.data !== null &&
+        "result" in (response.data as Record<string, unknown>)
+          ? (response.data as Record<string, unknown>).result
+          : response.data;
+      const statusValue =
+        typeof response.data === "object" &&
+        response.data !== null &&
+        "status" in (response.data as Record<string, unknown>)
+          ? String(
+              (response.data as Record<string, unknown>).status,
+            ).toLowerCase()
+          : "success";
+
+      if (
+        statusValue === "insufficient-data" ||
+        statusValue === "insufficient_data"
+      ) {
+        setPredictionState({
+          kind: "insufficient-data",
+          message:
+            "Additional project history is required before reliable predictions can be generated for this project.",
+        });
+        return;
+      }
+
+      setPredictionState({
+        kind: "success",
+        result: normalizeAnalyticsAiPredictionResult(resultPayload),
+      });
+    } catch (error) {
+      if (isAnalyticsUnavailableError(error)) {
+        setPredictionState({
+          kind: "success",
+          result: analyticsAiPredictionPreview,
+        });
+        setFeedback({
+          tone: "info",
+          message:
+            "AI prediction API is not available yet. Showing approved placeholder analysis results for frontend verification.",
+        });
+      } else {
+        setPredictionState({
+          kind: "error",
+          message:
+            error instanceof Error
+              ? error.message
+              : "AI analysis could not be completed right now.",
+        });
+      }
+    }
+  };
+
   if (analyticsState.kind === "error") {
     return (
       <AnalyticsStateCard
@@ -604,50 +1002,27 @@ export default function AnalyticsDashboardClient() {
       ) : null}
       {feedback ? <FeedbackBanner feedback={feedback} /> : null}
 
-      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-        {data.kpis.map((card) => (
+      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {analyticsOverviewCards.map((card) => (
           <KpiCard key={card.id} card={card} />
         ))}
       </section>
 
-      <section className="overflow-hidden rounded-[24px] bg-gradient-to-br from-blue-950 via-blue-800 to-slate-950 px-6 py-6 text-on-hero shadow-level-2">
-        <div className="flex flex-col gap-6 lg:flex-row lg:items-center">
-          <div className="flex h-13 w-13 shrink-0 items-center justify-center rounded-2xl bg-white/10 text-blue-200">
-            <TriangleAlert size={24} />
-          </div>
-          <div className="min-w-0 flex-1">
-            <h2 className="text-xl font-extrabold tracking-tight text-white">
-              Analytics Dashboard Overview
-            </h2>
-            <p className="mt-2 max-w-3xl text-sm leading-6 text-blue-100/85">
-              The approved analytics prototype includes an AI section, but AI
-              prediction run flow is out of scope for DDP-38. This banner keeps
-              the exact dashboard visual rhythm and exposes a safe placeholder
-              for future backend work.
-            </p>
-            <div className="mt-4 flex flex-wrap gap-4 text-[11.5px] text-blue-100/80">
-              <span>Last summary refresh: prototype preview</span>
-              <span>Revenue + payment + project + risk sections available</span>
-              <span>AI action reserved for DDP-39</span>
-            </div>
-          </div>
-          <button
-            type="button"
-            disabled
-            className="inline-flex items-center justify-center rounded-lg border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-white/80 opacity-80"
-            aria-disabled="true"
-          >
-            Run Analysis Placeholder
-          </button>
-        </div>
-      </section>
+      <AiPredictionPanel
+        canRunAnalysis={canRunAnalysis}
+        projects={analysisProjects}
+        selectedProjectId={selectedProjectId}
+        predictionState={predictionState}
+        isUnavailableMode={analyticsState.kind === "unavailable"}
+        onProjectChange={setSelectedProjectId}
+        onRunAnalysis={handleRunAnalysis}
+      />
 
       <section className="grid gap-5 xl:grid-cols-2">
         <RevenueSummary data={data.revenueSummary} onExport={handleExport} />
         <PaymentTrendSummary metrics={data.paymentTrendSummary.metrics} />
       </section>
 
-      <ProjectStatusSummary data={data.projectStatusSummary} />
       <RiskSummary data={data.riskSummary} />
 
       <div className="flex justify-end">
