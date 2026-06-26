@@ -1,4 +1,9 @@
-export type AnalyticsKpiTone = "default" | "success" | "warning" | "danger";
+export type AnalyticsKpiTone =
+  | "default"
+  | "success"
+  | "warning"
+  | "danger"
+  | "info";
 
 export type AnalyticsRiskLevel = "HIGH" | "MEDIUM" | "LOW";
 
@@ -67,4 +72,19 @@ export type AnalyticsDashboardData = {
     items: AnalyticsRiskItem[];
   };
   exportAvailability: AnalyticsExportAvailability;
+};
+
+export type AnalyticsAiProjectOption = {
+  id: string;
+  name: string;
+  status: string;
+};
+
+export type AnalyticsAiPredictionResult = {
+  overallRiskLevel: "High" | "Medium" | "Low";
+  milestoneDelayRisk: string;
+  paymentDelayRisk: string;
+  revenueTrend: string;
+  explanation: string;
+  recommendedAction: string;
 };

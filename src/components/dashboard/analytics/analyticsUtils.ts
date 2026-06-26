@@ -1,5 +1,7 @@
 import { ApiError } from "@/lib/ApiError";
 import type {
+  AnalyticsAiPredictionResult,
+  AnalyticsAiProjectOption,
   AnalyticsDashboardData,
   AnalyticsExportAvailability,
   AnalyticsKpiCard,
@@ -49,7 +51,7 @@ export const analyticsPreviewData: AnalyticsDashboardData = {
     },
   ],
   revenueSummary: {
-    title: "Revenue Summary",
+    title: "Revenue Trend - 2026",
     subtitle: "Monthly revenue in LKR millions",
     points: [
       { month: "Jan", value: 6.2, kind: "ACTUAL" },
@@ -67,8 +69,8 @@ export const analyticsPreviewData: AnalyticsDashboardData = {
     ],
   },
   paymentTrendSummary: {
-    title: "Payment Trend Summary",
-    subtitle: "Key indicators aligned to the approved analytics prototype",
+    title: "Performance Metrics",
+    subtitle: "Key indicators vs targets",
     metrics: [
       {
         id: "lead-conversion",
@@ -125,7 +127,7 @@ export const analyticsPreviewData: AnalyticsDashboardData = {
     ],
   },
   riskSummary: {
-    title: "Risk Summary",
+    title: "AI Risk Predictions",
     subtitle: "3 issues detected with high confidence",
     totalAlerts: 3,
     items: [
@@ -135,7 +137,7 @@ export const analyticsPreviewData: AnalyticsDashboardData = {
         category: "Payment Delay Risk",
         confidence: 91,
         summary:
-          "Client has a 28-day overdue invoice of LKR 2.2M and the project is already three weeks behind schedule.",
+          "Client has a 28-day overdue invoice of LKR 2.2M. Historical pattern shows 2 previous late payments on this account. Project is also 3 weeks behind schedule, increasing financial stress indicators.",
         factors: ["Late payment history", "Schedule delay", "High balance"],
         level: "HIGH",
       },
@@ -145,7 +147,7 @@ export const analyticsPreviewData: AnalyticsDashboardData = {
         category: "Schedule Overrun Risk",
         confidence: 74,
         summary:
-          "Milestone 3 is progressing slower than planned, making a four to six week overrun likely if the current pace continues.",
+          "Milestone 3 (Upper Structure) is progressing 12% slower than planned velocity. Based on similar commercial projects, a 4-6 week overrun is likely if current pace continues through May.",
         factors: ["Slow milestone pace", "Commercial complexity"],
         level: "MEDIUM",
       },
@@ -155,13 +157,45 @@ export const analyticsPreviewData: AnalyticsDashboardData = {
         category: "Budget Variance Risk",
         confidence: 52,
         summary:
-          "Material costs in similar regional projects have increased, so procurement should be monitored closely in this early stage.",
+          "Material costs in similar Kandy region projects have increased 8-12% over the past quarter. Early-stage projects are more vulnerable to inflation. Monitor procurement closely.",
         factors: ["Material cost trend", "Early stage"],
         level: "LOW",
       },
     ],
   },
   exportAvailability: "pending",
+};
+
+export const analyticsAiProjectPreviewOptions: AnalyticsAiProjectOption[] = [
+  {
+    id: "project-sunset-residency",
+    name: "Sunset Residency - Negombo",
+    status: "Delayed",
+  },
+  {
+    id: "project-blue-horizon",
+    name: "Blue Horizon - Galle",
+    status: "In Progress",
+  },
+  {
+    id: "project-kandy-heights",
+    name: "Kandy Heights - Phase II",
+    status: "Planning",
+  },
+];
+
+export const analyticsAiPredictionPreview: AnalyticsAiPredictionResult = {
+  overallRiskLevel: "High",
+  milestoneDelayRisk:
+    "74% risk of milestone slippage in the next 4 to 6 weeks.",
+  paymentDelayRisk:
+    "91% likelihood of delayed payment on the next major invoice.",
+  revenueTrend:
+    "Revenue is likely to soften next month unless overdue collections recover.",
+  explanation:
+    "Historical late payments, slower milestone velocity, and recent cost pressure are combining to increase delivery and cash-flow risk on the selected project.",
+  recommendedAction:
+    "Escalate client follow-up this week, re-baseline the next milestone plan, and review procurement commitments before approving the next spend window.",
 };
 
 export function formatAnalyticsCompactCurrency(value: number) {
@@ -230,7 +264,8 @@ function normalizeKpiTone(value: unknown): AnalyticsKpiTone {
   if (
     normalized === "success" ||
     normalized === "warning" ||
-    normalized === "danger"
+    normalized === "danger" ||
+    normalized === "info"
   ) {
     return normalized;
   }
@@ -347,17 +382,14 @@ function normalizeSummaryMetrics(payload: unknown): AnalyticsSummaryMetric[] {
           )
         : [];
 
+      const trend = readString(record, ["trend"], "neutral").toLowerCase();
+
       return {
         id: readString(record, ["id"], `metric-${index}`),
         name: readString(record, ["name", "label"], "Metric"),
         value: readString(record, ["value"], ""),
         delta: readString(record, ["delta", "change"], ""),
-        trend:
-          readString(record, ["trend"], "neutral").toLowerCase() === "up"
-            ? "up"
-            : readString(record, ["trend"], "neutral").toLowerCase() === "down"
-              ? "down"
-              : "neutral",
+        trend: trend === "up" ? "up" : trend === "down" ? "down" : "neutral",
         points: points.length > 0 ? points : [24, 18, 12, 10, 6],
       } satisfies AnalyticsSummaryMetric;
     })
@@ -514,4 +546,97 @@ export function isAnalyticsUnavailableError(error: unknown) {
     error.statusCode === 501 ||
     error.statusCode === 503
   );
+}
+
+export function normalizeAnalyticsAiProjectOptions(
+  payload: unknown,
+): AnalyticsAiProjectOption[] {
+  const records = Array.isArray(payload)
+    ? payload
+    : typeof payload === "object" && payload !== null
+      ? ((payload as Record<string, unknown>).items ??
+        (payload as Record<string, unknown>).projects ??
+        (payload as Record<string, unknown>).results ??
+        [])
+      : [];
+
+  if (!Array.isArray(records)) {
+    return analyticsAiProjectPreviewOptions;
+  }
+
+  const projects = records
+    .map((entry, index) => {
+      const record = readObject(entry);
+
+      if (!record) {
+        return null;
+      }
+
+      return {
+        id: readString(
+          record,
+          ["id", "projectId", "project_id"],
+          `project-${index}`,
+        ),
+        name: readString(
+          record,
+          ["name", "projectName", "project_name", "title"],
+          "Unnamed project",
+        ),
+        status: readString(record, ["status"], "Active"),
+      } satisfies AnalyticsAiProjectOption;
+    })
+    .filter((item): item is AnalyticsAiProjectOption => item !== null);
+
+  return projects.length > 0 ? projects : analyticsAiProjectPreviewOptions;
+}
+
+export function normalizeAnalyticsAiPredictionResult(
+  payload: unknown,
+): AnalyticsAiPredictionResult {
+  const record = readObject(payload);
+
+  if (!record) {
+    return analyticsAiPredictionPreview;
+  }
+
+  const overallRiskValue = readString(
+    record,
+    ["overallRiskLevel", "overall_risk_level", "overallRisk", "riskLevel"],
+    analyticsAiPredictionPreview.overallRiskLevel,
+  ).toLowerCase();
+
+  return {
+    overallRiskLevel:
+      overallRiskValue === "high"
+        ? "High"
+        : overallRiskValue === "medium"
+          ? "Medium"
+          : "Low",
+    milestoneDelayRisk: readString(
+      record,
+      ["milestoneDelayRisk", "milestone_delay_risk", "milestoneRisk"],
+      analyticsAiPredictionPreview.milestoneDelayRisk,
+    ),
+    paymentDelayRisk: readString(
+      record,
+      ["paymentDelayRisk", "payment_delay_risk", "paymentRisk"],
+      analyticsAiPredictionPreview.paymentDelayRisk,
+    ),
+    revenueTrend: readString(
+      record,
+      ["revenueTrend", "revenue_trend"],
+      analyticsAiPredictionPreview.revenueTrend,
+    ),
+    explanation: readString(
+      record,
+      ["explanation", "summary", "plainLanguageExplanation"],
+      analyticsAiPredictionPreview.explanation,
+    ),
+    recommendedAction: readString(
+      record,
+      ["recommendedAction", "recommended_action", "nextAction"],
+      analyticsAiPredictionPreview.recommendedAction,
+    ),
+  };
 }
