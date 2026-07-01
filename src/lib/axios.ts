@@ -138,48 +138,43 @@ axiosInstance.interceptors.response.use(
 );
 
 const apiClient = {
-  get: <T>(
+  get: async <T>(
     url: string,
     config?: AxiosRequestConfig,
   ): Promise<ApiResponse<T>> => {
-    return axiosInstance
-      .get<ApiResponse<T>>(url, config)
-      .then((res) => res.data);
+    const res = await axiosInstance.get<ApiResponse<T>>(url, config);
+    return res.data;
   },
-  post: <T>(
+  post: async <T>(
     url: string,
     data?: unknown,
     config?: AxiosRequestConfig,
   ): Promise<ApiResponse<T>> => {
-    return axiosInstance
-      .post<ApiResponse<T>>(url, data, config)
-      .then((res) => res.data);
+    const res = await axiosInstance.post<ApiResponse<T>>(url, data, config);
+    return res.data;
   },
-  patch: <T>(
+  patch: async <T>(
     url: string,
     data?: unknown,
     config?: AxiosRequestConfig,
   ): Promise<ApiResponse<T>> => {
-    return axiosInstance
-      .patch<ApiResponse<T>>(url, data, config)
-      .then((res) => res.data);
+    const res = await axiosInstance.patch<ApiResponse<T>>(url, data, config);
+    return res.data;
   },
-  put: <T>(
+  put: async <T>(
     url: string,
     data?: unknown,
     config?: AxiosRequestConfig,
   ): Promise<ApiResponse<T>> => {
-    return axiosInstance
-      .put<ApiResponse<T>>(url, data, config)
-      .then((res) => res.data);
+    const res = await axiosInstance.put<ApiResponse<T>>(url, data, config);
+    return res.data;
   },
-  del: <T>(
+  del: async <T>(
     url: string,
     config?: AxiosRequestConfig,
   ): Promise<ApiResponse<T>> => {
-    return axiosInstance
-      .delete<ApiResponse<T>>(url, config)
-      .then((res) => res.data);
+    const res = await axiosInstance.delete<ApiResponse<T>>(url, config);
+    return res.data;
   },
 };
 
