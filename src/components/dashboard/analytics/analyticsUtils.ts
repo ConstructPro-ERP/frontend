@@ -54,18 +54,18 @@ export const analyticsPreviewData: AnalyticsDashboardData = {
     title: "Revenue Trend - 2026",
     subtitle: "Monthly revenue in LKR millions",
     points: [
-      { month: "Jan", value: 6.2, kind: "ACTUAL" },
-      { month: "Feb", value: 7.6, kind: "ACTUAL" },
-      { month: "Mar", value: 5.3, kind: "ACTUAL" },
-      { month: "Apr", value: 10.1, kind: "ACTUAL" },
-      { month: "May", value: 7, kind: "PROJECTED" },
-      { month: "Jun", value: 7.5, kind: "PROJECTED" },
-      { month: "Jul", value: 8, kind: "PROJECTED" },
-      { month: "Aug", value: 6.5, kind: "PROJECTED" },
-      { month: "Sep", value: 5.5, kind: "PROJECTED" },
-      { month: "Oct", value: 8.5, kind: "PROJECTED" },
-      { month: "Nov", value: 9, kind: "PROJECTED" },
-      { month: "Dec", value: 10, kind: "PROJECTED" },
+      { month: "Jan", value: 6_200_000, kind: "ACTUAL" },
+      { month: "Feb", value: 7_600_000, kind: "ACTUAL" },
+      { month: "Mar", value: 5_300_000, kind: "ACTUAL" },
+      { month: "Apr", value: 10_100_000, kind: "ACTUAL" },
+      { month: "May", value: 7_000_000, kind: "PROJECTED" },
+      { month: "Jun", value: 7_500_000, kind: "PROJECTED" },
+      { month: "Jul", value: 8_000_000, kind: "PROJECTED" },
+      { month: "Aug", value: 6_500_000, kind: "PROJECTED" },
+      { month: "Sep", value: 5_500_000, kind: "PROJECTED" },
+      { month: "Oct", value: 8_500_000, kind: "PROJECTED" },
+      { month: "Nov", value: 9_000_000, kind: "PROJECTED" },
+      { month: "Dec", value: 10_000_000, kind: "PROJECTED" },
     ],
   },
   paymentTrendSummary: {
@@ -437,6 +437,230 @@ function normalizeRiskItems(payload: unknown): AnalyticsRiskItem[] {
   return items.length > 0 ? items : analyticsPreviewData.riskSummary.items;
 }
 
+function percentageTrend(value: number) {
+  if (value >= 70) {
+    return "up" as const;
+  }
+
+  if (value <= 30) {
+    return "down" as const;
+  }
+
+  return "neutral" as const;
+}
+
+function buildMetricPoints(value: number): number[] {
+  const clamped = Math.max(value, 0);
+  return [
+    Math.max(clamped * 0.45, 1),
+    Math.max(clamped * 0.62, 1),
+    Math.max(clamped * 0.75, 1),
+    Math.max(clamped * 0.88, 1),
+    Math.max(clamped, 1),
+  ].map((point) => Math.round(point * 100) / 100);
+}
+
+function buildDashboardDataFromSummary(
+  root: Record<string, unknown>,
+): AnalyticsDashboardData {
+  const revenue = readObject(root.revenue) ?? {};
+  const projects = readObject(root.projects) ?? {};
+  const invoices = readObject(root.invoices) ?? {};
+  const sales = readObject(root.sales) ?? {};
+
+  const totalRevenue = readNumber(revenue, ["totalRevenue"], 0);
+  const paidAmount = readNumber(revenue, ["paidAmount"], 0);
+  const outstandingBalance = readNumber(revenue, ["outstandingBalance"], 0);
+  const activeProjectCount = readNumber(
+    projects,
+    ["activeProjectCount"],
+    analyticsPreviewData.projectStatusSummary.activeProjects,
+  );
+  const overdueProjectCount = readNumber(
+    projects,
+    ["overdueProjectCount"],
+    analyticsPreviewData.projectStatusSummary.delayedProjects,
+  );
+  const completionRateValue = readNumber(projects, ["completionRate"], 0);
+  const totalLeads = readNumber(sales, ["totalLeads"], 0);
+  const convertedLeads = readNumber(sales, ["convertedLeads"], 0);
+  const leadConversionRate = readNumber(sales, ["leadConversionRate"], 0);
+  const quotationApprovalCount = readNumber(
+    sales,
+    ["quotationApprovalCount"],
+    0,
+  );
+  const convertedQuotationCount = readNumber(
+    sales,
+    ["convertedQuotationCount"],
+    0,
+  );
+  const overdueInvoiceCount = readNumber(invoices, ["overdueCount"], 0);
+  const paidInvoiceCount = readNumber(invoices, ["paidCount"], 0);
+  const totalInvoiceCount = readNumber(invoices, ["totalInvoices"], 0);
+  const collectionRate =
+    totalRevenue <= 0 ? 0 : Math.round((paidAmount / totalRevenue) * 1000) / 10;
+
+  return {
+    kpis: [
+      {
+        id: "active-projects",
+        label: "Active Projects",
+        value: String(activeProjectCount),
+        note: `${completionRateValue.toFixed(1)}% completion rate`,
+        tone: "success",
+      },
+      {
+        id: "delayed-projects",
+        label: "Delayed Projects",
+        value: String(overdueProjectCount),
+        note: "Projects past target end date",
+        tone: overdueProjectCount > 0 ? "warning" : "success",
+      },
+      {
+        id: "revenue-period",
+        label: "Revenue This Period",
+        value: formatAnalyticsCompactCurrency(totalRevenue),
+        note: `${formatAnalyticsCompactCurrency(paidAmount)} collected`,
+        tone: "default",
+      },
+      {
+        id: "outstanding-payments",
+        label: "Outstanding Payments",
+        value: formatAnalyticsCompactCurrency(outstandingBalance),
+        note: `${overdueInvoiceCount} overdue invoices`,
+        tone: outstandingBalance > 0 ? "warning" : "success",
+      },
+      {
+        id: "high-risk-projects",
+        label: "High-Risk Projects",
+        value: String(overdueProjectCount + overdueInvoiceCount),
+        note: "Live finance and delivery alerts",
+        tone:
+          overdueProjectCount + overdueInvoiceCount > 0 ? "danger" : "success",
+      },
+    ],
+    revenueSummary: {
+      title: "Revenue Snapshot",
+      subtitle: "Current KPI totals for the selected reporting period",
+      points: [
+        { month: "Revenue", value: totalRevenue, kind: "ACTUAL" },
+        { month: "Paid", value: paidAmount, kind: "ACTUAL" },
+        { month: "Open", value: outstandingBalance, kind: "ACTUAL" },
+      ],
+    },
+    paymentTrendSummary: {
+      title: "Performance Metrics",
+      subtitle: "Live KPI ratios from analytics-service",
+      metrics: [
+        {
+          id: "lead-conversion",
+          name: "Lead Conversion",
+          value: `${convertedLeads} / ${totalLeads} leads`,
+          delta: `${leadConversionRate.toFixed(1)}%`,
+          trend: percentageTrend(leadConversionRate),
+          points: buildMetricPoints(leadConversionRate),
+        },
+        {
+          id: "project-completion",
+          name: "Project Completion",
+          value: `${completionRateValue.toFixed(1)}%`,
+          delta: `${activeProjectCount} active`,
+          trend: percentageTrend(completionRateValue),
+          points: buildMetricPoints(completionRateValue),
+        },
+        {
+          id: "invoice-collection",
+          name: "Invoice Collection",
+          value: `${collectionRate.toFixed(1)}%`,
+          delta: `${paidInvoiceCount} paid`,
+          trend: percentageTrend(collectionRate),
+          points: buildMetricPoints(collectionRate),
+        },
+        {
+          id: "quotation-approvals",
+          name: "Quotation Approvals",
+          value: String(quotationApprovalCount),
+          delta: `${convertedQuotationCount} converted`,
+          trend: quotationApprovalCount > 0 ? "up" : "neutral",
+          points: buildMetricPoints(quotationApprovalCount || 1),
+        },
+        {
+          id: "open-invoices",
+          name: "Open Invoices",
+          value: String(Math.max(totalInvoiceCount - paidInvoiceCount, 0)),
+          delta: `${overdueInvoiceCount} overdue`,
+          trend: overdueInvoiceCount > 0 ? "down" : "neutral",
+          points: buildMetricPoints(
+            Math.max(totalInvoiceCount - paidInvoiceCount, 1),
+          ),
+        },
+      ],
+    },
+    projectStatusSummary: {
+      title: "Project Status Summary",
+      subtitle: "Execution health across active delivery work",
+      activeProjects: activeProjectCount,
+      delayedProjects: overdueProjectCount,
+      completionRate: `${completionRateValue.toFixed(1)}%`,
+      notes: [
+        `${activeProjectCount} projects are active in the current reporting window.`,
+        `${overdueProjectCount} projects are running past their planned end date.`,
+        `${overdueInvoiceCount} overdue invoices are contributing to current risk visibility.`,
+      ],
+    },
+    riskSummary: {
+      title: "AI Risk Predictions",
+      subtitle: "Waiting for a live analysis run",
+      totalAlerts: overdueInvoiceCount,
+      items: analyticsPreviewData.riskSummary.items,
+    },
+    exportAvailability: "unavailable",
+  };
+}
+
+export function normalizeAnalyticsRiskItemsFromOverdueReport(
+  payload: unknown,
+): AnalyticsRiskItem[] {
+  const root = readObject(payload);
+  const records = Array.isArray(root?.items) ? root.items : [];
+
+  const items = records
+    .map((entry, index) => {
+      const record = readObject(entry);
+
+      if (!record) {
+        return null;
+      }
+
+      const outstandingAmount = readNumber(record, ["outstandingAmount"], 0);
+      const daysOverdue = readNumber(record, ["daysOverdue"], 0);
+      const level: AnalyticsRiskLevel =
+        daysOverdue >= 30 || outstandingAmount >= 1_000_000
+          ? "HIGH"
+          : daysOverdue >= 14 || outstandingAmount >= 250_000
+            ? "MEDIUM"
+            : "LOW";
+
+      return {
+        id: readString(record, ["invoiceId", "id"], `risk-${index}`),
+        projectName: readString(record, ["projectName"], "Unnamed project"),
+        category: "Overdue Invoice Risk",
+        confidence: Math.min(55 + daysOverdue, 98),
+        summary: `${readString(record, ["customerName"], "Client")} has an overdue invoice of ${formatAnalyticsCompactCurrency(outstandingAmount)}${daysOverdue > 0 ? ` that is ${daysOverdue} days late` : ""}.`,
+        factors: [
+          `${daysOverdue} days overdue`,
+          formatAnalyticsCompactCurrency(outstandingAmount),
+          readString(record, ["invoiceNumber"], "Invoice"),
+        ],
+        level,
+      } satisfies AnalyticsRiskItem;
+    })
+    .filter((item): item is AnalyticsRiskItem => item !== null);
+
+  return items.length > 0 ? items : analyticsPreviewData.riskSummary.items;
+}
+
 export function normalizeAnalyticsDashboardData(
   payload: unknown,
 ): AnalyticsDashboardData {
@@ -444,6 +668,10 @@ export function normalizeAnalyticsDashboardData(
 
   if (!root) {
     return analyticsPreviewData;
+  }
+
+  if (root.revenue && root.projects && root.invoices && root.sales) {
+    return buildDashboardDataFromSummary(root);
   }
 
   const revenueSummary = readObject(root.revenueSummary);
@@ -602,7 +830,13 @@ export function normalizeAnalyticsAiPredictionResult(
 
   const overallRiskValue = readString(
     record,
-    ["overallRiskLevel", "overall_risk_level", "overallRisk", "riskLevel"],
+    [
+      "overallRiskLevel",
+      "overall_risk_level",
+      "overallRisk",
+      "riskLevel",
+      "projectRiskLevel",
+    ],
     analyticsAiPredictionPreview.overallRiskLevel,
   ).toLowerCase();
 

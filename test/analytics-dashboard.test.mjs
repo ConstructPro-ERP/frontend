@@ -23,11 +23,19 @@ test("analytics dashboard client uses shared API client and analytics endpoints"
 
   assert.match(
     clientSource,
-    /apiClient\.get<unknown>\("\/analytics\/dashboard"\)/,
+    /apiClient\.get<unknown>\("\/analytics\/dashboard\/summary"/,
   );
   assert.match(
     clientSource,
-    /apiClient\.get<unknown>\("\/analytics\/export"\)/,
+    /apiClient\.get<unknown>\("\/analytics\/reports\/overdue-invoices"/,
+  );
+  assert.match(
+    clientSource,
+    /apiClient\.get<unknown>\("\/analytics\/reports\/project-completion"/,
+  );
+  assert.match(
+    clientSource,
+    /apiClient\.get<unknown>\(\s*`\/ai-forecasting\/projects\/\$\{effectiveSelectedProjectId\}\/risk`/,
   );
 });
 
@@ -66,24 +74,24 @@ test("analytics dashboard client includes loading, empty, unavailable, and error
   assert.match(clientSource, /Running Analysis\.\.\./);
   assert.match(
     clientSource,
-    /Run Analysis is shown as a placeholder until the AI prediction workflow is delivered/,
+    /AI forecasting service is not available right now/,
   );
 });
 
-test("analytics dashboard client matches the v2 analytics prototype structure", () => {
+test("analytics dashboard client matches the live microservice-backed workflow", () => {
   const clientSource = read(
     "src/components/dashboard/analytics/AnalyticsDashboardClient.tsx",
   );
 
   assert.match(clientSource, /Retrieval-Augmented Generation/);
   assert.match(clientSource, /LangChain RAG v2\.1/);
-  assert.match(clientSource, /YTD Revenue/);
-  assert.match(clientSource, /Avg Project Completion/);
-  assert.match(clientSource, /Payment Collection Rate/);
-  assert.match(clientSource, /AI Risk Alerts/);
-  assert.match(clientSource, /14 active projects/);
-  assert.match(clientSource, /5 invoices overdue/);
-  assert.match(clientSource, /Requires attention/);
+  assert.match(
+    clientSource,
+    /Live overdue invoice alerts from finance-service/,
+  );
+  assert.match(clientSource, /AI Forecast Prediction/);
+  assert.match(clientSource, /Latest live AI run for/);
+  assert.match(clientSource, /Project options:/);
 });
 
 test("analytics utilities keep preview data and normalization helpers", () => {
@@ -93,6 +101,7 @@ test("analytics utilities keep preview data and normalization helpers", () => {
 
   assert.match(utilsSource, /analyticsPreviewData/);
   assert.match(utilsSource, /normalizeAnalyticsDashboardData/);
+  assert.match(utilsSource, /normalizeAnalyticsRiskItemsFromOverdueReport/);
   assert.match(utilsSource, /normalizeKpis/);
   assert.match(utilsSource, /normalizeRevenuePoints/);
   assert.match(utilsSource, /normalizeSummaryMetrics/);
