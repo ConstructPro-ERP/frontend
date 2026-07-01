@@ -12,53 +12,10 @@ import {
 import { ApiError } from "./ApiError";
 import type { ApiResponse } from "@/types/api";
 
-const GATEWAY_URL =
-  process.env.NEXT_PUBLIC_API_GATEWAY_URL ?? "http://localhost:4000";
-const INVOICE_SERVICE_URL =
-  process.env.NEXT_PUBLIC_INVOICE_SERVICE_URL ?? "http://localhost:4010";
-const ANALYTICS_SERVICE_URL =
-  process.env.NEXT_PUBLIC_ANALYTICS_SERVICE_URL ?? "http://localhost:4011";
-const AI_SERVICE_URL =
-  process.env.NEXT_PUBLIC_AI_SERVICE_URL ?? "http://localhost:4012";
-const PAYMENT_SERVICE_URL =
-  process.env.NEXT_PUBLIC_PAYMENT_SERVICE_URL ?? "http://localhost:3005";
-
-function isAbsoluteUrl(url: string) {
-  return /^https?:\/\//i.test(url);
-}
-
-function buildServiceUrl(baseUrl: string, path: string) {
-  return `${baseUrl.replace(/\/+$/, "")}${path}`;
-}
-
-function resolveApiUrl(path: string) {
-  if (isAbsoluteUrl(path)) {
-    return path;
-  }
-
-  if (path.startsWith("/reports/finance") || path.startsWith("/invoices")) {
-    return buildServiceUrl(INVOICE_SERVICE_URL, path);
-  }
-
-  if (path.startsWith("/analytics")) {
-    return buildServiceUrl(ANALYTICS_SERVICE_URL, path);
-  }
-
-  if (path.startsWith("/ai-forecasting")) {
-    return buildServiceUrl(AI_SERVICE_URL, path);
-  }
-
-  if (
-    path.startsWith("/payments") ||
-    (path.startsWith("/invoices/") && path.endsWith("/payments"))
-  ) {
-    return buildServiceUrl(PAYMENT_SERVICE_URL, path);
-  }
-
-  return buildServiceUrl(GATEWAY_URL, path);
-}
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/api";
 
 const axiosInstance = axios.create({
+  baseURL: API_URL,
   withCredentials: true,
   headers: {
     "Content-Type": "application/json",
@@ -124,7 +81,7 @@ axiosInstance.interceptors.response.use(
             try {
               const refreshToken = getRefreshToken();
               const refreshRes = await axios.post(
-                buildServiceUrl(GATEWAY_URL, "/auth/refresh"),
+                `${API_URL}/auth/refresh`,
                 { refreshToken },
                 { withCredentials: true },
               );
@@ -186,7 +143,7 @@ const apiClient = {
     config?: AxiosRequestConfig,
   ): Promise<ApiResponse<T>> => {
     return axiosInstance
-      .get<ApiResponse<T>>(resolveApiUrl(url), config)
+      .get<ApiResponse<T>>(url, config)
       .then((res) => res.data);
   },
   post: <T>(
@@ -195,7 +152,7 @@ const apiClient = {
     config?: AxiosRequestConfig,
   ): Promise<ApiResponse<T>> => {
     return axiosInstance
-      .post<ApiResponse<T>>(resolveApiUrl(url), data, config)
+      .post<ApiResponse<T>>(url, data, config)
       .then((res) => res.data);
   },
   patch: <T>(
@@ -204,7 +161,7 @@ const apiClient = {
     config?: AxiosRequestConfig,
   ): Promise<ApiResponse<T>> => {
     return axiosInstance
-      .patch<ApiResponse<T>>(resolveApiUrl(url), data, config)
+      .patch<ApiResponse<T>>(url, data, config)
       .then((res) => res.data);
   },
   put: <T>(
@@ -213,7 +170,7 @@ const apiClient = {
     config?: AxiosRequestConfig,
   ): Promise<ApiResponse<T>> => {
     return axiosInstance
-      .put<ApiResponse<T>>(resolveApiUrl(url), data, config)
+      .put<ApiResponse<T>>(url, data, config)
       .then((res) => res.data);
   },
   del: <T>(
@@ -221,7 +178,7 @@ const apiClient = {
     config?: AxiosRequestConfig,
   ): Promise<ApiResponse<T>> => {
     return axiosInstance
-      .delete<ApiResponse<T>>(resolveApiUrl(url), config)
+      .delete<ApiResponse<T>>(url, config)
       .then((res) => res.data);
   },
 };
