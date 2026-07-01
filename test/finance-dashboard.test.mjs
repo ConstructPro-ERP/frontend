@@ -39,10 +39,17 @@ test("finance dashboard uses the shared API client and finance endpoints", () =>
 
   assert.match(
     clientSource,
-    /apiClient\.get<unknown>\("\/finance\/invoices"\)/,
+    /apiClient\.get<unknown>\(\s*"\/reports\/finance\/invoices\/outstanding"/,
   );
-  assert.match(clientSource, /apiClient\.get<unknown>\("\/finance\/summary"\)/);
-  assert.match(clientSource, /apiClient\.post\("\/finance\/payments"/);
+  assert.match(
+    clientSource,
+    /apiClient\s*\.\s*get<unknown>\(\s*"\/analytics\/dashboard\/summary"/,
+  );
+  assert.match(clientSource, /apiClient\.post\("\/payments"/);
+  assert.match(
+    clientSource,
+    /apiClient\.post<unknown>\(\s*`\/invoices\/\$\{invoice\.id\}\/pdf`/,
+  );
 });
 
 test("finance utilities keep preview data, filter helpers, and summary helpers", () => {

@@ -147,6 +147,10 @@ export function normalizeFinanceStatus(value: unknown): FinanceInvoiceStatus {
     .replaceAll(" ", "_")
     .replaceAll("-", "_");
 
+  if (normalized === "ISSUED") {
+    return "PENDING";
+  }
+
   if (normalized === "PARTIALLY_PAID" || normalized === "PARTIAL") {
     return "PARTIAL";
   }
@@ -375,7 +379,15 @@ function normalizeInvoiceRecord(
 ) {
   const invoiceAmount = readNumber(
     record,
-    ["invoiceAmount", "amountDue", "amount_due", "invoice_amount", "amount"],
+    [
+      "invoiceAmount",
+      "totalAmount",
+      "total_amount",
+      "amountDue",
+      "amount_due",
+      "invoice_amount",
+      "amount",
+    ],
     0,
   );
   const paidAmount = readNumber(
@@ -387,6 +399,8 @@ function normalizeInvoiceRecord(
     record,
     [
       "outstandingBalance",
+      "outstandingAmount",
+      "outstanding_amount",
       "outstanding_balance",
       "balance",
       "balance_due",

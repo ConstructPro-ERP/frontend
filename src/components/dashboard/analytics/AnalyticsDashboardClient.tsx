@@ -4,12 +4,16 @@ import { useEffect, useState } from "react";
 import { Download, Play, RefreshCcw, Radar } from "lucide-react";
 import apiClient from "@/lib/axios";
 import {
+  analyticsAiProjectPreviewOptions,
   analyticsPreviewData,
   formatAnalyticsCompactCurrency,
   isAnalyticsUnavailableError,
+  normalizeAnalyticsAiProjectOptions,
   normalizeAnalyticsDashboardData,
+  normalizeAnalyticsRiskItemsFromOverdueReport,
 } from "@/components/dashboard/analytics/analyticsUtils";
 import type {
+  AnalyticsAiProjectOption,
   AnalyticsDashboardData,
   AnalyticsKpiCard,
   AnalyticsRiskItem,
@@ -18,9 +22,18 @@ import type {
 
 type AnalyticsState =
   | { kind: "loading" }
-  | { kind: "ready"; data: AnalyticsDashboardData }
+  | {
+      kind: "ready";
+      data: AnalyticsDashboardData;
+      projectOptions: AnalyticsAiProjectOption[];
+    }
   | { kind: "empty" }
-  | { kind: "unavailable"; data: AnalyticsDashboardData; message: string }
+  | {
+      kind: "unavailable";
+      data: AnalyticsDashboardData;
+      message: string;
+      projectOptions: AnalyticsAiProjectOption[];
+    }
   | { kind: "error"; message: string };
 
 type AnalyticsFeedback = {
@@ -28,52 +41,125 @@ type AnalyticsFeedback = {
   message: string;
 };
 
-const analyticsOverviewCards: AnalyticsKpiCard[] = [
-  {
-    id: "ytd-revenue",
-    value: "LKR 48.2M",
-    label: "YTD Revenue",
-    note: "↑ 12.4% vs last year",
-    tone: "success",
-  },
-  {
-    id: "avg-project-completion",
-    value: "68%",
-    label: "Avg Project Completion",
-    note: "14 active projects",
-    tone: "info",
-  },
-  {
-    id: "payment-collection-rate",
-    value: "87.6%",
-    label: "Payment Collection Rate",
-    note: "5 invoices overdue",
-    tone: "warning",
-  },
-  {
-    id: "ai-risk-alerts",
-    value: "3",
-    label: "AI Risk Alerts",
-    note: "Requires attention",
-    tone: "danger",
-  },
-];
+function buildAiRiskItem(
+  payload: unknown,
+  selectedProject: AnalyticsAiProjectOption | null,
+): AnalyticsRiskItem | null {
+  if (typeof payload !== "object" || payload === null) {
+    return null;
+  }
+
+  const record = payload as Record<string, unknown>;
+  const projectName =
+    typeof record.projectName === "string" &&
+    record.projectName.trim().length > 0
+      ? record.projectName
+      : (selectedProject?.name ?? "Selected project");
+  const confidenceScore =
+    typeof record.confidenceScore === "number" &&
+    Number.isFinite(record.confidenceScore)
+      ? Math.round(record.confidenceScore * 100)
+      : 0;
+  const riskLevel =
+    typeof record.projectRiskLevel === "string"
+      ? record.projectRiskLevel.toUpperCase()
+      : "LOW";
+  const paymentRisk =
+    typeof record.paymentDelayRisk === "string"
+      ? record.paymentDelayRisk.replaceAll("_", " ").toLowerCase()
+      : "low";
+  const milestoneRisk =
+    typeof record.milestoneDelayRisk === "string"
+      ? record.milestoneDelayRisk.replaceAll("_", " ").toLowerCase()
+      : "low";
+  const revenueTrend =
+    typeof record.revenueTrend === "string"
+      ? record.revenueTrend.replaceAll("_", " ").toLowerCase()
+      : "stable";
+  const explanation =
+    typeof record.explanation === "string" &&
+    record.explanation.trim().length > 0
+      ? record.explanation
+      : "Live AI analysis completed successfully.";
+  const recommendedAction =
+    typeof record.recommendedAction === "string" &&
+    record.recommendedAction.trim().length > 0
+      ? record.recommendedAction
+      : "Review the project plan and follow up on payment and schedule signals.";
+
+  return {
+    id:
+      typeof record.projectId === "string" && record.projectId.trim().length > 0
+        ? record.projectId
+        : (selectedProject?.id ?? "ai-risk"),
+    projectName,
+    category: "AI Forecast Prediction",
+    confidence: confidenceScore,
+    summary: explanation,
+    factors: [
+      `Payment ${paymentRisk}`,
+      `Milestone ${milestoneRisk}`,
+      `Revenue ${revenueTrend}`,
+      recommendedAction,
+    ],
+    level:
+      riskLevel === "HIGH" || riskLevel === "MEDIUM" || riskLevel === "LOW"
+        ? riskLevel
+        : "LOW",
+  };
+}
 
 async function loadAnalyticsData(): Promise<AnalyticsState> {
   try {
-    const response = await apiClient.get<unknown>("/analytics/dashboard");
-    const data = normalizeAnalyticsDashboardData(response.data);
+    const [summaryResponse, overdueResponse, projectResponse] =
+      await Promise.all([
+        apiClient.get<unknown>("/analytics/dashboard/summary"),
+        apiClient.get<unknown>("/analytics/reports/overdue-invoices", {
+          params: {
+            page: 1,
+            limit: 3,
+            sortBy: "dueDate",
+            sortOrder: "asc",
+          },
+        }),
+        apiClient.get<unknown>("/analytics/reports/project-completion", {
+          params: {
+            page: 1,
+            limit: 20,
+            sortBy: "createdAt",
+            sortOrder: "desc",
+            status: "ACTIVE",
+          },
+        }),
+      ]);
+
+    const riskItems = normalizeAnalyticsRiskItemsFromOverdueReport(
+      overdueResponse.data,
+    );
+    const projectOptions = normalizeAnalyticsAiProjectOptions(
+      projectResponse.data,
+    );
+    const data: AnalyticsDashboardData = {
+      ...normalizeAnalyticsDashboardData(summaryResponse.data),
+      riskSummary: {
+        title: "AI Risk Predictions",
+        subtitle: "Live overdue invoice alerts from finance-service",
+        totalAlerts: riskItems.length,
+        items: riskItems,
+      },
+    };
 
     if (data.kpis.length === 0) {
       return { kind: "empty" };
     }
 
-    return { kind: "ready", data };
+    return { kind: "ready", data, projectOptions };
   } catch (error) {
     if (isAnalyticsUnavailableError(error)) {
       return {
         kind: "unavailable",
         data: analyticsPreviewData,
+        projectOptions: analyticsAiProjectPreviewOptions,
         message:
           "Analytics APIs are not available yet. Showing approved placeholder insights until backend endpoints are connected.",
       };
@@ -198,6 +284,7 @@ function RevenueSummary({
   onExport: () => void;
 }) {
   const maxValue = Math.max(...data.points.map((point) => point.value), 1);
+  const kinds = new Set(data.points.map((point) => point.kind));
 
   return (
     <AnalyticsCardShell
@@ -231,7 +318,7 @@ function RevenueSummary({
                 <div className="flex h-full w-full items-end">
                   <div
                     role="img"
-                    aria-label={`${point.month} revenue ${formatAnalyticsCompactCurrency(point.value * 1_000_000)}`}
+                    aria-label={`${point.month} value ${formatAnalyticsCompactCurrency(point.value)}`}
                     className={`w-full rounded-t-[4px] ${barClass}`}
                     style={{ height }}
                   />
@@ -244,14 +331,18 @@ function RevenueSummary({
           })}
         </div>
         <div className="mt-4 flex flex-wrap gap-4 text-[11.5px] text-on-surface-variant">
-          <span className="inline-flex items-center gap-2">
-            <span className="h-2 w-2 rounded-full bg-primary" />
-            Actual
-          </span>
-          <span className="inline-flex items-center gap-2">
-            <span className="h-2 w-2 rounded-full bg-slate-300" />
-            Projected (AI)
-          </span>
+          {kinds.has("ACTUAL") ? (
+            <span className="inline-flex items-center gap-2">
+              <span className="h-2 w-2 rounded-full bg-primary" />
+              Actual
+            </span>
+          ) : null}
+          {kinds.has("PROJECTED") ? (
+            <span className="inline-flex items-center gap-2">
+              <span className="h-2 w-2 rounded-full bg-slate-300" />
+              Projected
+            </span>
+          ) : null}
         </div>
       </div>
     </AnalyticsCardShell>
@@ -324,11 +415,11 @@ function PaymentTrendSummary({
           const lineColor =
             metric.name === "Lead Conversion"
               ? "text-primary"
-              : metric.name === "Avg Project Duration"
+              : metric.name.includes("Completion")
                 ? "text-risk-medium"
-                : metric.name === "Payment on Time"
+                : metric.name.includes("Collection")
                   ? "text-risk-low"
-                  : metric.name === "Cost Overruns"
+                  : metric.name.includes("Open")
                     ? "text-error"
                     : "text-risk-low";
 
@@ -510,9 +601,15 @@ function LoadingView() {
 
 function AiPredictionBanner({
   isRunning,
+  projectOptions,
+  selectedProjectId,
+  onProjectChange,
   onRunAnalysis,
 }: {
   isRunning: boolean;
+  projectOptions: AnalyticsAiProjectOption[];
+  selectedProjectId: string;
+  onProjectChange: (value: string) => void;
   onRunAnalysis: () => void;
 }) {
   return (
@@ -531,14 +628,16 @@ function AiPredictionBanner({
           </p>
           <div className="mt-3 flex flex-wrap gap-4 text-[11.5px] text-blue-100/55">
             <span>
-              Last run:{" "}
+              Route:{" "}
               <strong className="font-semibold text-white/85">
-                2 hours ago
+                /ai-forecasting/projects/:projectId/risk
               </strong>
             </span>
             <span>
-              Data points analysed:{" "}
-              <strong className="font-semibold text-white/85">1,247</strong>
+              Project options:{" "}
+              <strong className="font-semibold text-white/85">
+                {projectOptions.length}
+              </strong>
             </span>
             <span>
               Model:{" "}
@@ -548,19 +647,36 @@ function AiPredictionBanner({
             </span>
           </div>
         </div>
-        <button
-          type="button"
-          onClick={onRunAnalysis}
-          disabled={isRunning}
-          className="inline-flex items-center justify-center gap-2 rounded-lg border border-white/20 bg-white/10 px-[18px] py-[10px] text-[13px] font-semibold text-white transition hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          {isRunning ? (
-            <RefreshCcw size={14} className="animate-spin" />
-          ) : (
-            <Play size={14} fill="currentColor" />
-          )}
-          {isRunning ? "Running Analysis..." : "Run Analysis"}
-        </button>
+        <div className="flex w-full flex-col gap-3 lg:w-[320px]">
+          <select
+            value={selectedProjectId}
+            onChange={(event) => onProjectChange(event.target.value)}
+            className="w-full rounded-lg border border-white/20 bg-white/10 px-3 py-[10px] text-sm text-white outline-none"
+          >
+            {projectOptions.map((project) => (
+              <option
+                key={project.id}
+                value={project.id}
+                className="text-slate-900"
+              >
+                {project.name} · {project.status}
+              </option>
+            ))}
+          </select>
+          <button
+            type="button"
+            onClick={onRunAnalysis}
+            disabled={isRunning || projectOptions.length === 0}
+            className="inline-flex items-center justify-center gap-2 rounded-lg border border-white/20 bg-white/10 px-[18px] py-[10px] text-[13px] font-semibold text-white transition hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {isRunning ? (
+              <RefreshCcw size={14} className="animate-spin" />
+            ) : (
+              <Play size={14} fill="currentColor" />
+            )}
+            {isRunning ? "Running Analysis..." : "Run Analysis"}
+          </button>
+        </div>
       </div>
     </section>
   );
@@ -573,6 +689,7 @@ export default function AnalyticsDashboardClient() {
   const [feedback, setFeedback] = useState<AnalyticsFeedback | null>(null);
   const [isExporting, setIsExporting] = useState(false);
   const [isRunningAnalysis, setIsRunningAnalysis] = useState(false);
+  const [selectedProjectId, setSelectedProjectId] = useState("");
 
   useEffect(() => {
     let active = true;
@@ -602,37 +719,85 @@ export default function AnalyticsDashboardClient() {
     analyticsState.kind === "ready" || analyticsState.kind === "unavailable"
       ? analyticsState.data
       : null;
+  const projectOptions =
+    analyticsState.kind === "ready" || analyticsState.kind === "unavailable"
+      ? analyticsState.projectOptions
+      : [];
+  const selectedProject =
+    projectOptions.find((project) => project.id === selectedProjectId) ??
+    projectOptions[0] ??
+    null;
+  const effectiveSelectedProjectId = selectedProject?.id ?? "";
 
   const handleExport = async () => {
-    if (!data) {
+    setFeedback(null);
+    setIsExporting(true);
+
+    window.setTimeout(() => {
+      setIsExporting(false);
+      setFeedback({
+        tone: "info",
+        message:
+          "Analytics export API is not documented yet. The dashboard is now wired to the live summary and reporting endpoints instead.",
+      });
+    }, 250);
+  };
+
+  const handleRunAnalysis = async () => {
+    if (!data || !effectiveSelectedProjectId) {
       return;
     }
 
     setFeedback(null);
-
-    if (data.exportAvailability !== "available") {
-      setFeedback({
-        tone: "info",
-        message:
-          "Analytics export is shown as a placeholder until the backend export endpoint is connected.",
-      });
-      return;
-    }
-
-    setIsExporting(true);
+    setIsRunningAnalysis(true);
 
     try {
-      await apiClient.get<unknown>("/analytics/export");
+      const response = await apiClient.get<unknown>(
+        `/ai-forecasting/projects/${effectiveSelectedProjectId}/risk`,
+      );
+      const aiRiskItem = buildAiRiskItem(response.data, selectedProject);
+
+      if (aiRiskItem) {
+        setAnalyticsState((currentState) => {
+          if (
+            currentState.kind !== "ready" &&
+            currentState.kind !== "unavailable"
+          ) {
+            return currentState;
+          }
+
+          const nextItems = [
+            aiRiskItem,
+            ...currentState.data.riskSummary.items.filter(
+              (item) => item.id !== aiRiskItem.id,
+            ),
+          ].slice(0, 3);
+
+          return {
+            ...currentState,
+            data: {
+              ...currentState.data,
+              riskSummary: {
+                ...currentState.data.riskSummary,
+                subtitle: `Latest live AI run for ${aiRiskItem.projectName}`,
+                totalAlerts: nextItems.length,
+                items: nextItems,
+              },
+            },
+          };
+        });
+      }
+
       setFeedback({
         tone: "info",
-        message: "Analytics export request submitted successfully.",
+        message: `Live AI risk analysis completed for ${selectedProject?.name ?? "the selected project"}.`,
       });
     } catch (error) {
       if (isAnalyticsUnavailableError(error)) {
         setFeedback({
           tone: "info",
           message:
-            "Analytics export endpoint is not available yet. Placeholder state is being shown instead.",
+            "AI forecasting service is not available right now. The dashboard is keeping the live reporting data visible.",
         });
       } else {
         setFeedback({
@@ -640,28 +805,12 @@ export default function AnalyticsDashboardClient() {
           message:
             error instanceof Error
               ? error.message
-              : "Analytics export could not be started right now.",
+              : "AI analysis could not be completed right now.",
         });
       }
     } finally {
-      setIsExporting(false);
-    }
-  };
-
-  const handleRunAnalysis = async () => {
-    setFeedback(null);
-    setIsRunningAnalysis(true);
-
-    // DDP-40 keeps the approved analytics design and placeholder-safe UX
-    // without introducing the out-of-scope DDP-39 result workflow.
-    window.setTimeout(() => {
       setIsRunningAnalysis(false);
-      setFeedback({
-        tone: "info",
-        message:
-          "Run Analysis is shown as a placeholder until the AI prediction workflow is delivered. The current risk cards remain available for frontend verification.",
-      });
-    }, 450);
+    }
   };
 
   if (analyticsState.kind === "error") {
@@ -701,14 +850,17 @@ export default function AnalyticsDashboardClient() {
       ) : null}
       {feedback ? <FeedbackBanner feedback={feedback} /> : null}
 
-      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {analyticsOverviewCards.map((card) => (
+      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+        {data.kpis.map((card) => (
           <KpiCard key={card.id} card={card} />
         ))}
       </section>
 
       <AiPredictionBanner
         isRunning={isRunningAnalysis}
+        projectOptions={projectOptions}
+        selectedProjectId={effectiveSelectedProjectId}
+        onProjectChange={setSelectedProjectId}
         onRunAnalysis={handleRunAnalysis}
       />
 
