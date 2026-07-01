@@ -18,7 +18,6 @@ import type {
   FinanceSummary,
 } from "@/types/finance";
 import {
-  applyFinancePaymentToInvoice,
   buildOutstandingBalances,
   createFinancePaymentFormValues,
   defaultFinancePaymentMethod,
@@ -66,23 +65,66 @@ type FinanceFeedback = {
   message: string;
 };
 
+function normalizeFinanceSummaryFromAnalytics(
+  payload: unknown,
+  invoices: FinanceInvoice[],
+): FinanceSummary {
+  if (typeof payload !== "object" || payload === null) {
+    return normalizeSummary({}, invoices);
+  }
+
+  const root = payload as Record<string, unknown>;
+  const revenue =
+    typeof root.revenue === "object" && root.revenue !== null
+      ? (root.revenue as Record<string, unknown>)
+      : null;
+
+  if (!revenue) {
+    return normalizeSummary(payload, invoices);
+  }
+
+  return normalizeSummary(
+    {
+      totalInvoiceValue: revenue.totalRevenue,
+      totalPaidAmount: revenue.paidAmount,
+      outstandingBalance: revenue.outstandingBalance,
+      overdueAmount: invoices
+        .filter((invoice) => invoice.status === "OVERDUE")
+        .reduce((total, invoice) => total + invoice.outstandingBalance, 0),
+    },
+    invoices,
+  );
+}
+
 async function loadFinanceData(): Promise<FinanceState> {
   try {
-    const [invoiceResponse, summaryResponse] = await Promise.all([
-      apiClient.get<unknown>("/finance/invoices"),
-      apiClient.get<unknown>("/finance/summary"),
-    ]);
-
+    const invoiceResponse = await apiClient.get<unknown>(
+      "/reports/finance/invoices/outstanding",
+      {
+        params: {
+          page: 1,
+          limit: 100,
+          sortBy: "dueDate",
+          sortOrder: "asc",
+        },
+      },
+    );
     const invoices = normalizeInvoices(invoiceResponse.data);
+    const summaryResponse = await apiClient
+      .get<unknown>("/analytics/dashboard/summary")
+      .catch(() => null);
+    const summary = summaryResponse
+      ? normalizeFinanceSummaryFromAnalytics(summaryResponse.data, invoices)
+      : normalizeSummary({}, invoices);
 
-    if (invoices.length === 0) {
+    if (invoices.length === 0 && summary.outstandingBalance === 0) {
       return { kind: "empty" };
     }
 
     return {
       kind: "ready",
       invoices,
-      summary: normalizeSummary(summaryResponse.data, invoices),
+      summary,
     };
   } catch (error) {
     if (isFinanceUnavailableError(error)) {
@@ -437,16 +479,13 @@ function FinancePaymentForm({
             onChange={(event) => onChange("paymentMethod", event.target.value)}
             className="w-full rounded-lg border border-outline-variant bg-surface-container px-3 py-[9px] text-[13px] text-on-background outline-none"
           >
-            {[
-              defaultFinancePaymentMethod,
-              "Cheque",
-              "Cash",
-              "Online Transfer",
-            ].map((method) => (
-              <option key={method} value={method}>
-                {method}
-              </option>
-            ))}
+            {[defaultFinancePaymentMethod, "Cheque", "Cash", "Online"].map(
+              (method) => (
+                <option key={method} value={method}>
+                  {method}
+                </option>
+              ),
+            )}
           </select>
         </div>
         <div>
@@ -659,15 +698,44 @@ export default function FinanceDashboardClient() {
   };
 
   const handleDownloadPdf = (invoice: FinanceInvoice) => {
-    if (!invoice.pdfUrl) {
-      setFeedback({
-        tone: "info",
-        message: `Invoice PDF download is not available yet for ${invoice.invoiceNumber}.`,
-      });
-      return;
-    }
+    void (async () => {
+      try {
+        const response = await apiClient.post<unknown>(
+          `/invoices/${invoice.id}/pdf`,
+          {},
+        );
+        const data =
+          typeof response.data === "object" && response.data !== null
+            ? (response.data as Record<string, unknown>)
+            : null;
+        const pdfUrl =
+          typeof data?.pdfUrl === "string" && data.pdfUrl.trim().length > 0
+            ? data.pdfUrl
+            : invoice.pdfUrl;
 
-    window.open(invoice.pdfUrl, "_blank", "noopener,noreferrer");
+        if (!pdfUrl) {
+          setFeedback({
+            tone: "info",
+            message: `Invoice PDF is still being prepared for ${invoice.invoiceNumber}.`,
+          });
+          return;
+        }
+
+        window.open(pdfUrl, "_blank", "noopener,noreferrer");
+        setFeedback({
+          tone: "success",
+          message: `Invoice PDF is ready for ${invoice.invoiceNumber}.`,
+        });
+      } catch (error) {
+        setFeedback({
+          tone: "error",
+          message:
+            error instanceof Error
+              ? error.message
+              : "Invoice PDF could not be generated right now.",
+        });
+      }
+    })();
   };
 
   const handleExportInvoice = (invoice: FinanceInvoice) => {
@@ -710,37 +778,22 @@ export default function FinanceDashboardClient() {
     setPaymentApiUnavailableMessage(null);
 
     try {
-      await apiClient.post("/finance/payments", {
+      await apiClient.post("/payments", {
         invoiceId: paymentFormValues.invoiceId,
         amount: Number(paymentFormValues.paymentAmount),
-        paymentMethod: paymentFormValues.paymentMethod,
+        paymentMethod:
+          paymentFormValues.paymentMethod === "Cash"
+            ? "CASH"
+            : paymentFormValues.paymentMethod === "Cheque"
+              ? "CHEQUE"
+              : paymentFormValues.paymentMethod === "Online"
+                ? "ONLINE"
+                : "BANK_TRANSFER",
         paymentDate: paymentFormValues.paymentDate,
-        reference: paymentFormValues.paymentReference,
+        referenceNumber: paymentFormValues.paymentReference,
         notes: paymentFormValues.notes || undefined,
       });
-
-      const paymentAmount = Number(paymentFormValues.paymentAmount);
-      const updatedInvoices = invoices.map((currentInvoice) =>
-        currentInvoice.id === invoice.id
-          ? applyFinancePaymentToInvoice(currentInvoice, paymentAmount)
-          : currentInvoice,
-      );
-      const updatedSummary = normalizeSummary({}, updatedInvoices);
-
-      if (financeState.kind === "unavailable") {
-        setFinanceState({
-          kind: "unavailable",
-          invoices: updatedInvoices,
-          summary: updatedSummary,
-          message: financeState.message,
-        });
-      } else {
-        setFinanceState({
-          kind: "ready",
-          invoices: updatedInvoices,
-          summary: updatedSummary,
-        });
-      }
+      setFinanceState(await loadFinanceData());
       setPaymentFormValues(createFinancePaymentFormValues());
       setPaymentFormErrors({});
       setFeedback({
