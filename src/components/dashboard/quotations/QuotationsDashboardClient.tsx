@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Check, FileText, Plus, Trash2 } from "lucide-react";
+import { Check, FileText, Plus, RefreshCcw, Trash2 } from "lucide-react";
 import { useSelector } from "react-redux";
 import type { RootState } from "@/store";
 import apiClient from "@/lib/axios";
@@ -13,10 +13,12 @@ import type {
   QuotationItemInput,
 } from "@/types/quotation";
 import {
+  canApproveQuotation,
   canCreateQuotation,
   createQuotationFormValues,
   formatCurrency,
   formatDate,
+  isAlreadyConvertedError,
   isQuotationUnavailableError,
   quotationPreviewList,
   validateQuotationForm,
@@ -272,11 +274,19 @@ function QuotationForm({
 
 function QuotationCard({
   quotation,
+  canApprove,
+  isApproving,
+  onApprove,
   onViewPdf,
 }: {
   quotation: Quotation;
+  canApprove: boolean;
+  isApproving: boolean;
+  onApprove: (quotation: Quotation) => void;
   onViewPdf: (quotation: Quotation) => void;
 }) {
+  const isApprovable =
+    quotation.status === "PENDING_APPROVAL" || quotation.status === "APPROVED";
   return (
     <article className="overflow-hidden rounded-xl border border-outline-variant bg-surface-container-lowest shadow-level-1">
       <div className="flex items-center justify-between border-b border-outline-variant px-5 py-4">
@@ -325,20 +335,57 @@ function QuotationCard({
             ))}
           </tbody>
         </table>
-        <div className="mt-3 flex items-center justify-between">
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
           <p className="text-[13px] font-bold text-on-background">
             Total: {formatCurrency(quotation.totalAmount)}
           </p>
-          <button
-            type="button"
-            onClick={() => onViewPdf(quotation)}
-            disabled={!quotation.pdfUrl}
-            className="inline-flex items-center gap-1 rounded-lg border border-outline-variant bg-surface-container px-2.5 py-1.5 text-xs font-medium text-on-background transition hover:bg-surface-container-high disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            <FileText size={13} />
-            {quotation.pdfUrl ? "View PDF" : "Preparing PDF..."}
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => onViewPdf(quotation)}
+              disabled={!quotation.pdfUrl}
+              className="inline-flex items-center gap-1 rounded-lg border border-outline-variant bg-surface-container px-2.5 py-1.5 text-xs font-medium text-on-background transition hover:bg-surface-container-high disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <FileText size={13} />
+              {quotation.pdfUrl ? "View PDF" : "Preparing PDF..."}
+            </button>
+            {canApprove && isApprovable ? (
+              <button
+                type="button"
+                onClick={() => onApprove(quotation)}
+                disabled={isApproving}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-2.5 py-1.5 text-xs font-semibold text-on-primary transition hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-70"
+              >
+                {isApproving ? (
+                  <RefreshCcw size={13} className="animate-spin" />
+                ) : (
+                  <Check size={13} />
+                )}
+                {isApproving ? "Converting..." : "Approve & Convert to Project"}
+              </button>
+            ) : null}
+            {canApprove && quotation.status === "REJECTED" ? (
+              <button
+                type="button"
+                disabled
+                className="inline-flex cursor-not-allowed items-center gap-1.5 rounded-lg border border-outline-variant bg-surface-container px-2.5 py-1.5 text-xs font-semibold text-on-surface-muted opacity-70"
+              >
+                <Check size={13} />
+                Approve & Convert to Project
+              </button>
+            ) : null}
+          </div>
         </div>
+        {canApprove && quotation.status === "REJECTED" ? (
+          <p className="mt-2 text-right text-[11.5px] text-on-surface-muted">
+            This quotation was rejected and cannot be converted to a project.
+          </p>
+        ) : null}
+        {quotation.status === "CONVERTED" && quotation.projectId ? (
+          <p className="mt-2 text-right text-[11.5px] text-on-surface-muted">
+            Converted to project {quotation.projectId}.
+          </p>
+        ) : null}
         {quotation.notes ? (
           <p className="mt-3 text-[11.5px] text-on-surface-muted">
             {quotation.notes}
@@ -360,6 +407,9 @@ export default function QuotationsDashboardClient() {
   const [formErrors, setFormErrors] = useState<QuotationFormErrors>({});
   const [feedback, setFeedback] = useState<QuotationFeedback | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [approvingQuotationId, setApprovingQuotationId] = useState<
+    string | null
+  >(null);
   const [apiUnavailableMessage, setApiUnavailableMessage] = useState<
     string | null
   >(null);
@@ -410,6 +460,82 @@ export default function QuotationsDashboardClient() {
       ...current,
       items: current.items.filter((_, itemIndex) => itemIndex !== index),
     }));
+  };
+
+  const replaceQuotationInState = (updated: Quotation) => {
+    setQuotationsState((current) => {
+      if (current.kind !== "ready" && current.kind !== "unavailable") {
+        return current;
+      }
+
+      return {
+        ...current,
+        quotations: current.quotations.map((quotation) =>
+          quotation.id === updated.id ? updated : quotation,
+        ),
+      };
+    });
+  };
+
+  const handleApproveQuotation = async (quotation: Quotation) => {
+    setApprovingQuotationId(quotation.id);
+    setFeedback(null);
+
+    try {
+      const response = await apiClient.patch<Quotation>(
+        `/quotations/${quotation.id}/approve`,
+      );
+      const convertedQuotation = response.data;
+
+      replaceQuotationInState(convertedQuotation);
+      setFeedback({
+        tone: "success",
+        message: convertedQuotation.projectId
+          ? `Project ${convertedQuotation.projectId} created.`
+          : "Quotation approved and converted to a project.",
+      });
+    } catch (error) {
+      if (isAlreadyConvertedError(error)) {
+        let refreshedQuotation: Quotation = {
+          ...quotation,
+          status: "CONVERTED",
+        };
+
+        try {
+          const refreshedResponse = await apiClient.get<Quotation>(
+            `/quotations/${quotation.id}`,
+          );
+          refreshedQuotation = refreshedResponse.data;
+        } catch {
+          // Refresh is best-effort; fall back to marking the card converted.
+        }
+
+        replaceQuotationInState(refreshedQuotation);
+        setFeedback({
+          tone: "info",
+          message: "This quotation was already converted.",
+        });
+      } else if (
+        error instanceof ApiError &&
+        error.code === "QUOTATION_REJECTED"
+      ) {
+        setFeedback({
+          tone: "error",
+          message:
+            "This quotation was rejected and cannot be converted to a project.",
+        });
+      } else {
+        setFeedback({
+          tone: "error",
+          message:
+            error instanceof Error
+              ? `${error.message} You can try approving again.`
+              : "The quotation could not be approved right now. You can try approving again.",
+        });
+      }
+    } finally {
+      setApprovingQuotationId(null);
+    }
   };
 
   const handleViewPdf = (quotation: Quotation) => {
@@ -529,6 +655,9 @@ export default function QuotationsDashboardClient() {
               <QuotationCard
                 key={quotation.id}
                 quotation={quotation}
+                canApprove={canApproveQuotation(user?.role)}
+                isApproving={approvingQuotationId === quotation.id}
+                onApprove={handleApproveQuotation}
                 onViewPdf={handleViewPdf}
               />
             ))
