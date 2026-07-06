@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import DashboardPlaceholderPage from "@/components/dashboard/DashboardPlaceholderPage";
+import QuotationsDashboardClient from "@/components/dashboard/quotations/QuotationsDashboardClient";
 
 export const metadata: Metadata = {
   title: "Quotations | ConstructPro ERP",
@@ -7,11 +7,5 @@ export const metadata: Metadata = {
 };
 
 export default function QuotationsPage() {
-  return (
-    <DashboardPlaceholderPage
-      eyebrow="Quotations"
-      title="Quotations Placeholder"
-      description="This placeholder route keeps the approved module order available in the reusable dashboard shell without introducing out-of-scope feature detail."
-    />
-  );
+  return <QuotationsDashboardClient />;
 }
