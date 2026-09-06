@@ -92,13 +92,13 @@ export const dashboardPageConfigs: Record<string, DashboardPageConfig> = {
     searchPlaceholder: "Search anything...",
   },
   "/dashboard/leads": {
-    title: "Leads",
-    description: "Sunday, 12 April 2026 · Good morning, Admin",
+    title: "Lead Management",
+    description: "Track inquiries, follow-ups, and conversions",
     breadcrumbs: [
       { label: "Dashboard", href: "/dashboard" },
       { label: "Leads" },
     ],
-    searchPlaceholder: "Search anything...",
+    searchPlaceholder: "Search leads...",
   },
   "/dashboard/quotations": {
     title: "Quotations",
