@@ -5,7 +5,8 @@ export interface User {
   email: string;
   firstName: string;
   lastName: string;
-  role: "ADMIN" | "MANAGER" | "CLIENT";
+  role: "ADMIN" | "MANAGEMENT" | "SALES_MANAGER" | "MANAGER" | "CLIENT";
+  roles?: string[];
   avatarUrl?: string;
 }
 

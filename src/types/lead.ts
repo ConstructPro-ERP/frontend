@@ -1,20 +1,25 @@
-export type LeadStatus = "New" | "Contacted" | "Qualified" | "Converted" | "Lost";
-
-export type LeadActivity = {
+export type LeadStatus =
+  | "NEW"
+  | "CONTACTED"
+  | "QUALIFIED"
+  | "CONVERTED"
+  | "LOST";
+export type LeadNote = {
   id: string;
-  kind: "call" | "email" | "note";
-  description: string;
-  occurredAt: string;
+  leadId: string;
+  content: string;
+  authorId: string | null;
+  createdAt: string;
+  updatedAt: string;
 };
-
 export type LeadContact = {
   id: string;
-  name: string;
-  email?: string;
-  phone?: string;
-  role?: string;
+  leadId: string;
+  label: string;
+  value: string;
+  createdAt: string;
+  updatedAt: string;
 };
-
 export type LeadListQuery = {
   search?: string;
   status?: LeadStatus;
@@ -23,25 +28,24 @@ export type LeadListQuery = {
   page?: number;
   limit?: number;
 };
-
-export type LeadMutationPayload = Record<string, unknown>;
-
+export type LeadMutationPayload = {
+  customerName: string;
+  phone?: string;
+  email?: string;
+  assignedToId?: string;
+  status?: LeadStatus;
+};
 export type Lead = {
   id: string;
-  name: string;
-  phone: string;
-  email: string;
-  location: string;
-  source: string;
-  projectType: string;
-  projectSummary: string;
-  bedrooms: string;
-  budget: string;
-  budgetValue: number;
-  timeline: string;
-  notes: string;
+  customerName: string;
+  phone: string | null;
+  email: string | null;
+  assignedToId: string | null;
   status: LeadStatus;
-  createdAtLabel: string;
-  assignedTo: { name: string; role: string; initials: string };
-  activities: LeadActivity[];
+  createdAt: string;
+  updatedAt: string;
+  assignedTo: { id: string; fullName: string; email: string } | null;
+  notes: LeadNote[];
+  contacts: LeadContact[];
+  customer: { id: string; fullName: string } | null;
 };
