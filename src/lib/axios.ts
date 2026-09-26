@@ -12,7 +12,16 @@ import {
 import { ApiError } from "./ApiError";
 import type { ApiResponse } from "@/types/api";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/api";
+function resolveApiUrl() {
+  const configuredUrl =
+    process.env.NEXT_PUBLIC_API_URL ??
+    process.env.NEXT_PUBLIC_API_GATEWAY_URL ??
+    "http://localhost:4000";
+  const baseUrl = configuredUrl.replace(/\/+$/, "");
+  return baseUrl.endsWith("/api") ? baseUrl : `${baseUrl}/api`;
+}
+
+const API_URL = resolveApiUrl();
 
 const axiosInstance = axios.create({
   baseURL: API_URL,
