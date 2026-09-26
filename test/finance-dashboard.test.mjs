@@ -29,7 +29,7 @@ test("finance dashboard client includes required filter tabs and API state messa
   assert.match(utilsSource, /label: "Partial"/);
   assert.match(clientSource, /No invoices available/);
   assert.match(clientSource, /Finance dashboard unavailable/);
-  assert.match(clientSource, /Finance APIs are not available yet/);
+  assert.match(clientSource, /Finance dashboard unavailable/);
 });
 
 test("finance dashboard uses the shared API client and finance endpoints", () => {
@@ -37,15 +37,16 @@ test("finance dashboard uses the shared API client and finance endpoints", () =>
     "src/components/dashboard/finance/FinanceDashboardClient.tsx",
   );
 
-  assert.match(
-    clientSource,
-    /apiClient\.get<unknown>\(\s*"\/reports\/finance\/invoices\/outstanding"/,
-  );
+  assert.match(clientSource, /apiClient\.get<unknown>\(\s*"\/invoices"/);
   assert.match(
     clientSource,
     /apiClient\s*\.\s*get<unknown>\(\s*"\/analytics\/dashboard\/summary"/,
   );
   assert.match(clientSource, /apiClient\.post\("\/payments"/);
+  assert.match(
+    clientSource,
+    /apiClient\.get<unknown>\(\s*`\/invoices\/\$\{invoice\.id\}`/,
+  );
   assert.match(
     clientSource,
     /apiClient\.post<unknown>\(\s*`\/invoices\/\$\{invoice\.id\}\/pdf`/,
