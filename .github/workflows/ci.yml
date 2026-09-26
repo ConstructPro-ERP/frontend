@@ -8,4 +8,4 @@ on:
 
 jobs:
   frontend-ci:
-    uses: ConstructPro-ERP/infra/.github/workflows/frontend-ci.yml@develop
+    uses: ConstructPro-ERP/infra/.github/workflows/frontend-ci.yml@v1
