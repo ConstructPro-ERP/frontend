@@ -170,23 +170,36 @@ function LeadModal({
         if (name !== lead.customerName) changes.customerName = name;
         if (phone !== (lead.phone ?? "")) changes.phone = phone;
         if (email !== (lead.email ?? "")) {
-          if (!email) throw new Error("Enter a valid email. This update form cannot clear an existing email.");
+          if (!email)
+            throw new Error(
+              "Enter a valid email. This update form cannot clear an existing email.",
+            );
           changes.email = email;
         }
-        if (data.has("assignedToId") && assignedToId !== (lead.assignedToId ?? "")) {
-          if (!assignedToId) throw new Error("Select a user. This update form cannot remove an existing assignment.");
+        if (
+          data.has("assignedToId") &&
+          assignedToId !== (lead.assignedToId ?? "")
+        ) {
+          if (!assignedToId)
+            throw new Error(
+              "Select a user. This update form cannot remove an existing assignment.",
+            );
           changes.assignedToId = assignedToId;
         }
         if (status !== lead.status) changes.status = status;
-        if (!Object.keys(changes).length) { onClose(); return; }
+        if (!Object.keys(changes).length) {
+          onClose();
+          return;
+        }
         await onUpdate(changes);
-      } else if (onCreate) await onCreate({
-        customerName: name,
-        ...(phone ? { phone } : {}),
-        ...(email ? { email } : {}),
-        ...(assignedToId ? { assignedToId } : {}),
-        status,
-      });
+      } else if (onCreate)
+        await onCreate({
+          customerName: name,
+          ...(phone ? { phone } : {}),
+          ...(email ? { email } : {}),
+          ...(assignedToId ? { assignedToId } : {}),
+          status,
+        });
     } catch (requestError) {
       setError(
         requestError instanceof Error
@@ -230,7 +243,10 @@ function LeadModal({
             <X size={18} />
           </button>
         </div>
-        <fieldset disabled={submitting} className="grid gap-4 p-5 sm:grid-cols-2">
+        <fieldset
+          disabled={submitting}
+          className="grid gap-4 p-5 sm:grid-cols-2"
+        >
           <label className="text-xs font-semibold">
             Customer name *
             <input
@@ -275,8 +291,13 @@ function LeadModal({
                 <option value="" disabled={!!lead?.assignedToId}>
                   {usersLoading ? "Loading users..." : "Unassigned"}
                 </option>
-                {lead?.assignedToId && !assignees.some((user) => user.id === lead.assignedToId) ? (
-                  <option value={lead.assignedToId}>{lead.assignedTo?.fullName || lead.assignedTo?.email || "Current assignee"}</option>
+                {lead?.assignedToId &&
+                !assignees.some((user) => user.id === lead.assignedToId) ? (
+                  <option value={lead.assignedToId}>
+                    {lead.assignedTo?.fullName ||
+                      lead.assignedTo?.email ||
+                      "Current assignee"}
+                  </option>
                 ) : null}
                 {assignees.map((user) => (
                   <option key={user.id} value={user.id}>
@@ -315,7 +336,11 @@ function LeadModal({
           </div>
           <label className="text-xs font-semibold">
             Status
-            <select name="status" defaultValue={lead?.status ?? "NEW"} className={fieldClass}>
+            <select
+              name="status"
+              defaultValue={lead?.status ?? "NEW"}
+              className={fieldClass}
+            >
               {statuses
                 .filter((status) => status !== "All Leads")
                 .map((status) => (
@@ -492,7 +517,15 @@ function DetailPanel({
         </section>
       </div>
       <div className="flex gap-2 border-t border-outline-variant p-4">
-        {canEdit ? <button type="button" onClick={onEdit} className="rounded-lg border border-outline-variant px-3 py-2 text-xs font-semibold hover:bg-surface-container">Edit lead</button> : null}
+        {canEdit ? (
+          <button
+            type="button"
+            onClick={onEdit}
+            className="rounded-lg border border-outline-variant px-3 py-2 text-xs font-semibold hover:bg-surface-container"
+          >
+            Edit lead
+          </button>
+        ) : null}
         {lead.phone ? (
           <a
             href={`tel:${lead.phone}`}
@@ -502,18 +535,22 @@ function DetailPanel({
             Call
           </a>
         ) : null}
-        {canEdit ? <select
-          value={lead.status}
-          onChange={(event) => onStatusChange(event.target.value as LeadStatus)}
-          aria-label="Update lead status"
-          className="min-w-0 flex-1 rounded-lg bg-primary px-2 py-2 text-xs font-semibold text-white outline-none"
-        >
-          <option value="NEW">New</option>
-          <option value="CONTACTED">Contacted</option>
-          <option value="QUALIFIED">Qualified</option>
-          <option value="CONVERTED">Converted</option>
-          <option value="LOST">Lost</option>
-        </select> : null}
+        {canEdit ? (
+          <select
+            value={lead.status}
+            onChange={(event) =>
+              onStatusChange(event.target.value as LeadStatus)
+            }
+            aria-label="Update lead status"
+            className="min-w-0 flex-1 rounded-lg bg-primary px-2 py-2 text-xs font-semibold text-white outline-none"
+          >
+            <option value="NEW">New</option>
+            <option value="CONTACTED">Contacted</option>
+            <option value="QUALIFIED">Qualified</option>
+            <option value="CONVERTED">Converted</option>
+            <option value="LOST">Lost</option>
+          </select>
+        ) : null}
       </div>
     </aside>
   );
@@ -628,7 +665,9 @@ export default function LeadsDashboardClient() {
     if (!canEdit) throw new Error("Only top management can update leads.");
     if (!editingLead) return;
     const updated = await updateLead(editingLead.id, payload);
-    setLeads((items) => items.map((item) => item.id === editingLead.id ? updated : item));
+    setLeads((items) =>
+      items.map((item) => (item.id === editingLead.id ? updated : item)),
+    );
     setSelectedId(updated.id);
     setActiveStatus("All Leads");
     setQuery("");
@@ -769,14 +808,24 @@ export default function LeadsDashboardClient() {
           )}
         </div>
         {selected ? (
-          <DetailPanel lead={selected} onStatusChange={updateStatus} canEdit={canEdit} onEdit={() => setEditingLead(selected)} />
+          <DetailPanel
+            lead={selected}
+            onStatusChange={updateStatus}
+            canEdit={canEdit}
+            onEdit={() => setEditingLead(selected)}
+          />
         ) : null}
       </section>
       {showModal && canCapture ? (
         <LeadModal onClose={() => setShowModal(false)} onCreate={createLead} />
       ) : null}
       {editingLead && canEdit ? (
-        <LeadModal key={editingLead.id} lead={editingLead} onClose={() => setEditingLead(null)} onUpdate={saveLead} />
+        <LeadModal
+          key={editingLead.id}
+          lead={editingLead}
+          onClose={() => setEditingLead(null)}
+          onUpdate={saveLead}
+        />
       ) : null}
     </div>
   );

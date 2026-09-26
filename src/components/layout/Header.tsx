@@ -94,7 +94,7 @@ export default function Header() {
           {isAuthenticated ? (
             <>
               <Link
-                href="/"
+                href="/dashboard"
                 className="text-sm font-semibold text-primary px-4 py-2 rounded-lg hover:bg-surface-container transition-colors duration-200"
               >
                 Dashboard
