@@ -4,13 +4,17 @@ import { useEffect, useState } from "react";
 import { Download, Play, RefreshCcw, Radar } from "lucide-react";
 import apiClient from "@/lib/axios";
 import {
-  analyticsAiProjectPreviewOptions,
-  analyticsPreviewData,
+  buildAnalyticsDashboardData,
+  buildAnalyticsRiskItems,
+  getAnalyticsFinanceTrend,
+  getAnalyticsOverdueInvoices,
+  getAnalyticsProjectProgress,
+  getAnalyticsSummary,
+} from "@/services/analyticsApi";
+import {
   formatAnalyticsCompactCurrency,
   isAnalyticsUnavailableError,
   normalizeAnalyticsAiProjectOptions,
-  normalizeAnalyticsDashboardData,
-  normalizeAnalyticsRiskItemsFromOverdueReport,
 } from "@/components/dashboard/analytics/analyticsUtils";
 import type {
   AnalyticsAiProjectOption,
@@ -28,12 +32,6 @@ type AnalyticsState =
       projectOptions: AnalyticsAiProjectOption[];
     }
   | { kind: "empty" }
-  | {
-      kind: "unavailable";
-      data: AnalyticsDashboardData;
-      message: string;
-      projectOptions: AnalyticsAiProjectOption[];
-    }
   | { kind: "error"; message: string };
 
 type AnalyticsFeedback = {
@@ -111,60 +109,33 @@ function buildAiRiskItem(
 
 async function loadAnalyticsData(): Promise<AnalyticsState> {
   try {
-    const [summaryResponse, overdueResponse, projectResponse] =
+    const [summary, trend, projectProgress, overdueInvoices] =
       await Promise.all([
-        apiClient.get<unknown>("/analytics/dashboard/summary"),
-        apiClient.get<unknown>("/analytics/reports/overdue-invoices", {
-          params: {
-            page: 1,
-            limit: 3,
-            sortBy: "dueDate",
-            sortOrder: "asc",
-          },
-        }),
-        apiClient.get<unknown>("/analytics/reports/project-completion", {
-          params: {
-            page: 1,
-            limit: 20,
-            sortBy: "createdAt",
-            sortOrder: "desc",
-            status: "ACTIVE",
-          },
-        }),
+        getAnalyticsSummary(),
+        getAnalyticsFinanceTrend(),
+        getAnalyticsProjectProgress(),
+        getAnalyticsOverdueInvoices(),
       ]);
-
-    const riskItems = normalizeAnalyticsRiskItemsFromOverdueReport(
-      overdueResponse.data,
+    const riskItems = buildAnalyticsRiskItems(overdueInvoices);
+    const data = buildAnalyticsDashboardData(
+      summary,
+      trend,
+      projectProgress,
+      riskItems,
     );
-    const projectOptions = normalizeAnalyticsAiProjectOptions(
-      projectResponse.data,
-    );
-    const data: AnalyticsDashboardData = {
-      ...normalizeAnalyticsDashboardData(summaryResponse.data),
-      riskSummary: {
-        title: "AI Risk Predictions",
-        subtitle: "Live overdue invoice alerts from finance-service",
-        totalAlerts: riskItems.length,
-        items: riskItems,
-      },
-    };
+    const projectOptions = normalizeAnalyticsAiProjectOptions(projectProgress);
 
-    if (data.kpis.length === 0) {
+    if (
+      summary.revenue.totalRevenue === 0 &&
+      summary.projects.totalProjects === 0 &&
+      summary.sales.totalLeads === 0 &&
+      summary.sales.totalQuotations === 0
+    ) {
       return { kind: "empty" };
     }
 
     return { kind: "ready", data, projectOptions };
   } catch (error) {
-    if (isAnalyticsUnavailableError(error)) {
-      return {
-        kind: "unavailable",
-        data: analyticsPreviewData,
-        projectOptions: analyticsAiProjectPreviewOptions,
-        message:
-          "Analytics APIs are not available yet. Showing approved placeholder insights until backend endpoints are connected.",
-      };
-    }
-
     return {
       kind: "error",
       message:
@@ -285,6 +256,7 @@ function RevenueSummary({
 }) {
   const maxValue = Math.max(...data.points.map((point) => point.value), 1);
   const kinds = new Set(data.points.map((point) => point.kind));
+  const hasRevenueData = data.points.some((point) => point.value > 0);
 
   return (
     <AnalyticsCardShell
@@ -302,48 +274,56 @@ function RevenueSummary({
       }
     >
       <div className="p-5">
-        <div className="flex h-40 items-end gap-[6px]">
-          {data.points.map((point) => {
-            const height = `${Math.max((point.value / maxValue) * 100, 12)}%`;
-            const barClass =
-              point.kind === "ACTUAL"
-                ? "bg-primary"
-                : "bg-slate-300 opacity-50";
+        {!hasRevenueData ? (
+          <div className="flex h-40 items-center justify-center rounded-lg border border-dashed border-outline text-sm text-on-surface-variant">
+            No revenue trend data is available for the last six months.
+          </div>
+        ) : (
+          <>
+            <div className="flex h-40 items-end gap-[6px]">
+              {data.points.map((point) => {
+                const height = `${Math.max((point.value / maxValue) * 100, 12)}%`;
+                const barClass =
+                  point.kind === "ACTUAL"
+                    ? "bg-primary"
+                    : "bg-slate-300 opacity-50";
 
-            return (
-              <div
-                key={point.month}
-                className="flex flex-1 flex-col items-center gap-1"
-              >
-                <div className="flex h-full w-full items-end">
+                return (
                   <div
-                    role="img"
-                    aria-label={`${point.month} value ${formatAnalyticsCompactCurrency(point.value)}`}
-                    className={`w-full rounded-t-[4px] ${barClass}`}
-                    style={{ height }}
-                  />
-                </div>
-                <span className="font-mono text-[10px] text-on-surface-muted">
-                  {point.month}
+                    key={point.month}
+                    className="flex flex-1 flex-col items-center gap-1"
+                  >
+                    <div className="flex h-full w-full items-end">
+                      <div
+                        role="img"
+                        aria-label={`${point.month} value ${formatAnalyticsCompactCurrency(point.value)}`}
+                        className={`w-full rounded-t-[4px] ${barClass}`}
+                        style={{ height }}
+                      />
+                    </div>
+                    <span className="font-mono text-[10px] text-on-surface-muted">
+                      {point.month}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="mt-4 flex flex-wrap gap-4 text-[11.5px] text-on-surface-variant">
+              {kinds.has("ACTUAL") ? (
+                <span className="inline-flex items-center gap-2">
+                  <span className="h-2 w-2 rounded-full bg-primary" />
+                  Actual
                 </span>
-              </div>
-            );
-          })}
-        </div>
-        <div className="mt-4 flex flex-wrap gap-4 text-[11.5px] text-on-surface-variant">
-          {kinds.has("ACTUAL") ? (
-            <span className="inline-flex items-center gap-2">
-              <span className="h-2 w-2 rounded-full bg-primary" />
-              Actual
-            </span>
-          ) : null}
-          {kinds.has("PROJECTED") ? (
-            <span className="inline-flex items-center gap-2">
-              <span className="h-2 w-2 rounded-full bg-slate-300" />
-              Projected
-            </span>
-          ) : null}
-        </div>
+              ) : null}
+              {kinds.has("PROJECTED") ? (
+                <span className="inline-flex items-center gap-2">
+                  <span className="h-2 w-2 rounded-full bg-slate-300" />
+                  Projected
+                </span>
+              ) : null}
+            </div>
+          </>
+        )}
       </div>
     </AnalyticsCardShell>
   );
@@ -448,6 +428,65 @@ function PaymentTrendSummary({
           );
         })}
       </div>
+    </AnalyticsCardShell>
+  );
+}
+
+function ProjectProgressSummary({
+  projects,
+}: {
+  projects: AnalyticsDashboardData["projectProgress"];
+}) {
+  return (
+    <AnalyticsCardShell
+      title="Project Progress"
+      subtitle="Milestone completion from analytics-service"
+    >
+      {projects.length === 0 ? (
+        <div className="p-6 text-sm text-on-surface-variant">
+          No project progress data is available yet.
+        </div>
+      ) : (
+        <div className="grid gap-4 p-5 sm:grid-cols-2">
+          {projects.map((project) => (
+            <article
+              key={project.projectId}
+              className="rounded-lg border border-outline-variant bg-surface-container p-4"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h3 className="text-sm font-semibold text-on-background">
+                    {project.projectName}
+                  </h3>
+                  <p className="mt-1 text-xs text-on-surface-muted">
+                    {project.completedMilestoneCount} of{" "}
+                    {project.milestoneCount} milestones ·{" "}
+                    {project.status.replaceAll("_", " ")}
+                  </p>
+                </div>
+                <span className="font-mono text-sm font-bold text-primary">
+                  {project.completionPercentage.toFixed(1)}%
+                </span>
+              </div>
+              <div
+                role="progressbar"
+                aria-label={`${project.projectName} completion`}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={project.completionPercentage}
+                className="mt-4 h-2 overflow-hidden rounded-full bg-surface-container-high"
+              >
+                <div
+                  className="h-full rounded-full bg-primary"
+                  style={{
+                    width: `${Math.min(Math.max(project.completionPercentage, 0), 100)}%`,
+                  }}
+                />
+              </div>
+            </article>
+          ))}
+        </div>
+      )}
     </AnalyticsCardShell>
   );
 }
@@ -715,14 +754,9 @@ export default function AnalyticsDashboardClient() {
     setAnalyticsState(await loadAnalyticsData());
   };
 
-  const data =
-    analyticsState.kind === "ready" || analyticsState.kind === "unavailable"
-      ? analyticsState.data
-      : null;
+  const data = analyticsState.kind === "ready" ? analyticsState.data : null;
   const projectOptions =
-    analyticsState.kind === "ready" || analyticsState.kind === "unavailable"
-      ? analyticsState.projectOptions
-      : [];
+    analyticsState.kind === "ready" ? analyticsState.projectOptions : [];
   const selectedProject =
     projectOptions.find((project) => project.id === selectedProjectId) ??
     projectOptions[0] ??
@@ -759,10 +793,7 @@ export default function AnalyticsDashboardClient() {
 
       if (aiRiskItem) {
         setAnalyticsState((currentState) => {
-          if (
-            currentState.kind !== "ready" &&
-            currentState.kind !== "unavailable"
-          ) {
+          if (currentState.kind !== "ready") {
             return currentState;
           }
 
@@ -843,11 +874,6 @@ export default function AnalyticsDashboardClient() {
 
   return (
     <div className="space-y-5">
-      {analyticsState.kind === "unavailable" ? (
-        <FeedbackBanner
-          feedback={{ tone: "info", message: analyticsState.message }}
-        />
-      ) : null}
       {feedback ? <FeedbackBanner feedback={feedback} /> : null}
 
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
@@ -868,6 +894,8 @@ export default function AnalyticsDashboardClient() {
         <RevenueSummary data={data.revenueSummary} onExport={handleExport} />
         <PaymentTrendSummary metrics={data.paymentTrendSummary.metrics} />
       </section>
+
+      <ProjectProgressSummary projects={data.projectProgress} />
 
       <RiskSummary data={data.riskSummary} />
 

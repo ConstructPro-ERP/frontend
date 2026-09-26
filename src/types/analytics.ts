@@ -65,6 +65,7 @@ export type AnalyticsDashboardData = {
     completionRate: string;
     notes: string[];
   };
+  projectProgress: AnalyticsProjectProgressItem[];
   riskSummary: {
     title: string;
     subtitle: string;
@@ -72,6 +73,32 @@ export type AnalyticsDashboardData = {
     items: AnalyticsRiskItem[];
   };
   exportAvailability: AnalyticsExportAvailability;
+};
+
+export type AnalyticsFinanceTrendPoint = {
+  label: string;
+  totalRevenue: number;
+  paidAmount: number;
+  outstandingBalance: number;
+};
+
+export type AnalyticsProjectProgressItem = {
+  projectId: string;
+  projectName: string;
+  status: string;
+  milestoneCount: number;
+  completedMilestoneCount: number;
+  completionPercentage: number;
+};
+
+export type AnalyticsOverdueInvoiceItem = {
+  invoiceId: string;
+  invoiceNumber: string | null;
+  outstandingAmount: number;
+  customerName: string;
+  projectId: string;
+  projectName: string;
+  daysOverdue: number;
 };
 
 export type AnalyticsAiProjectOption = {
