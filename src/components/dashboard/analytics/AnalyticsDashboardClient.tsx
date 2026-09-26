@@ -1,8 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useSelector } from "react-redux";
 import { Download, Play, RefreshCcw, Radar } from "lucide-react";
-import apiClient from "@/lib/axios";
+import type { RootState } from "@/store";
+import {
+  canRunAiForecasting,
+  getAiPredictionErrorMessage,
+  getProjectRiskPrediction,
+  mapPredictionToRiskItem,
+} from "@/services/aiForecastingApi";
 import {
   buildAnalyticsDashboardData,
   buildAnalyticsRiskItems,
@@ -18,6 +25,7 @@ import {
 } from "@/components/dashboard/analytics/analyticsUtils";
 import type {
   AnalyticsAiProjectOption,
+  AnalyticsAiRiskPredictionDto,
   AnalyticsDashboardData,
   AnalyticsKpiCard,
   AnalyticsRiskItem,
@@ -38,74 +46,6 @@ type AnalyticsFeedback = {
   tone: "info" | "error";
   message: string;
 };
-
-function buildAiRiskItem(
-  payload: unknown,
-  selectedProject: AnalyticsAiProjectOption | null,
-): AnalyticsRiskItem | null {
-  if (typeof payload !== "object" || payload === null) {
-    return null;
-  }
-
-  const record = payload as Record<string, unknown>;
-  const projectName =
-    typeof record.projectName === "string" &&
-    record.projectName.trim().length > 0
-      ? record.projectName
-      : (selectedProject?.name ?? "Selected project");
-  const confidenceScore =
-    typeof record.confidenceScore === "number" &&
-    Number.isFinite(record.confidenceScore)
-      ? Math.round(record.confidenceScore * 100)
-      : 0;
-  const riskLevel =
-    typeof record.projectRiskLevel === "string"
-      ? record.projectRiskLevel.toUpperCase()
-      : "LOW";
-  const paymentRisk =
-    typeof record.paymentDelayRisk === "string"
-      ? record.paymentDelayRisk.replaceAll("_", " ").toLowerCase()
-      : "low";
-  const milestoneRisk =
-    typeof record.milestoneDelayRisk === "string"
-      ? record.milestoneDelayRisk.replaceAll("_", " ").toLowerCase()
-      : "low";
-  const revenueTrend =
-    typeof record.revenueTrend === "string"
-      ? record.revenueTrend.replaceAll("_", " ").toLowerCase()
-      : "stable";
-  const explanation =
-    typeof record.explanation === "string" &&
-    record.explanation.trim().length > 0
-      ? record.explanation
-      : "Live AI analysis completed successfully.";
-  const recommendedAction =
-    typeof record.recommendedAction === "string" &&
-    record.recommendedAction.trim().length > 0
-      ? record.recommendedAction
-      : "Review the project plan and follow up on payment and schedule signals.";
-
-  return {
-    id:
-      typeof record.projectId === "string" && record.projectId.trim().length > 0
-        ? record.projectId
-        : (selectedProject?.id ?? "ai-risk"),
-    projectName,
-    category: "AI Forecast Prediction",
-    confidence: confidenceScore,
-    summary: explanation,
-    factors: [
-      `Payment ${paymentRisk}`,
-      `Milestone ${milestoneRisk}`,
-      `Revenue ${revenueTrend}`,
-      recommendedAction,
-    ],
-    level:
-      riskLevel === "HIGH" || riskLevel === "MEDIUM" || riskLevel === "LOW"
-        ? riskLevel
-        : "LOW",
-  };
-}
 
 async function loadAnalyticsData(): Promise<AnalyticsState> {
   try {
@@ -721,7 +661,101 @@ function AiPredictionBanner({
   );
 }
 
+function AiPredictionResultPanel({
+  prediction,
+}: {
+  prediction: AnalyticsAiRiskPredictionDto;
+}) {
+  const sourceLabel =
+    prediction.predictionSource === "AI_PROVIDER"
+      ? "AI provider"
+      : prediction.predictionSource === "RULE_BASED"
+        ? "Rule-based analysis"
+        : "Safe fallback";
+  const riskClass =
+    prediction.projectRiskLevel === "HIGH"
+      ? "text-error"
+      : prediction.projectRiskLevel === "MEDIUM"
+        ? "text-risk-medium"
+        : "text-risk-low";
+
+  return (
+    <section
+      aria-live="polite"
+      className="overflow-hidden rounded-xl border border-outline-variant bg-surface-container-lowest shadow-level-1"
+    >
+      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-outline-variant px-5 py-4">
+        <div>
+          <h2 className="text-base font-bold text-on-background">
+            AI prediction: {prediction.projectName}
+          </h2>
+          <p className="mt-1 text-xs text-on-surface-muted">
+            {sourceLabel} · {Math.round(prediction.confidenceScore * 100)}%
+            confidence
+          </p>
+        </div>
+        <span className={`text-sm font-bold ${riskClass}`}>
+          {prediction.projectRiskLevel} project risk
+        </span>
+      </div>
+
+      {!prediction.sufficientData ? (
+        <div className="border-b border-risk-medium/20 bg-risk-medium-container px-5 py-3 text-sm text-risk-medium">
+          Insufficient historical data: this is a low-confidence safe result.
+          Add more milestones, invoices, payments, and expenses before relying
+          on it for decisions.
+        </div>
+      ) : prediction.predictionSource === "SAFE_FALLBACK" ? (
+        <div className="border-b border-primary/20 bg-primary-soft px-5 py-3 text-sm text-on-surface-variant">
+          The AI provider was unavailable, so a safe rule-based result is shown.
+        </div>
+      ) : null}
+
+      <div className="grid gap-4 p-5 sm:grid-cols-3">
+        <div className="rounded-lg bg-surface-container p-4">
+          <p className="text-xs text-on-surface-muted">Payment-delay risk</p>
+          <p className="mt-2 text-lg font-bold text-on-background">
+            {prediction.paymentDelayRisk}
+          </p>
+        </div>
+        <div className="rounded-lg bg-surface-container p-4">
+          <p className="text-xs text-on-surface-muted">Milestone-delay risk</p>
+          <p className="mt-2 text-lg font-bold text-on-background">
+            {prediction.milestoneDelayRisk}
+          </p>
+        </div>
+        <div className="rounded-lg bg-surface-container p-4">
+          <p className="text-xs text-on-surface-muted">Revenue trend</p>
+          <p className="mt-2 text-lg font-bold text-on-background">
+            {prediction.revenueTrend}
+          </p>
+        </div>
+      </div>
+
+      <div className="grid gap-4 border-t border-outline-variant p-5 lg:grid-cols-2">
+        <div>
+          <h3 className="text-sm font-semibold text-on-background">
+            Explanation
+          </h3>
+          <p className="mt-2 text-sm leading-6 text-on-surface-variant">
+            {prediction.explanation}
+          </p>
+        </div>
+        <div>
+          <h3 className="text-sm font-semibold text-on-background">
+            Recommended action
+          </h3>
+          <p className="mt-2 text-sm leading-6 text-on-surface-variant">
+            {prediction.recommendedAction}
+          </p>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 export default function AnalyticsDashboardClient() {
+  const user = useSelector((state: RootState) => state.auth.user);
   const [analyticsState, setAnalyticsState] = useState<AnalyticsState>({
     kind: "loading",
   });
@@ -729,6 +763,8 @@ export default function AnalyticsDashboardClient() {
   const [isExporting, setIsExporting] = useState(false);
   const [isRunningAnalysis, setIsRunningAnalysis] = useState(false);
   const [selectedProjectId, setSelectedProjectId] = useState("");
+  const [prediction, setPrediction] =
+    useState<AnalyticsAiRiskPredictionDto | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -762,6 +798,7 @@ export default function AnalyticsDashboardClient() {
     projectOptions[0] ??
     null;
   const effectiveSelectedProjectId = selectedProject?.id ?? "";
+  const canRunPrediction = canRunAiForecasting(user?.role);
 
   const handleExport = async () => {
     setFeedback(null);
@@ -778,18 +815,18 @@ export default function AnalyticsDashboardClient() {
   };
 
   const handleRunAnalysis = async () => {
-    if (!data || !effectiveSelectedProjectId) {
+    if (!data || !effectiveSelectedProjectId || !canRunPrediction) {
       return;
     }
 
     setFeedback(null);
+    setPrediction(null);
     setIsRunningAnalysis(true);
 
     try {
-      const response = await apiClient.get<unknown>(
-        `/ai-forecasting/projects/${effectiveSelectedProjectId}/risk`,
-      );
-      const aiRiskItem = buildAiRiskItem(response.data, selectedProject);
+      const result = await getProjectRiskPrediction(effectiveSelectedProjectId);
+      const aiRiskItem = mapPredictionToRiskItem(result);
+      setPrediction(result);
 
       if (aiRiskItem) {
         setAnalyticsState((currentState) => {
@@ -821,24 +858,15 @@ export default function AnalyticsDashboardClient() {
 
       setFeedback({
         tone: "info",
-        message: `Live AI risk analysis completed for ${selectedProject?.name ?? "the selected project"}.`,
+        message: result.sufficientData
+          ? `Live AI risk analysis completed for ${result.projectName}.`
+          : `Analysis completed for ${result.projectName}, but more historical data is needed for a confident prediction.`,
       });
     } catch (error) {
-      if (isAnalyticsUnavailableError(error)) {
-        setFeedback({
-          tone: "info",
-          message:
-            "AI forecasting service is not available right now. The dashboard is keeping the live reporting data visible.",
-        });
-      } else {
-        setFeedback({
-          tone: "error",
-          message:
-            error instanceof Error
-              ? error.message
-              : "AI analysis could not be completed right now.",
-        });
-      }
+      setFeedback({
+        tone: isAnalyticsUnavailableError(error) ? "info" : "error",
+        message: getAiPredictionErrorMessage(error),
+      });
     } finally {
       setIsRunningAnalysis(false);
     }
@@ -882,13 +910,25 @@ export default function AnalyticsDashboardClient() {
         ))}
       </section>
 
-      <AiPredictionBanner
-        isRunning={isRunningAnalysis}
-        projectOptions={projectOptions}
-        selectedProjectId={effectiveSelectedProjectId}
-        onProjectChange={setSelectedProjectId}
-        onRunAnalysis={handleRunAnalysis}
-      />
+      {canRunPrediction ? (
+        <AiPredictionBanner
+          isRunning={isRunningAnalysis}
+          projectOptions={projectOptions}
+          selectedProjectId={effectiveSelectedProjectId}
+          onProjectChange={(value) => {
+            setSelectedProjectId(value);
+            setPrediction(null);
+          }}
+          onRunAnalysis={handleRunAnalysis}
+        />
+      ) : (
+        <section className="rounded-xl border border-outline-variant bg-surface-container-lowest p-5 text-sm text-on-surface-variant shadow-level-1">
+          AI forecasting is available only to Admin, Management, Finance, and
+          Accountant roles.
+        </section>
+      )}
+
+      {prediction ? <AiPredictionResultPanel prediction={prediction} /> : null}
 
       <section className="grid gap-5 xl:grid-cols-2">
         <RevenueSummary data={data.revenueSummary} onExport={handleExport} />
