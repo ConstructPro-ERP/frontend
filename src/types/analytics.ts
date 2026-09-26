@@ -115,3 +115,24 @@ export type AnalyticsAiPredictionResult = {
   explanation: string;
   recommendedAction: string;
 };
+
+export type AnalyticsAiPredictionSource =
+  | "RULE_BASED"
+  | "AI_PROVIDER"
+  | "SAFE_FALLBACK";
+
+export type AnalyticsAiRiskPredictionDto = {
+  projectId: string;
+  projectName: string;
+  projectRiskLevel: AnalyticsRiskLevel;
+  paymentDelayRisk: AnalyticsRiskLevel;
+  milestoneDelayRisk: AnalyticsRiskLevel;
+  revenueTrend: "DECLINING" | "STABLE" | "GROWING";
+  explanation: string;
+  recommendedAction: string;
+  predictionSource: AnalyticsAiPredictionSource;
+  sufficientData: boolean;
+  confidenceScore: number;
+  warnings: string[];
+  generatedAt: string;
+};
