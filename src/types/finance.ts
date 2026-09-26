@@ -1,11 +1,19 @@
-export type FinanceInvoiceStatus = "PENDING" | "OVERDUE" | "PAID" | "PARTIAL";
+export type FinanceInvoiceStatus =
+  | "DRAFT"
+  | "PENDING"
+  | "OVERDUE"
+  | "PAID"
+  | "PARTIAL"
+  | "CANCELLED";
 
 export type FinanceInvoiceFilter =
   | "ALL"
   | "PENDING"
   | "OVERDUE"
   | "PAID"
-  | "PARTIAL";
+  | "PARTIAL"
+  | "DRAFT"
+  | "CANCELLED";
 
 export interface FinanceInvoice {
   id: string;
@@ -16,7 +24,9 @@ export interface FinanceInvoice {
   paidAmount: number;
   outstandingBalance: number;
   dueDate: string;
+  invoiceDate?: string;
   status: FinanceInvoiceStatus;
+  notes?: string | null;
   pdfUrl?: string | null;
   previewDueNote?: string;
 }
@@ -35,6 +45,11 @@ export interface FinanceOutstandingItem {
   outstandingBalance: number;
   dueDate: string;
   status: Extract<FinanceInvoiceStatus, "PENDING" | "OVERDUE" | "PARTIAL">;
+}
+
+export interface FinanceInvoiceDetails extends FinanceInvoice {
+  invoiceDate: string;
+  notes?: string | null;
 }
 
 export interface FinancePaymentFormValues {

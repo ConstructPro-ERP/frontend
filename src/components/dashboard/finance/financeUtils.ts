@@ -18,6 +18,8 @@ export const financeFilterTabs: Array<{
   { label: "Overdue", value: "OVERDUE" },
   { label: "Paid", value: "PAID" },
   { label: "Partial", value: "PARTIAL" },
+  { label: "Draft", value: "DRAFT" },
+  { label: "Cancelled", value: "CANCELLED" },
 ];
 
 export const financePreviewInvoices: FinanceInvoice[] = [
@@ -156,9 +158,11 @@ export function normalizeFinanceStatus(value: unknown): FinanceInvoiceStatus {
   }
 
   if (
+    normalized === "DRAFT" ||
     normalized === "PENDING" ||
     normalized === "OVERDUE" ||
-    normalized === "PAID"
+    normalized === "PAID" ||
+    normalized === "CANCELLED"
   ) {
     return normalized;
   }
@@ -205,17 +209,18 @@ export function buildOutstandingBalances(
   invoices: FinanceInvoice[],
 ): FinanceOutstandingItem[] {
   return invoices
-    .filter((invoice) => invoice.outstandingBalance > 0)
+    .filter(
+      (invoice) =>
+        invoice.outstandingBalance > 0 &&
+        ["PENDING", "OVERDUE", "PARTIAL"].includes(invoice.status),
+    )
     .map((invoice) => ({
       id: invoice.id,
       clientName: invoice.clientName,
       projectName: invoice.projectName,
       outstandingBalance: invoice.outstandingBalance,
       dueDate: invoice.dueDate,
-      status:
-        invoice.status === "PAID"
-          ? "PENDING"
-          : (invoice.status as "PENDING" | "OVERDUE" | "PARTIAL"),
+      status: invoice.status as "PENDING" | "OVERDUE" | "PARTIAL",
     }));
 }
 
@@ -228,6 +233,11 @@ export function getFinanceStatusBadgeClasses(status: FinanceInvoiceStatus) {
     case "PARTIAL":
       return "bg-risk-medium-container text-risk-medium";
     case "PENDING":
+      return "bg-primary-soft text-primary";
+    case "DRAFT":
+      return "bg-surface-container-high text-on-surface-variant";
+    case "CANCELLED":
+      return "bg-error-container text-error";
     default:
       return "bg-primary-soft text-primary";
   }
@@ -242,6 +252,11 @@ export function getFinanceStatusLabel(status: FinanceInvoiceStatus) {
     case "PAID":
       return "Paid";
     case "PENDING":
+      return "Pending";
+    case "DRAFT":
+      return "Draft";
+    case "CANCELLED":
+      return "Cancelled";
     default:
       return "Pending";
   }
@@ -264,7 +279,7 @@ export function createFinancePaymentFormValues(
         ? String(invoice.outstandingBalance)
         : "",
     paymentMethod: defaultFinancePaymentMethod,
-    paymentDate: "2026-04-12",
+    paymentDate: new Date().toISOString().slice(0, 10),
     paymentReference: "",
     notes: "",
   };
@@ -438,7 +453,9 @@ function normalizeInvoiceRecord(
       ["dueDate", "due_date", "paymentDueDate", "payment_due_date"],
       "",
     ),
+    invoiceDate: readString(record, ["invoiceDate", "invoice_date"], ""),
     status: normalizeFinanceStatus(record.status),
+    notes: readString(record, ["notes"], "") || null,
     pdfUrl: readString(record, ["pdfUrl", "pdf_url"], ""),
     previewDueNote: readString(
       record,
