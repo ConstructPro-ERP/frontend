@@ -2,6 +2,7 @@
 
 import { useSelector } from "react-redux";
 import type { RootState } from "@/store";
+import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import {
   canCaptureLead,
   canUpdateLead,
@@ -42,13 +43,13 @@ const statuses: ("All Leads" | LeadStatus)[] = [
   "LOST",
 ];
 const avatarStyles = [
-  "from-blue-600 to-blue-800",
-  "from-emerald-600 to-emerald-800",
-  "from-violet-600 to-violet-800",
-  "from-amber-600 to-amber-800",
-  "from-red-600 to-red-800",
-  "from-cyan-600 to-cyan-800",
-  "from-slate-500 to-slate-700",
+  "border-blue-200 text-blue-700",
+  "border-emerald-200 text-emerald-700",
+  "border-violet-200 text-violet-700",
+  "border-amber-200 text-amber-700",
+  "border-red-200 text-red-700",
+  "border-cyan-200 text-cyan-700",
+  "border-slate-200 text-slate-600",
 ];
 const fieldClass =
   "mt-1.5 w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-3 py-2.5 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/10";
@@ -430,7 +431,7 @@ function DetailPanel({
     <aside className="overflow-hidden rounded-xl border border-outline-variant bg-white shadow-level-1">
       <div className="relative overflow-hidden bg-gradient-to-br from-blue-700 to-slate-900 p-5 text-white">
         <div className="absolute -right-8 -top-8 h-32 w-32 rounded-full bg-white/5" />
-        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white/20 text-base font-bold">
+        <div className="flex h-12 w-12 items-center justify-center rounded-full border border-blue-200 bg-white text-base font-bold text-blue-700">
           {initials(lead.customerName)}
         </div>
         <h2 className="mt-2.5 text-base font-bold">{lead.customerName}</h2>
@@ -587,6 +588,8 @@ export default function LeadsDashboardClient() {
   const canEdit = canUpdateLead(user);
   const canDelete = canDeleteLead(user);
   const [deleting, setDeleting] = useState(false);
+  const [leadToDelete, setLeadToDelete] = useState<Lead | null>(null);
+  const [deleteError, setDeleteError] = useState("");
   const deleteInProgress = useRef(false);
   const [editingLead, setEditingLead] = useState<Lead | null>(null);
   const [leads, setLeads] = useState<Lead[]>([]);
@@ -634,16 +637,11 @@ export default function LeadsDashboardClient() {
   const selected =
     filtered.find((lead) => lead.id === selectedId) ?? filtered[0] ?? null;
   const removeLead = async () => {
-    if (!canDelete || !selected || deleteInProgress.current) return;
-    const lead = selected;
-    if (
-      !window.confirm(
-        `Delete lead "${lead.customerName}"? This cannot be undone.`,
-      )
-    )
-      return;
+    if (!canDelete || !leadToDelete || deleteInProgress.current) return;
+    const lead = leadToDelete;
     deleteInProgress.current = true;
     setDeleting(true);
+    setDeleteError("");
     setFeedback("");
     try {
       await deleteLeadRequest(lead.id);
@@ -651,8 +649,9 @@ export default function LeadsDashboardClient() {
       setSelectedId((id) => (id === lead.id ? "" : id));
       setEditingLead((item) => (item?.id === lead.id ? null : item));
       setFeedback("Lead deleted successfully.");
+      setLeadToDelete(null);
     } catch (error) {
-      setFeedback(
+      setDeleteError(
         error instanceof Error
           ? error.message
           : "The lead could not be deleted.",
@@ -833,7 +832,7 @@ export default function LeadsDashboardClient() {
                 className={`flex w-full items-center gap-3 border-b border-outline-variant px-4 py-3 text-left last:border-b-0 hover:bg-surface-container ${selected?.id === lead.id ? "border-l-[3px] border-l-primary bg-primary-soft" : "border-l-[3px] border-l-transparent"}`}
               >
                 <div
-                  className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br text-xs font-bold text-white ${avatarStyles[index % avatarStyles.length]}`}
+                  className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full border bg-white text-xs font-bold ${avatarStyles[index % avatarStyles.length]}`}
                 >
                   {initials(lead.customerName)}
                 </div>
@@ -847,10 +846,10 @@ export default function LeadsDashboardClient() {
                   </p>
                 </div>
                 <div className="shrink-0 text-right">
-                  <StatusBadge status={lead.status} />
-                  <p className="mt-1.5 text-[10.5px] text-on-surface-muted">
+                  <p className="mb-1.5 text-[10.5px] text-on-surface-muted">
                     {formatDate(lead.createdAt)}
                   </p>
+                  <StatusBadge status={lead.status} />
                 </div>
               </button>
             ))
@@ -871,11 +870,27 @@ export default function LeadsDashboardClient() {
             canEdit={canEdit}
             canDelete={canDelete}
             deleting={deleting}
-            onDelete={removeLead}
+            onDelete={() => {
+              setDeleteError("");
+              setLeadToDelete(selected);
+            }}
             onEdit={() => setEditingLead(selected)}
           />
         ) : null}
       </section>
+      {leadToDelete && canDelete ? (
+        <ConfirmDialog
+          title="Delete lead?"
+          message={`Delete lead "${leadToDelete.customerName}"? This cannot be undone.`}
+          confirmLabel="Delete lead"
+          pending={deleting}
+          error={deleteError}
+          onConfirm={removeLead}
+          onCancel={() => {
+            if (!deleteInProgress.current) setLeadToDelete(null);
+          }}
+        />
+      ) : null}
       {showModal && canCapture ? (
         <LeadModal onClose={() => setShowModal(false)} onCreate={createLead} />
       ) : null}
