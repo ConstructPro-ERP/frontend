@@ -29,39 +29,61 @@ test("finance dashboard client includes required filter tabs and API state messa
   assert.match(utilsSource, /label: "Partial"/);
   assert.match(clientSource, /No invoices available/);
   assert.match(clientSource, /Finance dashboard unavailable/);
-  assert.match(clientSource, /Finance APIs are not available yet/);
+  assert.match(clientSource, /Finance dashboard unavailable/);
 });
 
 test("finance dashboard uses the shared API client and finance endpoints", () => {
   const clientSource = read(
     "src/components/dashboard/finance/FinanceDashboardClient.tsx",
   );
+  const serviceSource = read("src/services/financeApi.ts");
 
+  assert.match(clientSource, /listFinanceInvoices/);
   assert.match(
-    clientSource,
-    /apiClient\.get<unknown>\(\s*"\/reports\/finance\/invoices\/outstanding"/,
+    serviceSource,
+    /apiClient\.get<FinanceInvoiceDto\[]>\("\/invoices"/,
   );
   assert.match(
     clientSource,
     /apiClient\s*\.\s*get<unknown>\(\s*"\/analytics\/dashboard\/summary"/,
   );
-  assert.match(clientSource, /apiClient\.post\("\/payments"/);
+  assert.match(clientSource, /recordFinancePayment\(paymentFormValues\)/);
   assert.match(
-    clientSource,
-    /apiClient\.post<unknown>\(\s*`\/invoices\/\$\{invoice\.id\}\/pdf`/,
+    serviceSource,
+    /apiClient\.post<RecordFinancePaymentResponseDto>/,
+  );
+  assert.match(serviceSource, /`\/invoices\/\$\{invoiceId\}`/);
+  assert.match(
+    serviceSource,
+    /apiClient\.post<FinanceInvoiceDto>\(\s*`\/invoices\/\$\{invoiceId\}\/pdf`/,
   );
 });
 
-test("finance utilities keep preview data, filter helpers, and summary helpers", () => {
+test("finance utilities keep filter, date, validation, and summary helpers", () => {
   const utilsSource = read("src/components/dashboard/finance/financeUtils.ts");
 
-  assert.match(utilsSource, /financePreviewInvoices/);
   assert.match(utilsSource, /filterInvoices/);
   assert.match(utilsSource, /calculateFinanceSummary/);
-  assert.match(utilsSource, /normalizeFinanceStatus/);
   assert.match(utilsSource, /buildOutstandingBalances/);
   assert.match(utilsSource, /validateFinancePaymentForm/);
-  assert.match(utilsSource, /applyFinancePaymentToInvoice/);
+  assert.match(utilsSource, /formatLocalDateForApi/);
+});
+
+test("finance service aligns backend DTO fields, statuses, and errors", () => {
+  const serviceSource = read("src/services/financeApi.ts");
+
+  assert.match(serviceSource, /ISSUED: "PENDING"/);
+  assert.match(serviceSource, /PARTIALLY_PAID: "PARTIAL"/);
+  assert.match(
+    serviceSource,
+    /referenceNumber: values\.paymentReference\.trim\(\)/,
+  );
+  assert.match(serviceSource, /paymentDate: values\.paymentDate/);
+  assert.match(serviceSource, /amount: Number\(values\.paymentAmount\)/);
+  assert.match(serviceSource, /paymentMethod: paymentMethodMap/);
+  assert.match(serviceSource, /PAYMENT_REFERENCE_EXISTS/);
+  assert.match(serviceSource, /PAYMENT_EXCEEDS_OUTSTANDING/);
+  assert.match(serviceSource, /error\.code === "VALIDATION_ERROR"/);
 });
 
 test("finance table source includes invoice actions and live payment workflow", () => {

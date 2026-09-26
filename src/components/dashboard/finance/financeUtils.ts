@@ -18,95 +18,9 @@ export const financeFilterTabs: Array<{
   { label: "Overdue", value: "OVERDUE" },
   { label: "Paid", value: "PAID" },
   { label: "Partial", value: "PARTIAL" },
+  { label: "Draft", value: "DRAFT" },
+  { label: "Cancelled", value: "CANCELLED" },
 ];
-
-export const financePreviewInvoices: FinanceInvoice[] = [
-  {
-    id: "inv-2026-022",
-    invoiceNumber: "INV-2026-022",
-    clientName: "K. Perera",
-    projectName: "Villa Perera - Col 5",
-    invoiceAmount: 5_250_000,
-    paidAmount: 5_250_000,
-    outstandingBalance: 0,
-    dueDate: "2026-04-01",
-    status: "PAID",
-    pdfUrl: null,
-    previewDueNote: "Apr 1, 2026",
-  },
-  {
-    id: "inv-2026-021",
-    invoiceNumber: "INV-2026-021",
-    clientName: "S. Fernando",
-    projectName: "Sunset Residency",
-    invoiceAmount: 3_200_000,
-    paidAmount: 1_000_000,
-    outstandingBalance: 2_200_000,
-    dueDate: "2026-03-15",
-    status: "OVERDUE",
-    pdfUrl: null,
-    previewDueNote: "28 days overdue",
-  },
-  {
-    id: "inv-2026-020",
-    invoiceNumber: "INV-2026-020",
-    clientName: "R. Wijesinghe",
-    projectName: "Blue Horizon - Galle",
-    invoiceAmount: 8_400_000,
-    paidAmount: 4_200_000,
-    outstandingBalance: 4_200_000,
-    dueDate: "2026-04-20",
-    status: "PARTIAL",
-    pdfUrl: null,
-    previewDueNote: "Due Apr 20",
-  },
-  {
-    id: "inv-2026-019",
-    invoiceNumber: "INV-2026-019",
-    clientName: "D. Rajapaksa",
-    projectName: "Kandy Heights Phase II",
-    invoiceAmount: 4_625_000,
-    paidAmount: 4_625_000,
-    outstandingBalance: 0,
-    dueDate: "2026-03-30",
-    status: "PAID",
-    pdfUrl: null,
-    previewDueNote: "Mar 30, 2026",
-  },
-  {
-    id: "inv-2026-018",
-    invoiceNumber: "INV-2026-018",
-    clientName: "P. Gunawardena",
-    projectName: "Emerald Tower - Col 7",
-    invoiceAmount: 16_875_000,
-    paidAmount: 14_000_000,
-    outstandingBalance: 2_875_000,
-    dueDate: "2026-03-20",
-    status: "OVERDUE",
-    pdfUrl: null,
-    previewDueNote: "23 days overdue",
-  },
-  {
-    id: "inv-2026-017",
-    invoiceNumber: "INV-2026-017",
-    clientName: "L. Fernando",
-    projectName: "Lakshan Fernando - Warehouse",
-    invoiceAmount: 6_300_000,
-    paidAmount: 0,
-    outstandingBalance: 6_300_000,
-    dueDate: "2026-04-30",
-    status: "PENDING",
-    pdfUrl: null,
-    previewDueNote: "Due Apr 30",
-  },
-];
-
-export const financePreviewSummary: FinanceSummary = {
-  totalInvoiceValue: 55_000_000,
-  totalPaidAmount: 48_200_000,
-  outstandingBalance: 6_800_000,
-  overdueAmount: 5_075_000,
-};
 
 export const defaultFinancePaymentMethod = "Bank Transfer";
 
@@ -127,7 +41,14 @@ export function formatCompactCurrency(value: number) {
 }
 
 export function formatDate(value: string) {
-  const parsed = new Date(value);
+  if (!value) return "Not set";
+
+  const datePart = /^\d{4}-\d{2}-\d{2}/.test(value)
+    ? value.slice(0, 10)
+    : value;
+  const parsed = new Date(
+    /^\d{4}-\d{2}-\d{2}$/.test(datePart) ? `${datePart}T00:00:00` : datePart,
+  );
 
   if (Number.isNaN(parsed.getTime())) {
     return value;
@@ -138,32 +59,6 @@ export function formatDate(value: string) {
     day: "numeric",
     year: "numeric",
   }).format(parsed);
-}
-
-export function normalizeFinanceStatus(value: unknown): FinanceInvoiceStatus {
-  const normalized = String(value ?? "")
-    .trim()
-    .toUpperCase()
-    .replaceAll(" ", "_")
-    .replaceAll("-", "_");
-
-  if (normalized === "ISSUED") {
-    return "PENDING";
-  }
-
-  if (normalized === "PARTIALLY_PAID" || normalized === "PARTIAL") {
-    return "PARTIAL";
-  }
-
-  if (
-    normalized === "PENDING" ||
-    normalized === "OVERDUE" ||
-    normalized === "PAID"
-  ) {
-    return normalized;
-  }
-
-  return "PENDING";
 }
 
 export function filterInvoices(
@@ -205,17 +100,18 @@ export function buildOutstandingBalances(
   invoices: FinanceInvoice[],
 ): FinanceOutstandingItem[] {
   return invoices
-    .filter((invoice) => invoice.outstandingBalance > 0)
+    .filter(
+      (invoice) =>
+        invoice.outstandingBalance > 0 &&
+        ["PENDING", "OVERDUE", "PARTIAL"].includes(invoice.status),
+    )
     .map((invoice) => ({
       id: invoice.id,
       clientName: invoice.clientName,
       projectName: invoice.projectName,
       outstandingBalance: invoice.outstandingBalance,
       dueDate: invoice.dueDate,
-      status:
-        invoice.status === "PAID"
-          ? "PENDING"
-          : (invoice.status as "PENDING" | "OVERDUE" | "PARTIAL"),
+      status: invoice.status as "PENDING" | "OVERDUE" | "PARTIAL",
     }));
 }
 
@@ -228,6 +124,11 @@ export function getFinanceStatusBadgeClasses(status: FinanceInvoiceStatus) {
     case "PARTIAL":
       return "bg-risk-medium-container text-risk-medium";
     case "PENDING":
+      return "bg-primary-soft text-primary";
+    case "DRAFT":
+      return "bg-surface-container-high text-on-surface-variant";
+    case "CANCELLED":
+      return "bg-error-container text-error";
     default:
       return "bg-primary-soft text-primary";
   }
@@ -242,6 +143,11 @@ export function getFinanceStatusLabel(status: FinanceInvoiceStatus) {
     case "PAID":
       return "Paid";
     case "PENDING":
+      return "Pending";
+    case "DRAFT":
+      return "Draft";
+    case "CANCELLED":
+      return "Cancelled";
     default:
       return "Pending";
   }
@@ -264,10 +170,17 @@ export function createFinancePaymentFormValues(
         ? String(invoice.outstandingBalance)
         : "",
     paymentMethod: defaultFinancePaymentMethod,
-    paymentDate: "2026-04-12",
+    paymentDate: formatLocalDateForApi(new Date()),
     paymentReference: "",
     notes: "",
   };
+}
+
+export function formatLocalDateForApi(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 export function validateFinancePaymentForm(
@@ -305,50 +218,6 @@ export function validateFinancePaymentForm(
   return errors;
 }
 
-export function applyFinancePaymentToInvoice(
-  invoice: FinanceInvoice,
-  paymentAmount: number,
-): FinanceInvoice {
-  const nextPaidAmount = invoice.paidAmount + paymentAmount;
-  const nextOutstandingBalance = Math.max(
-    invoice.invoiceAmount - nextPaidAmount,
-    0,
-  );
-
-  let nextStatus: FinanceInvoiceStatus = "PENDING";
-
-  if (nextOutstandingBalance === 0) {
-    nextStatus = "PAID";
-  } else if (invoice.status === "OVERDUE") {
-    nextStatus = "OVERDUE";
-  } else if (nextPaidAmount > 0) {
-    nextStatus = "PARTIAL";
-  }
-
-  return {
-    ...invoice,
-    paidAmount: nextPaidAmount,
-    outstandingBalance: nextOutstandingBalance,
-    status: nextStatus,
-  };
-}
-
-function readString(
-  source: Record<string, unknown>,
-  keys: string[],
-  fallback: string,
-) {
-  for (const key of keys) {
-    const value = source[key];
-
-    if (typeof value === "string" && value.trim().length > 0) {
-      return value;
-    }
-  }
-
-  return fallback;
-}
-
 function readNumber(
   source: Record<string, unknown>,
   keys: string[],
@@ -371,103 +240,6 @@ function readNumber(
   }
 
   return fallback;
-}
-
-function normalizeInvoiceRecord(
-  record: Record<string, unknown>,
-  index: number,
-) {
-  const invoiceAmount = readNumber(
-    record,
-    [
-      "invoiceAmount",
-      "totalAmount",
-      "total_amount",
-      "amountDue",
-      "amount_due",
-      "invoice_amount",
-      "amount",
-    ],
-    0,
-  );
-  const paidAmount = readNumber(
-    record,
-    ["paidAmount", "amountPaid", "amount_paid"],
-    0,
-  );
-  const outstandingBalance = readNumber(
-    record,
-    [
-      "outstandingBalance",
-      "outstandingAmount",
-      "outstanding_amount",
-      "outstanding_balance",
-      "balance",
-      "balance_due",
-      "remainingAmount",
-    ],
-    Math.max(invoiceAmount - paidAmount, 0),
-  );
-
-  return {
-    id: readString(
-      record,
-      ["id", "invoiceId", "invoice_id"],
-      `invoice-${index}`,
-    ),
-    invoiceNumber: readString(
-      record,
-      ["invoiceNumber", "invoice_number", "invoiceNo", "invoice_no", "number"],
-      `INV-${index + 1}`,
-    ),
-    clientName: readString(
-      record,
-      ["clientName", "client_name", "client", "customerName", "customer_name"],
-      "Unknown client",
-    ),
-    projectName: readString(
-      record,
-      ["projectName", "project_name", "project"],
-      "Unnamed project",
-    ),
-    invoiceAmount,
-    paidAmount,
-    outstandingBalance,
-    dueDate: readString(
-      record,
-      ["dueDate", "due_date", "paymentDueDate", "payment_due_date"],
-      "",
-    ),
-    status: normalizeFinanceStatus(record.status),
-    pdfUrl: readString(record, ["pdfUrl", "pdf_url"], ""),
-    previewDueNote: readString(
-      record,
-      ["previewDueNote", "preview_due_note", "dueNote", "due_note"],
-      "",
-    ),
-  } satisfies FinanceInvoice;
-}
-
-export function normalizeInvoices(payload: unknown): FinanceInvoice[] {
-  const records = Array.isArray(payload)
-    ? payload
-    : typeof payload === "object" && payload !== null
-      ? ((payload as Record<string, unknown>).items ??
-        (payload as Record<string, unknown>).invoices ??
-        (payload as Record<string, unknown>).results ??
-        [])
-      : [];
-
-  if (!Array.isArray(records)) {
-    return [];
-  }
-
-  return records
-    .filter(
-      (record): record is Record<string, unknown> =>
-        typeof record === "object" && record !== null,
-    )
-    .map((record, index) => normalizeInvoiceRecord(record, index));
 }
 
 export function normalizeSummary(
@@ -513,6 +285,7 @@ export function isFinanceUnavailableError(error: unknown) {
 
   return (
     error.code === "NETWORK_ERROR" ||
+    error.statusCode === 502 ||
     error.statusCode === 404 ||
     error.statusCode === 405 ||
     error.statusCode === 501 ||

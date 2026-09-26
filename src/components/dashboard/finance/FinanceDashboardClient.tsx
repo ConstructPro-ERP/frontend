@@ -11,8 +11,16 @@ import {
   RefreshCcw,
 } from "lucide-react";
 import apiClient from "@/lib/axios";
+import {
+  getFinanceErrorMessage,
+  getFinanceInvoice,
+  generateFinanceInvoicePdf,
+  listFinanceInvoices,
+  recordFinancePayment,
+} from "@/services/financeApi";
 import type {
   FinanceInvoice,
+  FinanceInvoiceDetails,
   FinancePaymentFormErrors,
   FinancePaymentFormValues,
   FinanceSummary,
@@ -24,15 +32,12 @@ import {
   findFinanceInvoiceById,
   filterInvoices,
   financeFilterTabs,
-  financePreviewInvoices,
-  financePreviewSummary,
   formatCompactCurrency,
   formatCurrency,
   formatDate,
   getFinanceStatusBadgeClasses,
   getFinanceStatusLabel,
   isFinanceUnavailableError,
-  normalizeInvoices,
   normalizeSummary,
   validateFinancePaymentForm,
 } from "@/components/dashboard/finance/financeUtils";
@@ -48,12 +53,6 @@ type FinanceState =
     }
   | {
       kind: "empty";
-    }
-  | {
-      kind: "unavailable";
-      invoices: FinanceInvoice[];
-      summary: FinanceSummary;
-      message: string;
     }
   | {
       kind: "error";
@@ -98,18 +97,7 @@ function normalizeFinanceSummaryFromAnalytics(
 
 async function loadFinanceData(): Promise<FinanceState> {
   try {
-    const invoiceResponse = await apiClient.get<unknown>(
-      "/reports/finance/invoices/outstanding",
-      {
-        params: {
-          page: 1,
-          limit: 100,
-          sortBy: "dueDate",
-          sortOrder: "asc",
-        },
-      },
-    );
-    const invoices = normalizeInvoices(invoiceResponse.data);
+    const invoices = await listFinanceInvoices();
     const summaryResponse = await apiClient
       .get<unknown>("/analytics/dashboard/summary")
       .catch(() => null);
@@ -127,22 +115,12 @@ async function loadFinanceData(): Promise<FinanceState> {
       summary,
     };
   } catch (error) {
-    if (isFinanceUnavailableError(error)) {
-      return {
-        kind: "unavailable",
-        invoices: financePreviewInvoices,
-        summary: financePreviewSummary,
-        message:
-          "Finance APIs are not available yet. Showing prototype preview data until backend endpoints are connected.",
-      };
-    }
-
     return {
       kind: "error",
-      message:
-        error instanceof Error
-          ? error.message
-          : "Finance data could not be loaded right now.",
+      message: getFinanceErrorMessage(
+        error,
+        "Finance data could not be loaded right now.",
+      ),
     };
   }
 }
@@ -440,7 +418,11 @@ function FinancePaymentForm({
           >
             <option value="">Select invoice</option>
             {invoices
-              .filter((invoice) => invoice.outstandingBalance > 0)
+              .filter(
+                (invoice) =>
+                  invoice.outstandingBalance > 0 &&
+                  ["PENDING", "OVERDUE", "PARTIAL"].includes(invoice.status),
+              )
               .map((invoice) => (
                 <option key={invoice.id} value={invoice.id}>
                   {invoice.invoiceNumber} — {invoice.projectName}
@@ -580,6 +562,9 @@ export default function FinanceDashboardClient() {
   const [isSubmittingPayment, setIsSubmittingPayment] = useState(false);
   const [paymentApiUnavailableMessage, setPaymentApiUnavailableMessage] =
     useState<string | null>(null);
+  const [invoiceDetails, setInvoiceDetails] =
+    useState<FinanceInvoiceDetails | null>(null);
+  const [isLoadingDetails, setIsLoadingDetails] = useState(false);
   const paymentPanelRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
@@ -617,12 +602,9 @@ export default function FinanceDashboardClient() {
     );
   }
 
-  const invoices =
-    financeState.kind === "ready" || financeState.kind === "unavailable"
-      ? financeState.invoices
-      : [];
+  const invoices = financeState.kind === "ready" ? financeState.invoices : [];
   const summary =
-    financeState.kind === "ready" || financeState.kind === "unavailable"
+    financeState.kind === "ready"
       ? financeState.summary
       : {
           totalInvoiceValue: 0,
@@ -633,6 +615,15 @@ export default function FinanceDashboardClient() {
 
   const filteredInvoices = filterInvoices(invoices, activeFilter);
   const outstandingBalances = buildOutstandingBalances(invoices);
+  const paidInvoiceCount = invoices.filter(
+    (invoice) => invoice.status === "PAID",
+  ).length;
+  const overdueInvoiceCount = invoices.filter(
+    (invoice) => invoice.status === "OVERDUE",
+  ).length;
+  const collectionRate = summary.totalInvoiceValue
+    ? (summary.totalPaidAmount / summary.totalInvoiceValue) * 100
+    : 0;
   const selectedInvoice = findFinanceInvoiceById(
     invoices,
     paymentFormValues.invoiceId,
@@ -691,27 +682,30 @@ export default function FinanceDashboardClient() {
   };
 
   const handleViewInvoiceDetails = (invoice: FinanceInvoice) => {
-    setFeedback({
-      tone: "info",
-      message: `Invoice details for ${invoice.invoiceNumber} are reserved for a future frontend scope.`,
-    });
+    void (async () => {
+      setIsLoadingDetails(true);
+      setFeedback(null);
+      try {
+        setInvoiceDetails(await getFinanceInvoice(invoice.id));
+      } catch (error) {
+        setFeedback({
+          tone: "error",
+          message: getFinanceErrorMessage(
+            error,
+            "Invoice details could not be loaded right now.",
+          ),
+        });
+      } finally {
+        setIsLoadingDetails(false);
+      }
+    })();
   };
 
   const handleDownloadPdf = (invoice: FinanceInvoice) => {
     void (async () => {
       try {
-        const response = await apiClient.post<unknown>(
-          `/invoices/${invoice.id}/pdf`,
-          {},
-        );
-        const data =
-          typeof response.data === "object" && response.data !== null
-            ? (response.data as Record<string, unknown>)
-            : null;
-        const pdfUrl =
-          typeof data?.pdfUrl === "string" && data.pdfUrl.trim().length > 0
-            ? data.pdfUrl
-            : invoice.pdfUrl;
+        const updatedInvoice = await generateFinanceInvoicePdf(invoice.id);
+        const pdfUrl = updatedInvoice.pdfUrl ?? invoice.pdfUrl;
 
         if (!pdfUrl) {
           setFeedback({
@@ -729,10 +723,10 @@ export default function FinanceDashboardClient() {
       } catch (error) {
         setFeedback({
           tone: "error",
-          message:
-            error instanceof Error
-              ? error.message
-              : "Invoice PDF could not be generated right now.",
+          message: getFinanceErrorMessage(
+            error,
+            "Invoice PDF could not be generated right now.",
+          ),
         });
       }
     })();
@@ -778,21 +772,7 @@ export default function FinanceDashboardClient() {
     setPaymentApiUnavailableMessage(null);
 
     try {
-      await apiClient.post("/payments", {
-        invoiceId: paymentFormValues.invoiceId,
-        amount: Number(paymentFormValues.paymentAmount),
-        paymentMethod:
-          paymentFormValues.paymentMethod === "Cash"
-            ? "CASH"
-            : paymentFormValues.paymentMethod === "Cheque"
-              ? "CHEQUE"
-              : paymentFormValues.paymentMethod === "Online"
-                ? "ONLINE"
-                : "BANK_TRANSFER",
-        paymentDate: paymentFormValues.paymentDate,
-        referenceNumber: paymentFormValues.paymentReference,
-        notes: paymentFormValues.notes || undefined,
-      });
+      await recordFinancePayment(paymentFormValues);
       setFinanceState(await loadFinanceData());
       setPaymentFormValues(createFinancePaymentFormValues());
       setPaymentFormErrors({});
@@ -813,10 +793,10 @@ export default function FinanceDashboardClient() {
       } else {
         setFeedback({
           tone: "error",
-          message:
-            error instanceof Error
-              ? error.message
-              : "Payment could not be recorded right now.",
+          message: getFinanceErrorMessage(
+            error,
+            "Payment could not be recorded right now.",
+          ),
         });
       }
     } finally {
@@ -826,36 +806,97 @@ export default function FinanceDashboardClient() {
 
   return (
     <div className="space-y-5">
-      {financeState.kind === "unavailable" ? (
+      {feedback ? <FinanceFeedbackBanner feedback={feedback} /> : null}
+      {isLoadingDetails ? (
         <FinanceFeedbackBanner
-          feedback={{ tone: "info", message: financeState.message }}
+          feedback={{ tone: "info", message: "Loading invoice details..." }}
         />
       ) : null}
-      {feedback ? <FinanceFeedbackBanner feedback={feedback} /> : null}
+      {invoiceDetails ? (
+        <section
+          className="rounded-xl border border-outline-variant bg-surface-container-lowest p-5 shadow-level-1"
+          aria-label="Invoice details"
+        >
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h2 className="text-base font-bold text-on-background">
+                {invoiceDetails.invoiceNumber}
+              </h2>
+              <p className="mt-1 text-sm text-on-surface-muted">
+                {invoiceDetails.projectName} · {invoiceDetails.clientName}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setInvoiceDetails(null)}
+              className="rounded-lg border border-outline-variant px-3 py-1.5 text-xs font-semibold text-on-surface-variant"
+            >
+              Close
+            </button>
+          </div>
+          <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-5">
+            <div>
+              <dt className="text-on-surface-muted">Invoice date</dt>
+              <dd className="mt-1 font-medium text-on-background">
+                {formatDate(invoiceDetails.invoiceDate)}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-on-surface-muted">Due date</dt>
+              <dd className="mt-1 font-medium text-on-background">
+                {formatDate(invoiceDetails.dueDate)}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-on-surface-muted">Total</dt>
+              <dd className="mt-1 font-mono text-on-background">
+                {formatCurrency(invoiceDetails.invoiceAmount)}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-on-surface-muted">Paid</dt>
+              <dd className="mt-1 font-mono text-on-background">
+                {formatCurrency(invoiceDetails.paidAmount)}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-on-surface-muted">Outstanding</dt>
+              <dd className="mt-1 font-mono text-on-background">
+                {formatCurrency(invoiceDetails.outstandingBalance)}
+              </dd>
+            </div>
+          </dl>
+          {invoiceDetails.notes ? (
+            <p className="mt-4 text-sm text-on-surface-variant">
+              {invoiceDetails.notes}
+            </p>
+          ) : null}
+        </section>
+      ) : null}
 
       <section className="grid gap-4 xl:grid-cols-4">
         <FinanceSummaryCard
           label="Total Invoiced"
           value={formatCompactCurrency(summary.totalInvoiceValue)}
-          sublabel="↑ 18% vs last quarter"
+          sublabel={`${invoices.length} invoice${invoices.length === 1 ? "" : "s"}`}
           tone="success"
         />
         <FinanceSummaryCard
           label="Collected"
           value={formatCompactCurrency(summary.totalPaidAmount)}
-          sublabel="87.6% collection rate"
+          sublabel={`${collectionRate.toFixed(1)}% collection rate`}
           tone="success"
         />
         <FinanceSummaryCard
           label="Outstanding"
           value={formatCompactCurrency(summary.outstandingBalance)}
-          sublabel="5 invoices overdue"
+          sublabel={`${overdueInvoiceCount} invoice${overdueInvoiceCount === 1 ? "" : "s"} overdue`}
           tone="warning"
         />
         <FinanceSummaryCard
-          label="This Month"
-          value="LKR 10.1M"
-          sublabel="4 payments received"
+          label="Overdue"
+          value={formatCompactCurrency(summary.overdueAmount)}
+          sublabel={`${paidInvoiceCount} invoice${paidInvoiceCount === 1 ? "" : "s"} fully paid`}
           tone="default"
         />
       </section>

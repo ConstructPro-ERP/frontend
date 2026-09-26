@@ -126,6 +126,7 @@ export const analyticsPreviewData: AnalyticsDashboardData = {
       "The portfolio remains healthy, but two sites need schedule recovery this week.",
     ],
   },
+  projectProgress: [],
   riskSummary: {
     title: "AI Risk Predictions",
     subtitle: "3 issues detected with high confidence",
@@ -609,6 +610,7 @@ function buildDashboardDataFromSummary(
         `${overdueInvoiceCount} overdue invoices are contributing to current risk visibility.`,
       ],
     },
+    projectProgress: [],
     riskSummary: {
       title: "AI Risk Predictions",
       subtitle: "Waiting for a live analysis run",
@@ -740,6 +742,7 @@ export function normalizeAnalyticsDashboardData(
           )
         : analyticsPreviewData.projectStatusSummary.notes,
     },
+    projectProgress: [],
     riskSummary: {
       title: readString(
         riskSummary ?? {},
@@ -769,6 +772,7 @@ export function isAnalyticsUnavailableError(error: unknown) {
 
   return (
     error.code === "NETWORK_ERROR" ||
+    error.statusCode === 502 ||
     error.statusCode === 404 ||
     error.statusCode === 405 ||
     error.statusCode === 501 ||
@@ -788,9 +792,7 @@ export function normalizeAnalyticsAiProjectOptions(
         [])
       : [];
 
-  if (!Array.isArray(records)) {
-    return analyticsAiProjectPreviewOptions;
-  }
+  if (!Array.isArray(records)) return [];
 
   const projects = records
     .map((entry, index) => {
@@ -816,7 +818,7 @@ export function normalizeAnalyticsAiProjectOptions(
     })
     .filter((item): item is AnalyticsAiProjectOption => item !== null);
 
-  return projects.length > 0 ? projects : analyticsAiProjectPreviewOptions;
+  return projects;
 }
 
 export function normalizeAnalyticsAiPredictionResult(

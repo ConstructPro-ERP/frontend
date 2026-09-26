@@ -1,19 +1,31 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useSelector } from "react-redux";
 import { Download, Play, RefreshCcw, Radar } from "lucide-react";
-import apiClient from "@/lib/axios";
+import type { RootState } from "@/store";
 import {
-  analyticsAiProjectPreviewOptions,
-  analyticsPreviewData,
+  canRunAiForecasting,
+  getAiPredictionErrorMessage,
+  getProjectRiskPrediction,
+  mapPredictionToRiskItem,
+} from "@/services/aiForecastingApi";
+import {
+  buildAnalyticsDashboardData,
+  buildAnalyticsRiskItems,
+  getAnalyticsFinanceTrend,
+  getAnalyticsOverdueInvoices,
+  getAnalyticsProjectProgress,
+  getAnalyticsSummary,
+} from "@/services/analyticsApi";
+import {
   formatAnalyticsCompactCurrency,
   isAnalyticsUnavailableError,
   normalizeAnalyticsAiProjectOptions,
-  normalizeAnalyticsDashboardData,
-  normalizeAnalyticsRiskItemsFromOverdueReport,
 } from "@/components/dashboard/analytics/analyticsUtils";
 import type {
   AnalyticsAiProjectOption,
+  AnalyticsAiRiskPredictionDto,
   AnalyticsDashboardData,
   AnalyticsKpiCard,
   AnalyticsRiskItem,
@@ -28,12 +40,6 @@ type AnalyticsState =
       projectOptions: AnalyticsAiProjectOption[];
     }
   | { kind: "empty" }
-  | {
-      kind: "unavailable";
-      data: AnalyticsDashboardData;
-      message: string;
-      projectOptions: AnalyticsAiProjectOption[];
-    }
   | { kind: "error"; message: string };
 
 type AnalyticsFeedback = {
@@ -41,130 +47,35 @@ type AnalyticsFeedback = {
   message: string;
 };
 
-function buildAiRiskItem(
-  payload: unknown,
-  selectedProject: AnalyticsAiProjectOption | null,
-): AnalyticsRiskItem | null {
-  if (typeof payload !== "object" || payload === null) {
-    return null;
-  }
-
-  const record = payload as Record<string, unknown>;
-  const projectName =
-    typeof record.projectName === "string" &&
-    record.projectName.trim().length > 0
-      ? record.projectName
-      : (selectedProject?.name ?? "Selected project");
-  const confidenceScore =
-    typeof record.confidenceScore === "number" &&
-    Number.isFinite(record.confidenceScore)
-      ? Math.round(record.confidenceScore * 100)
-      : 0;
-  const riskLevel =
-    typeof record.projectRiskLevel === "string"
-      ? record.projectRiskLevel.toUpperCase()
-      : "LOW";
-  const paymentRisk =
-    typeof record.paymentDelayRisk === "string"
-      ? record.paymentDelayRisk.replaceAll("_", " ").toLowerCase()
-      : "low";
-  const milestoneRisk =
-    typeof record.milestoneDelayRisk === "string"
-      ? record.milestoneDelayRisk.replaceAll("_", " ").toLowerCase()
-      : "low";
-  const revenueTrend =
-    typeof record.revenueTrend === "string"
-      ? record.revenueTrend.replaceAll("_", " ").toLowerCase()
-      : "stable";
-  const explanation =
-    typeof record.explanation === "string" &&
-    record.explanation.trim().length > 0
-      ? record.explanation
-      : "Live AI analysis completed successfully.";
-  const recommendedAction =
-    typeof record.recommendedAction === "string" &&
-    record.recommendedAction.trim().length > 0
-      ? record.recommendedAction
-      : "Review the project plan and follow up on payment and schedule signals.";
-
-  return {
-    id:
-      typeof record.projectId === "string" && record.projectId.trim().length > 0
-        ? record.projectId
-        : (selectedProject?.id ?? "ai-risk"),
-    projectName,
-    category: "AI Forecast Prediction",
-    confidence: confidenceScore,
-    summary: explanation,
-    factors: [
-      `Payment ${paymentRisk}`,
-      `Milestone ${milestoneRisk}`,
-      `Revenue ${revenueTrend}`,
-      recommendedAction,
-    ],
-    level:
-      riskLevel === "HIGH" || riskLevel === "MEDIUM" || riskLevel === "LOW"
-        ? riskLevel
-        : "LOW",
-  };
-}
-
 async function loadAnalyticsData(): Promise<AnalyticsState> {
   try {
-    const [summaryResponse, overdueResponse, projectResponse] =
+    const [summary, trend, projectProgress, overdueInvoices] =
       await Promise.all([
-        apiClient.get<unknown>("/analytics/dashboard/summary"),
-        apiClient.get<unknown>("/analytics/reports/overdue-invoices", {
-          params: {
-            page: 1,
-            limit: 3,
-            sortBy: "dueDate",
-            sortOrder: "asc",
-          },
-        }),
-        apiClient.get<unknown>("/analytics/reports/project-completion", {
-          params: {
-            page: 1,
-            limit: 20,
-            sortBy: "createdAt",
-            sortOrder: "desc",
-            status: "ACTIVE",
-          },
-        }),
+        getAnalyticsSummary(),
+        getAnalyticsFinanceTrend(),
+        getAnalyticsProjectProgress(),
+        getAnalyticsOverdueInvoices(),
       ]);
-
-    const riskItems = normalizeAnalyticsRiskItemsFromOverdueReport(
-      overdueResponse.data,
+    const riskItems = buildAnalyticsRiskItems(overdueInvoices);
+    const data = buildAnalyticsDashboardData(
+      summary,
+      trend,
+      projectProgress,
+      riskItems,
     );
-    const projectOptions = normalizeAnalyticsAiProjectOptions(
-      projectResponse.data,
-    );
-    const data: AnalyticsDashboardData = {
-      ...normalizeAnalyticsDashboardData(summaryResponse.data),
-      riskSummary: {
-        title: "AI Risk Predictions",
-        subtitle: "Live overdue invoice alerts from finance-service",
-        totalAlerts: riskItems.length,
-        items: riskItems,
-      },
-    };
+    const projectOptions = normalizeAnalyticsAiProjectOptions(projectProgress);
 
-    if (data.kpis.length === 0) {
+    if (
+      summary.revenue.totalRevenue === 0 &&
+      summary.projects.totalProjects === 0 &&
+      summary.sales.totalLeads === 0 &&
+      summary.sales.totalQuotations === 0
+    ) {
       return { kind: "empty" };
     }
 
     return { kind: "ready", data, projectOptions };
   } catch (error) {
-    if (isAnalyticsUnavailableError(error)) {
-      return {
-        kind: "unavailable",
-        data: analyticsPreviewData,
-        projectOptions: analyticsAiProjectPreviewOptions,
-        message:
-          "Analytics APIs are not available yet. Showing approved placeholder insights until backend endpoints are connected.",
-      };
-    }
-
     return {
       kind: "error",
       message:
@@ -285,6 +196,7 @@ function RevenueSummary({
 }) {
   const maxValue = Math.max(...data.points.map((point) => point.value), 1);
   const kinds = new Set(data.points.map((point) => point.kind));
+  const hasRevenueData = data.points.some((point) => point.value > 0);
 
   return (
     <AnalyticsCardShell
@@ -302,48 +214,56 @@ function RevenueSummary({
       }
     >
       <div className="p-5">
-        <div className="flex h-40 items-end gap-[6px]">
-          {data.points.map((point) => {
-            const height = `${Math.max((point.value / maxValue) * 100, 12)}%`;
-            const barClass =
-              point.kind === "ACTUAL"
-                ? "bg-primary"
-                : "bg-slate-300 opacity-50";
+        {!hasRevenueData ? (
+          <div className="flex h-40 items-center justify-center rounded-lg border border-dashed border-outline text-sm text-on-surface-variant">
+            No revenue trend data is available for the last six months.
+          </div>
+        ) : (
+          <>
+            <div className="flex h-40 items-end gap-[6px]">
+              {data.points.map((point) => {
+                const height = `${Math.max((point.value / maxValue) * 100, 12)}%`;
+                const barClass =
+                  point.kind === "ACTUAL"
+                    ? "bg-primary"
+                    : "bg-slate-300 opacity-50";
 
-            return (
-              <div
-                key={point.month}
-                className="flex flex-1 flex-col items-center gap-1"
-              >
-                <div className="flex h-full w-full items-end">
+                return (
                   <div
-                    role="img"
-                    aria-label={`${point.month} value ${formatAnalyticsCompactCurrency(point.value)}`}
-                    className={`w-full rounded-t-[4px] ${barClass}`}
-                    style={{ height }}
-                  />
-                </div>
-                <span className="font-mono text-[10px] text-on-surface-muted">
-                  {point.month}
+                    key={point.month}
+                    className="flex flex-1 flex-col items-center gap-1"
+                  >
+                    <div className="flex h-full w-full items-end">
+                      <div
+                        role="img"
+                        aria-label={`${point.month} value ${formatAnalyticsCompactCurrency(point.value)}`}
+                        className={`w-full rounded-t-[4px] ${barClass}`}
+                        style={{ height }}
+                      />
+                    </div>
+                    <span className="font-mono text-[10px] text-on-surface-muted">
+                      {point.month}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="mt-4 flex flex-wrap gap-4 text-[11.5px] text-on-surface-variant">
+              {kinds.has("ACTUAL") ? (
+                <span className="inline-flex items-center gap-2">
+                  <span className="h-2 w-2 rounded-full bg-primary" />
+                  Actual
                 </span>
-              </div>
-            );
-          })}
-        </div>
-        <div className="mt-4 flex flex-wrap gap-4 text-[11.5px] text-on-surface-variant">
-          {kinds.has("ACTUAL") ? (
-            <span className="inline-flex items-center gap-2">
-              <span className="h-2 w-2 rounded-full bg-primary" />
-              Actual
-            </span>
-          ) : null}
-          {kinds.has("PROJECTED") ? (
-            <span className="inline-flex items-center gap-2">
-              <span className="h-2 w-2 rounded-full bg-slate-300" />
-              Projected
-            </span>
-          ) : null}
-        </div>
+              ) : null}
+              {kinds.has("PROJECTED") ? (
+                <span className="inline-flex items-center gap-2">
+                  <span className="h-2 w-2 rounded-full bg-slate-300" />
+                  Projected
+                </span>
+              ) : null}
+            </div>
+          </>
+        )}
       </div>
     </AnalyticsCardShell>
   );
@@ -448,6 +368,65 @@ function PaymentTrendSummary({
           );
         })}
       </div>
+    </AnalyticsCardShell>
+  );
+}
+
+function ProjectProgressSummary({
+  projects,
+}: {
+  projects: AnalyticsDashboardData["projectProgress"];
+}) {
+  return (
+    <AnalyticsCardShell
+      title="Project Progress"
+      subtitle="Milestone completion from analytics-service"
+    >
+      {projects.length === 0 ? (
+        <div className="p-6 text-sm text-on-surface-variant">
+          No project progress data is available yet.
+        </div>
+      ) : (
+        <div className="grid gap-4 p-5 sm:grid-cols-2">
+          {projects.map((project) => (
+            <article
+              key={project.projectId}
+              className="rounded-lg border border-outline-variant bg-surface-container p-4"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h3 className="text-sm font-semibold text-on-background">
+                    {project.projectName}
+                  </h3>
+                  <p className="mt-1 text-xs text-on-surface-muted">
+                    {project.completedMilestoneCount} of{" "}
+                    {project.milestoneCount} milestones ·{" "}
+                    {project.status.replaceAll("_", " ")}
+                  </p>
+                </div>
+                <span className="font-mono text-sm font-bold text-primary">
+                  {project.completionPercentage.toFixed(1)}%
+                </span>
+              </div>
+              <div
+                role="progressbar"
+                aria-label={`${project.projectName} completion`}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={project.completionPercentage}
+                className="mt-4 h-2 overflow-hidden rounded-full bg-surface-container-high"
+              >
+                <div
+                  className="h-full rounded-full bg-primary"
+                  style={{
+                    width: `${Math.min(Math.max(project.completionPercentage, 0), 100)}%`,
+                  }}
+                />
+              </div>
+            </article>
+          ))}
+        </div>
+      )}
     </AnalyticsCardShell>
   );
 }
@@ -682,7 +661,101 @@ function AiPredictionBanner({
   );
 }
 
+function AiPredictionResultPanel({
+  prediction,
+}: {
+  prediction: AnalyticsAiRiskPredictionDto;
+}) {
+  const sourceLabel =
+    prediction.predictionSource === "AI_PROVIDER"
+      ? "AI provider"
+      : prediction.predictionSource === "RULE_BASED"
+        ? "Rule-based analysis"
+        : "Safe fallback";
+  const riskClass =
+    prediction.projectRiskLevel === "HIGH"
+      ? "text-error"
+      : prediction.projectRiskLevel === "MEDIUM"
+        ? "text-risk-medium"
+        : "text-risk-low";
+
+  return (
+    <section
+      aria-live="polite"
+      className="overflow-hidden rounded-xl border border-outline-variant bg-surface-container-lowest shadow-level-1"
+    >
+      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-outline-variant px-5 py-4">
+        <div>
+          <h2 className="text-base font-bold text-on-background">
+            AI prediction: {prediction.projectName}
+          </h2>
+          <p className="mt-1 text-xs text-on-surface-muted">
+            {sourceLabel} · {Math.round(prediction.confidenceScore * 100)}%
+            confidence
+          </p>
+        </div>
+        <span className={`text-sm font-bold ${riskClass}`}>
+          {prediction.projectRiskLevel} project risk
+        </span>
+      </div>
+
+      {!prediction.sufficientData ? (
+        <div className="border-b border-risk-medium/20 bg-risk-medium-container px-5 py-3 text-sm text-risk-medium">
+          Insufficient historical data: this is a low-confidence safe result.
+          Add more milestones, invoices, payments, and expenses before relying
+          on it for decisions.
+        </div>
+      ) : prediction.predictionSource === "SAFE_FALLBACK" ? (
+        <div className="border-b border-primary/20 bg-primary-soft px-5 py-3 text-sm text-on-surface-variant">
+          The AI provider was unavailable, so a safe rule-based result is shown.
+        </div>
+      ) : null}
+
+      <div className="grid gap-4 p-5 sm:grid-cols-3">
+        <div className="rounded-lg bg-surface-container p-4">
+          <p className="text-xs text-on-surface-muted">Payment-delay risk</p>
+          <p className="mt-2 text-lg font-bold text-on-background">
+            {prediction.paymentDelayRisk}
+          </p>
+        </div>
+        <div className="rounded-lg bg-surface-container p-4">
+          <p className="text-xs text-on-surface-muted">Milestone-delay risk</p>
+          <p className="mt-2 text-lg font-bold text-on-background">
+            {prediction.milestoneDelayRisk}
+          </p>
+        </div>
+        <div className="rounded-lg bg-surface-container p-4">
+          <p className="text-xs text-on-surface-muted">Revenue trend</p>
+          <p className="mt-2 text-lg font-bold text-on-background">
+            {prediction.revenueTrend}
+          </p>
+        </div>
+      </div>
+
+      <div className="grid gap-4 border-t border-outline-variant p-5 lg:grid-cols-2">
+        <div>
+          <h3 className="text-sm font-semibold text-on-background">
+            Explanation
+          </h3>
+          <p className="mt-2 text-sm leading-6 text-on-surface-variant">
+            {prediction.explanation}
+          </p>
+        </div>
+        <div>
+          <h3 className="text-sm font-semibold text-on-background">
+            Recommended action
+          </h3>
+          <p className="mt-2 text-sm leading-6 text-on-surface-variant">
+            {prediction.recommendedAction}
+          </p>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 export default function AnalyticsDashboardClient() {
+  const user = useSelector((state: RootState) => state.auth.user);
   const [analyticsState, setAnalyticsState] = useState<AnalyticsState>({
     kind: "loading",
   });
@@ -690,6 +763,8 @@ export default function AnalyticsDashboardClient() {
   const [isExporting, setIsExporting] = useState(false);
   const [isRunningAnalysis, setIsRunningAnalysis] = useState(false);
   const [selectedProjectId, setSelectedProjectId] = useState("");
+  const [prediction, setPrediction] =
+    useState<AnalyticsAiRiskPredictionDto | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -715,19 +790,15 @@ export default function AnalyticsDashboardClient() {
     setAnalyticsState(await loadAnalyticsData());
   };
 
-  const data =
-    analyticsState.kind === "ready" || analyticsState.kind === "unavailable"
-      ? analyticsState.data
-      : null;
+  const data = analyticsState.kind === "ready" ? analyticsState.data : null;
   const projectOptions =
-    analyticsState.kind === "ready" || analyticsState.kind === "unavailable"
-      ? analyticsState.projectOptions
-      : [];
+    analyticsState.kind === "ready" ? analyticsState.projectOptions : [];
   const selectedProject =
     projectOptions.find((project) => project.id === selectedProjectId) ??
     projectOptions[0] ??
     null;
   const effectiveSelectedProjectId = selectedProject?.id ?? "";
+  const canRunPrediction = canRunAiForecasting(user?.role);
 
   const handleExport = async () => {
     setFeedback(null);
@@ -744,25 +815,22 @@ export default function AnalyticsDashboardClient() {
   };
 
   const handleRunAnalysis = async () => {
-    if (!data || !effectiveSelectedProjectId) {
+    if (!data || !effectiveSelectedProjectId || !canRunPrediction) {
       return;
     }
 
     setFeedback(null);
+    setPrediction(null);
     setIsRunningAnalysis(true);
 
     try {
-      const response = await apiClient.get<unknown>(
-        `/ai-forecasting/projects/${effectiveSelectedProjectId}/risk`,
-      );
-      const aiRiskItem = buildAiRiskItem(response.data, selectedProject);
+      const result = await getProjectRiskPrediction(effectiveSelectedProjectId);
+      const aiRiskItem = mapPredictionToRiskItem(result);
+      setPrediction(result);
 
       if (aiRiskItem) {
         setAnalyticsState((currentState) => {
-          if (
-            currentState.kind !== "ready" &&
-            currentState.kind !== "unavailable"
-          ) {
+          if (currentState.kind !== "ready") {
             return currentState;
           }
 
@@ -790,24 +858,15 @@ export default function AnalyticsDashboardClient() {
 
       setFeedback({
         tone: "info",
-        message: `Live AI risk analysis completed for ${selectedProject?.name ?? "the selected project"}.`,
+        message: result.sufficientData
+          ? `Live AI risk analysis completed for ${result.projectName}.`
+          : `Analysis completed for ${result.projectName}, but more historical data is needed for a confident prediction.`,
       });
     } catch (error) {
-      if (isAnalyticsUnavailableError(error)) {
-        setFeedback({
-          tone: "info",
-          message:
-            "AI forecasting service is not available right now. The dashboard is keeping the live reporting data visible.",
-        });
-      } else {
-        setFeedback({
-          tone: "error",
-          message:
-            error instanceof Error
-              ? error.message
-              : "AI analysis could not be completed right now.",
-        });
-      }
+      setFeedback({
+        tone: isAnalyticsUnavailableError(error) ? "info" : "error",
+        message: getAiPredictionErrorMessage(error),
+      });
     } finally {
       setIsRunningAnalysis(false);
     }
@@ -843,11 +902,6 @@ export default function AnalyticsDashboardClient() {
 
   return (
     <div className="space-y-5">
-      {analyticsState.kind === "unavailable" ? (
-        <FeedbackBanner
-          feedback={{ tone: "info", message: analyticsState.message }}
-        />
-      ) : null}
       {feedback ? <FeedbackBanner feedback={feedback} /> : null}
 
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
@@ -856,18 +910,32 @@ export default function AnalyticsDashboardClient() {
         ))}
       </section>
 
-      <AiPredictionBanner
-        isRunning={isRunningAnalysis}
-        projectOptions={projectOptions}
-        selectedProjectId={effectiveSelectedProjectId}
-        onProjectChange={setSelectedProjectId}
-        onRunAnalysis={handleRunAnalysis}
-      />
+      {canRunPrediction ? (
+        <AiPredictionBanner
+          isRunning={isRunningAnalysis}
+          projectOptions={projectOptions}
+          selectedProjectId={effectiveSelectedProjectId}
+          onProjectChange={(value) => {
+            setSelectedProjectId(value);
+            setPrediction(null);
+          }}
+          onRunAnalysis={handleRunAnalysis}
+        />
+      ) : (
+        <section className="rounded-xl border border-outline-variant bg-surface-container-lowest p-5 text-sm text-on-surface-variant shadow-level-1">
+          AI forecasting is available only to Admin, Management, Finance, and
+          Accountant roles.
+        </section>
+      )}
+
+      {prediction ? <AiPredictionResultPanel prediction={prediction} /> : null}
 
       <section className="grid gap-5 xl:grid-cols-2">
         <RevenueSummary data={data.revenueSummary} onExport={handleExport} />
         <PaymentTrendSummary metrics={data.paymentTrendSummary.metrics} />
       </section>
+
+      <ProjectProgressSummary projects={data.projectProgress} />
 
       <RiskSummary data={data.riskSummary} />
 
