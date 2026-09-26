@@ -192,6 +192,46 @@ test("creation preserves every supplied response field without extra lead fields
   assert.equal(nullable.email, null);
 });
 
+test("delete lead calls the DELETE endpoint and accepts an empty response", async () => {
+  const { api, calls } = loadApi(undefined);
+  await api.deleteLead("lead-1");
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].method, "del");
+  assert.equal(calls[0].args[0], "/leads/lead-1");
+});
+
+test("delete lead preserves backend errors for the dashboard", async () => {
+  const error = new Error("You do not have permission to perform this action.");
+  const { api } = loadApi(() => {
+    throw error;
+  });
+  await assert.rejects(api.deleteLead("lead-1"), (actual) => actual === error);
+});
+
+test("delete lead permits only ADMIN from the profile", () => {
+  const exports = {};
+  const code = ts.transpileModule(
+    read("src/components/dashboard/leads/leadPermissions.ts"),
+    { compilerOptions: { module: ts.ModuleKind.CommonJS } },
+  ).outputText;
+  vm.runInNewContext(code, { exports });
+  const { canDeleteLead } = exports;
+  assert.equal(canDeleteLead({ role: "ADMIN" }), true);
+  assert.equal(canDeleteLead({ roles: ["CLIENT", "ADMIN"] }), true);
+  for (const user of [
+    null,
+    undefined,
+    {},
+    { role: "SALES_MANAGER" },
+    { role: "CLIENT" },
+    { role: "ENGINEER" },
+    { roles: [] },
+    { roles: ["SALES_MANAGER", "CLIENT"] },
+  ]) {
+    assert.equal(canDeleteLead(user), false);
+  }
+});
+
 test("capture lead permits only ADMIN or SALES_MANAGER from the profile", () => {
   const exports = {};
   const code = ts.transpileModule(

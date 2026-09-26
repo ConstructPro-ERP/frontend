@@ -2,8 +2,12 @@
 
 import { useSelector } from "react-redux";
 import type { RootState } from "@/store";
-import { canCaptureLead, canUpdateLead } from "./leadPermissions";
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import {
+  canCaptureLead,
+  canUpdateLead,
+  canDeleteLead,
+} from "./leadPermissions";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import {
   Check,
   Clock3,
@@ -19,6 +23,7 @@ import {
 } from "lucide-react";
 import {
   createLead as createLeadRequest,
+  deleteLead as deleteLeadRequest,
   getLead,
   listLeads,
   listLeadAssignees,
@@ -409,11 +414,17 @@ function DetailPanel({
   onStatusChange,
   onEdit,
   canEdit,
+  canDelete,
+  deleting,
+  onDelete,
 }: {
   lead: Lead;
   onStatusChange: (status: LeadStatus) => void;
   onEdit: () => void;
   canEdit: boolean;
+  canDelete: boolean;
+  deleting: boolean;
+  onDelete: () => void;
 }) {
   return (
     <aside className="overflow-hidden rounded-xl border border-outline-variant bg-white shadow-level-1">
@@ -521,6 +532,7 @@ function DetailPanel({
           <button
             type="button"
             onClick={onEdit}
+            disabled={deleting}
             className="rounded-lg border border-outline-variant px-3 py-2 text-xs font-semibold hover:bg-surface-container"
           >
             Edit lead
@@ -542,6 +554,7 @@ function DetailPanel({
               onStatusChange(event.target.value as LeadStatus)
             }
             aria-label="Update lead status"
+            disabled={deleting}
             className="min-w-0 flex-1 rounded-lg bg-primary px-2 py-2 text-xs font-semibold text-white outline-none"
           >
             <option value="NEW">New</option>
@@ -552,6 +565,18 @@ function DetailPanel({
           </select>
         ) : null}
       </div>
+      {canDelete ? (
+        <div className="border-t border-outline-variant px-4 py-3">
+          <button
+            type="button"
+            onClick={onDelete}
+            disabled={deleting}
+            className="w-full rounded-lg border border-error-outline px-3 py-2 text-xs font-semibold text-error hover:bg-error-container disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {deleting ? "Deleting lead..." : "Delete lead"}
+          </button>
+        </div>
+      ) : null}
     </aside>
   );
 }
@@ -560,6 +585,9 @@ export default function LeadsDashboardClient() {
   const user = useSelector((state: RootState) => state.auth.user);
   const canCapture = canCaptureLead(user);
   const canEdit = canUpdateLead(user);
+  const canDelete = canDeleteLead(user);
+  const [deleting, setDeleting] = useState(false);
+  const deleteInProgress = useRef(false);
   const [editingLead, setEditingLead] = useState<Lead | null>(null);
   const [leads, setLeads] = useState<Lead[]>([]);
   const [selectedId, setSelectedId] = useState("");
@@ -605,6 +633,35 @@ export default function LeadsDashboardClient() {
   );
   const selected =
     filtered.find((lead) => lead.id === selectedId) ?? filtered[0] ?? null;
+  const removeLead = async () => {
+    if (!canDelete || !selected || deleteInProgress.current) return;
+    const lead = selected;
+    if (
+      !window.confirm(
+        `Delete lead "${lead.customerName}"? This cannot be undone.`,
+      )
+    )
+      return;
+    deleteInProgress.current = true;
+    setDeleting(true);
+    setFeedback("");
+    try {
+      await deleteLeadRequest(lead.id);
+      setLeads((items) => items.filter((item) => item.id !== lead.id));
+      setSelectedId((id) => (id === lead.id ? "" : id));
+      setEditingLead((item) => (item?.id === lead.id ? null : item));
+      setFeedback("Lead deleted successfully.");
+    } catch (error) {
+      setFeedback(
+        error instanceof Error
+          ? error.message
+          : "The lead could not be deleted.",
+      );
+    } finally {
+      deleteInProgress.current = false;
+      setDeleting(false);
+    }
+  };
   const converted = leads.filter((lead) => lead.status === "CONVERTED").length;
   const followUp = leads.filter(
     (lead) => lead.status === "CONTACTED" || lead.status === "QUALIFIED",
@@ -812,6 +869,9 @@ export default function LeadsDashboardClient() {
             lead={selected}
             onStatusChange={updateStatus}
             canEdit={canEdit}
+            canDelete={canDelete}
+            deleting={deleting}
+            onDelete={removeLead}
             onEdit={() => setEditingLead(selected)}
           />
         ) : null}
