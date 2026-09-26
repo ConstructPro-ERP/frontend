@@ -6,6 +6,26 @@ export type FinanceInvoiceStatus =
   | "PARTIAL"
   | "CANCELLED";
 
+export type FinanceApiInvoiceStatus =
+  | "DRAFT"
+  | "ISSUED"
+  | "PARTIALLY_PAID"
+  | "PAID"
+  | "OVERDUE"
+  | "CANCELLED";
+
+export type FinancePaymentMethod =
+  | "CASH"
+  | "BANK_TRANSFER"
+  | "CHEQUE"
+  | "ONLINE";
+
+export type FinancePaymentMethodLabel =
+  | "Cash"
+  | "Bank Transfer"
+  | "Cheque"
+  | "Online";
+
 export type FinanceInvoiceFilter =
   | "ALL"
   | "PENDING"
@@ -55,10 +75,55 @@ export interface FinanceInvoiceDetails extends FinanceInvoice {
 export interface FinancePaymentFormValues {
   invoiceId: string;
   paymentAmount: string;
-  paymentMethod: string;
+  paymentMethod: FinancePaymentMethodLabel;
   paymentDate: string;
   paymentReference: string;
   notes: string;
+}
+
+export interface FinanceInvoiceDto {
+  id: string;
+  projectId: string;
+  customerId: string;
+  invoiceNumber: string | null;
+  invoiceDate: string;
+  dueDate: string | null;
+  totalAmount: number;
+  paidAmount: number;
+  outstandingAmount: number;
+  status: FinanceApiInvoiceStatus;
+  pdfUrl: string | null;
+  notes?: string | null;
+  project: { projectName: string };
+  customer: { fullName: string };
+}
+
+export interface CreateFinancePaymentDto {
+  invoiceId: string;
+  referenceNumber: string;
+  paymentDate: string;
+  amount: number;
+  paymentMethod: FinancePaymentMethod;
+  notes?: string;
+}
+
+export interface FinancePaymentDto {
+  id: string;
+  invoiceId: string;
+  customerId: string;
+  referenceNumber: string;
+  paymentDate: string;
+  amount: number;
+  paymentMethod: FinancePaymentMethod;
+  notes: string | null;
+}
+
+export interface RecordFinancePaymentResponseDto {
+  payment: FinancePaymentDto;
+  invoice: Pick<
+    FinanceInvoiceDto,
+    "id" | "totalAmount" | "paidAmount" | "outstandingAmount" | "status"
+  >;
 }
 
 export interface FinancePaymentFormErrors {

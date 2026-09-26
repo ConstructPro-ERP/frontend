@@ -11,6 +11,13 @@ import {
   RefreshCcw,
 } from "lucide-react";
 import apiClient from "@/lib/axios";
+import {
+  getFinanceErrorMessage,
+  getFinanceInvoice,
+  generateFinanceInvoicePdf,
+  listFinanceInvoices,
+  recordFinancePayment,
+} from "@/services/financeApi";
 import type {
   FinanceInvoice,
   FinanceInvoiceDetails,
@@ -31,7 +38,6 @@ import {
   getFinanceStatusBadgeClasses,
   getFinanceStatusLabel,
   isFinanceUnavailableError,
-  normalizeInvoices,
   normalizeSummary,
   validateFinancePaymentForm,
 } from "@/components/dashboard/finance/financeUtils";
@@ -91,15 +97,7 @@ function normalizeFinanceSummaryFromAnalytics(
 
 async function loadFinanceData(): Promise<FinanceState> {
   try {
-    const invoiceResponse = await apiClient.get<unknown>("/invoices", {
-      params: {
-        page: 1,
-        limit: 100,
-        sortBy: "createdAt",
-        sortOrder: "desc",
-      },
-    });
-    const invoices = normalizeInvoices(invoiceResponse.data);
+    const invoices = await listFinanceInvoices();
     const summaryResponse = await apiClient
       .get<unknown>("/analytics/dashboard/summary")
       .catch(() => null);
@@ -119,10 +117,10 @@ async function loadFinanceData(): Promise<FinanceState> {
   } catch (error) {
     return {
       kind: "error",
-      message:
-        error instanceof Error
-          ? error.message
-          : "Finance data could not be loaded right now.",
+      message: getFinanceErrorMessage(
+        error,
+        "Finance data could not be loaded right now.",
+      ),
     };
   }
 }
@@ -688,19 +686,14 @@ export default function FinanceDashboardClient() {
       setIsLoadingDetails(true);
       setFeedback(null);
       try {
-        const response = await apiClient.get<unknown>(
-          `/invoices/${invoice.id}`,
-        );
-        const details = normalizeInvoices([response.data])[0];
-        if (!details) throw new Error("Invoice details could not be read.");
-        setInvoiceDetails(details as FinanceInvoiceDetails);
+        setInvoiceDetails(await getFinanceInvoice(invoice.id));
       } catch (error) {
         setFeedback({
           tone: "error",
-          message:
-            error instanceof Error
-              ? error.message
-              : "Invoice details could not be loaded right now.",
+          message: getFinanceErrorMessage(
+            error,
+            "Invoice details could not be loaded right now.",
+          ),
         });
       } finally {
         setIsLoadingDetails(false);
@@ -711,18 +704,8 @@ export default function FinanceDashboardClient() {
   const handleDownloadPdf = (invoice: FinanceInvoice) => {
     void (async () => {
       try {
-        const response = await apiClient.post<unknown>(
-          `/invoices/${invoice.id}/pdf`,
-          {},
-        );
-        const data =
-          typeof response.data === "object" && response.data !== null
-            ? (response.data as Record<string, unknown>)
-            : null;
-        const pdfUrl =
-          typeof data?.pdfUrl === "string" && data.pdfUrl.trim().length > 0
-            ? data.pdfUrl
-            : invoice.pdfUrl;
+        const updatedInvoice = await generateFinanceInvoicePdf(invoice.id);
+        const pdfUrl = updatedInvoice.pdfUrl ?? invoice.pdfUrl;
 
         if (!pdfUrl) {
           setFeedback({
@@ -740,10 +723,10 @@ export default function FinanceDashboardClient() {
       } catch (error) {
         setFeedback({
           tone: "error",
-          message:
-            error instanceof Error
-              ? error.message
-              : "Invoice PDF could not be generated right now.",
+          message: getFinanceErrorMessage(
+            error,
+            "Invoice PDF could not be generated right now.",
+          ),
         });
       }
     })();
@@ -789,21 +772,7 @@ export default function FinanceDashboardClient() {
     setPaymentApiUnavailableMessage(null);
 
     try {
-      await apiClient.post("/payments", {
-        invoiceId: paymentFormValues.invoiceId,
-        amount: Number(paymentFormValues.paymentAmount),
-        paymentMethod:
-          paymentFormValues.paymentMethod === "Cash"
-            ? "CASH"
-            : paymentFormValues.paymentMethod === "Cheque"
-              ? "CHEQUE"
-              : paymentFormValues.paymentMethod === "Online"
-                ? "ONLINE"
-                : "BANK_TRANSFER",
-        paymentDate: paymentFormValues.paymentDate,
-        referenceNumber: paymentFormValues.paymentReference,
-        notes: paymentFormValues.notes || undefined,
-      });
+      await recordFinancePayment(paymentFormValues);
       setFinanceState(await loadFinanceData());
       setPaymentFormValues(createFinancePaymentFormValues());
       setPaymentFormErrors({});
@@ -824,10 +793,10 @@ export default function FinanceDashboardClient() {
       } else {
         setFeedback({
           tone: "error",
-          message:
-            error instanceof Error
-              ? error.message
-              : "Payment could not be recorded right now.",
+          message: getFinanceErrorMessage(
+            error,
+            "Payment could not be recorded right now.",
+          ),
         });
       }
     } finally {
