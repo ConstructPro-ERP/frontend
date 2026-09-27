@@ -167,8 +167,13 @@ export async function updateLeadStatus(id: string, status: LeadStatus) {
   });
   return normalizeLead(response.data);
 }
-export async function addLeadNote(id: string, note: string) {
-  return apiClient.post<unknown>(`/leads/${id}/notes`, { content: note });
+export async function addLeadNote(id: string, note: string, actorId?: string) {
+  const response = await apiClient.post<unknown>(
+    `/leads/${id}/notes`,
+    { content: note },
+    actorId ? { headers: { "x-user-id": actorId } } : undefined,
+  );
+  return normalizeNote(response.data);
 }
 export async function listLeadNotes(id: string) {
   const response = await apiClient.get<unknown>(`/leads/${id}/notes`);

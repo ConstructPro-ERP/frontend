@@ -159,6 +159,39 @@ test("assignment and note requests use backend DTO field names", async () => {
   assert.equal(calls[1].args[1].content, "Call tomorrow");
 });
 
+test("creating a note sends its content and actor and returns the saved note", async () => {
+  const note = {
+    id: "note-1",
+    leadId: "lead-1",
+    content: "Client is interested.\nCall tomorrow.",
+    authorId: "user-1",
+    createdAt: record.createdAt,
+    updatedAt: record.updatedAt,
+  };
+  const { api, calls } = loadApi({ data: note });
+  const saved = await api.addLeadNote("lead-1", note.content, "user-1");
+  assert.equal(calls[0].method, "post");
+  assert.equal(calls[0].args[0], "/leads/lead-1/notes");
+  assert.deepEqual(JSON.parse(JSON.stringify(calls[0].args[1])), {
+    content: note.content,
+  });
+  assert.equal(calls[0].args[2].headers["x-user-id"], "user-1");
+  assert.deepEqual(JSON.parse(JSON.stringify(saved)), note);
+  await api.addLeadNote("lead-1", "Another note");
+  assert.equal(calls[1].args[2], undefined);
+});
+
+test("creating a note preserves backend failures", async () => {
+  const error = new Error("Unable to create note.");
+  const { api } = loadApi(() => {
+    throw error;
+  });
+  await assert.rejects(
+    api.addLeadNote("lead-1", "Call tomorrow"),
+    (actual) => actual === error,
+  );
+});
+
 test("creation preserves every supplied response field without extra lead fields", async () => {
   const data = {
     ...record,

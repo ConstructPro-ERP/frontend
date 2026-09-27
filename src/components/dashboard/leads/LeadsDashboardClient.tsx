@@ -23,6 +23,8 @@ import {
   X,
 } from "lucide-react";
 import {
+  addLeadNote,
+  assignLead,
   createLead as createLeadRequest,
   deleteLead as deleteLeadRequest,
   getLead,
@@ -32,7 +34,12 @@ import {
   updateLeadStatus,
   updateLead,
 } from "./leadApi";
-import type { Lead, LeadMutationPayload, LeadStatus } from "@/types/lead";
+import type {
+  Lead,
+  LeadMutationPayload,
+  LeadStatus,
+  LeadNote,
+} from "@/types/lead";
 
 const statuses: ("All Leads" | LeadStatus)[] = [
   "All Leads",
@@ -410,6 +417,232 @@ function Field({
   );
 }
 
+function LeadAssignment({
+  lead,
+  onAssigned,
+  disabled,
+}: {
+  lead: Lead;
+  onAssigned: (lead: Lead) => void;
+  disabled: boolean;
+}) {
+  const [users, setUsers] = useState<LeadAssignee[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
+  const [attempt, setAttempt] = useState(0);
+  const [selectedId, setSelectedId] = useState(lead.assignedToId ?? "");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const pending = useRef(false);
+
+  useEffect(() => {
+    let active = true;
+    listLeadAssignees()
+      .then((items) => {
+        if (active) setUsers(items);
+      })
+      .catch((error: unknown) => {
+        if (active)
+          setLoadError(
+            error instanceof Error
+              ? error.message
+              : "Users could not be loaded.",
+          );
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [attempt]);
+
+  const submit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (pending.current || disabled || loading || loadError || !selectedId)
+      return;
+    pending.current = true;
+    setSaving(true);
+    setError("");
+    try {
+      const updated = await assignLead(lead.id, selectedId);
+      onAssigned({
+        ...updated,
+        assignedTo:
+          updated.assignedTo ??
+          users.find((user) => user.id === selectedId) ??
+          null,
+      });
+    } catch (error) {
+      setError(
+        error instanceof Error
+          ? error.message
+          : "The lead could not be assigned.",
+      );
+    } finally {
+      pending.current = false;
+      setSaving(false);
+    }
+  };
+
+  return (
+    <form onSubmit={submit} className="mt-4 space-y-2">
+      <label htmlFor="lead-assignment-user" className="text-xs font-semibold">
+        Assign to user
+      </label>
+      <div className="flex items-center gap-2">
+        <select
+          id="lead-assignment-user"
+          required
+          value={selectedId}
+          onChange={(event) => setSelectedId(event.target.value)}
+          disabled={disabled || saving || loading || !!loadError}
+          className="min-w-0 flex-1 rounded-lg border border-outline-variant bg-surface-container-lowest px-3 py-2.5 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/10"
+        >
+          <option value="" disabled>
+            {loading ? "Loading users..." : "Select a user"}
+          </option>
+          {lead.assignedToId &&
+          !users.some((user) => user.id === lead.assignedToId) ? (
+            <option value={lead.assignedToId}>
+              {lead.assignedTo?.fullName ||
+                lead.assignedTo?.email ||
+                "Current assignee"}
+            </option>
+          ) : null}
+          {users.map((user) => (
+            <option key={user.id} value={user.id}>
+              {user.fullName || user.email || user.id}
+              {user.fullName && user.email ? ` (${user.email})` : ""}
+            </option>
+          ))}
+        </select>
+        <button
+          type="submit"
+          disabled={
+            disabled ||
+            saving ||
+            loading ||
+            !!loadError ||
+            !users.some((user) => user.id === selectedId) ||
+            selectedId === lead.assignedToId
+          }
+          className="shrink-0 rounded-lg border border-primary bg-primary-soft px-3 py-2.5 text-xs font-semibold text-primary hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {saving ? "Assigning..." : "Assign lead"}
+        </button>
+      </div>
+      {loadError ? (
+        <p role="alert" className="text-xs text-error">
+          {loadError}{" "}
+          <button
+            type="button"
+            className="font-semibold underline"
+            onClick={() => {
+              setLoadError("");
+              setLoading(true);
+              setAttempt((value) => value + 1);
+            }}
+          >
+            Retry
+          </button>
+        </p>
+      ) : !loading && !users.length ? (
+        <p className="text-xs text-on-surface-muted">No users available.</p>
+      ) : null}
+      {error ? (
+        <p role="alert" className="text-xs text-error">
+          {error}
+        </p>
+      ) : null}
+    </form>
+  );
+}
+
+function LeadNoteForm({
+  leadId,
+  disabled,
+  onCreated,
+}: {
+  leadId: string;
+  disabled: boolean;
+  onCreated: (note: LeadNote) => void;
+}) {
+  const actorId = useSelector((state: RootState) => state.auth.user?.id);
+  const [content, setContent] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
+  const pending = useRef(false);
+
+  const submit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (pending.current || disabled) return;
+    const noteContent = content.trim();
+    if (!noteContent) {
+      setError("Enter a note before saving.");
+      return;
+    }
+    pending.current = true;
+    setSaving(true);
+    setError("");
+    setMessage("");
+    try {
+      const note = await addLeadNote(leadId, noteContent, actorId);
+      onCreated(note);
+      setContent("");
+      setMessage("Note created successfully.");
+    } catch (error) {
+      setError(
+        error instanceof Error
+          ? error.message
+          : "The note could not be created.",
+      );
+    } finally {
+      pending.current = false;
+      setSaving(false);
+    }
+  };
+
+  return (
+    <form onSubmit={submit} className="mt-4 space-y-2">
+      <label className="text-xs font-semibold">
+        New note
+        <textarea
+          name="content"
+          value={content}
+          onChange={(event) => {
+            setContent(event.target.value);
+            setMessage("");
+          }}
+          required
+          rows={3}
+          disabled={disabled || saving}
+          className={`${fieldClass} resize-y`}
+          placeholder="Spoke with client — very interested in package B."
+        />
+      </label>
+      {error ? (
+        <p role="alert" className="text-xs text-error">
+          {error}
+        </p>
+      ) : null}
+      {message ? (
+        <p role="status" className="text-xs text-primary">
+          {message}
+        </p>
+      ) : null}
+      <button
+        type="submit"
+        disabled={disabled || saving || !content.trim()}
+        className="ml-auto block rounded-lg border border-primary bg-primary-soft px-3 py-2 text-xs font-semibold text-primary hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        {saving ? "Creating note..." : "Create note"}
+      </button>
+    </form>
+  );
+}
+
 function DetailPanel({
   lead,
   onStatusChange,
@@ -418,6 +651,8 @@ function DetailPanel({
   canDelete,
   deleting,
   onDelete,
+  onAssigned,
+  onNoteCreated,
 }: {
   lead: Lead;
   onStatusChange: (status: LeadStatus) => void;
@@ -426,6 +661,8 @@ function DetailPanel({
   canDelete: boolean;
   deleting: boolean;
   onDelete: () => void;
+  onAssigned: (lead: Lead) => void;
+  onNoteCreated: (note: LeadNote) => void;
 }) {
   return (
     <aside className="overflow-hidden rounded-xl border border-outline-variant bg-white shadow-level-1">
@@ -497,7 +734,7 @@ function DetailPanel({
                     <MessageSquareText size={13} />
                   </div>
                   <div>
-                    <p className="text-xs font-medium leading-5">
+                    <p className="whitespace-pre-wrap break-words text-xs font-medium leading-5">
                       {activity.content}
                     </p>
                     <p className="text-[11px] text-on-surface-muted">
@@ -508,6 +745,12 @@ function DetailPanel({
               );
             })}
           </div>
+          <LeadNoteForm
+            key={lead.id}
+            leadId={lead.id}
+            disabled={deleting}
+            onCreated={onNoteCreated}
+          />
         </section>
         <section className="p-5">
           <h3 className="mb-3 text-[10px] font-bold uppercase tracking-[.08em] text-on-surface-muted">
@@ -526,9 +769,44 @@ function DetailPanel({
               </p>
             </div>
           </div>
+          {canEdit ? (
+            <LeadAssignment
+              key={`${lead.id}:${lead.assignedToId}`}
+              lead={lead}
+              onAssigned={onAssigned}
+              disabled={deleting}
+            />
+          ) : (
+            <div className="mt-4 space-y-2">
+              <label
+                htmlFor="lead-assignment-user"
+                className="text-xs font-semibold"
+              >
+                Assign to user
+              </label>
+              <div className="flex items-center gap-2">
+                <select
+                  id="lead-assignment-user"
+                  disabled
+                  className="min-w-0 flex-1 rounded-lg border border-outline-variant bg-surface-container-lowest px-3 py-2.5 text-sm"
+                >
+                  <option>Select a user</option>
+                </select>
+                <button
+                  disabled
+                  className="shrink-0 rounded-lg border border-primary bg-primary-soft px-3 py-2.5 text-xs font-semibold text-primary disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Assign lead
+                </button>
+              </div>
+              <p className="text-xs text-on-surface-muted">
+                Assignment requires an ADMIN or SALES_MANAGER account.
+              </p>
+            </div>
+          )}
         </section>
       </div>
-      <div className="flex gap-2 border-t border-outline-variant p-4">
+      <div className="flex flex-wrap gap-2 border-t border-outline-variant p-4">
         {canEdit ? (
           <button
             type="button"
@@ -566,18 +844,21 @@ function DetailPanel({
           </select>
         ) : null}
       </div>
-      {canDelete ? (
-        <div className="border-t border-outline-variant px-4 py-3">
-          <button
-            type="button"
-            onClick={onDelete}
-            disabled={deleting}
-            className="w-full rounded-lg border border-error-outline px-3 py-2 text-xs font-semibold text-error hover:bg-error-container disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {deleting ? "Deleting lead..." : "Delete lead"}
-          </button>
-        </div>
-      ) : null}
+      <div className="border-t border-outline-variant px-4 py-3">
+        <button
+          type="button"
+          onClick={onDelete}
+          disabled={deleting || !canDelete}
+          className="w-full rounded-lg border border-error-outline px-3 py-2 text-xs font-semibold text-error hover:bg-error-container disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {deleting ? "Deleting lead..." : "Delete lead"}
+        </button>
+        {!canDelete ? (
+          <p className="mt-2 text-xs text-on-surface-muted">
+            Deleting leads requires an ADMIN account.
+          </p>
+        ) : null}
+      </div>
     </aside>
   );
 }
@@ -803,18 +1084,27 @@ export default function LeadsDashboardClient() {
             <Filter size={14} />
             Filter
           </button>
-          {canCapture ? (
-            <button
-              type="button"
-              onClick={() => setShowModal(true)}
-              className="inline-flex h-9 items-center gap-2 rounded-lg bg-primary px-4 text-xs font-semibold text-white hover:bg-primary-hover"
-            >
-              <Plus size={15} />
-              Capture Lead
-            </button>
-          ) : null}
+          <button
+            type="button"
+            onClick={() => setShowModal(true)}
+            disabled={!canCapture}
+            className="inline-flex h-9 items-center gap-2 rounded-lg bg-primary px-4 text-xs font-semibold text-white hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <Plus size={15} />
+            Capture Lead
+          </button>
         </div>
       </section>
+      {!canCapture ? (
+        <p
+          role="status"
+          className="rounded-lg border border-outline-variant bg-white px-4 py-3 text-xs text-on-surface-variant"
+        >
+          {user
+            ? `Current account role: ${user.role || "unavailable"}. Capture and assignment require ADMIN or SALES_MANAGER; deletion requires ADMIN.`
+            : "Your account profile is unavailable or still loading. Sign in to enable lead actions for your role."}
+        </p>
+      ) : null}
       <section className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
         <div className="overflow-hidden rounded-xl border border-outline-variant bg-white shadow-level-1">
           <div className="border-b border-outline-variant bg-surface-container px-5 py-3 text-[10px] font-bold uppercase tracking-[.08em] text-on-surface-muted">
@@ -866,6 +1156,30 @@ export default function LeadsDashboardClient() {
         {selected ? (
           <DetailPanel
             lead={selected}
+            onNoteCreated={(note) => {
+              const leadId = selected.id;
+              setLeads((items) =>
+                items.map((item) =>
+                  item.id === leadId
+                    ? {
+                        ...item,
+                        notes: [
+                          ...item.notes.filter(
+                            (existing) => existing.id !== note.id,
+                          ),
+                          note,
+                        ],
+                      }
+                    : item,
+                ),
+              );
+            }}
+            onAssigned={(updated) => {
+              setLeads((items) =>
+                items.map((item) => (item.id === updated.id ? updated : item)),
+              );
+              setFeedback("Lead assigned successfully.");
+            }}
             onStatusChange={updateStatus}
             canEdit={canEdit}
             canDelete={canDelete}
