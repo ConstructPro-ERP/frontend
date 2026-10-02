@@ -331,3 +331,17 @@ export function isQuotationUnavailableError(error: unknown) {
 export function canCreateQuotation(role: string | undefined): boolean {
   return role === "ADMIN" || role === "MANAGER";
 }
+
+// TODO: revisit once the backend team confirms the real JWT role string —
+// this may be "SALES_MANAGER" rather than "MANAGER".
+export function canApproveQuotation(role: string | undefined): boolean {
+  return role === "ADMIN" || role === "MANAGER";
+}
+
+export function isAlreadyConvertedError(error: unknown) {
+  if (!(error instanceof ApiError)) {
+    return false;
+  }
+
+  return error.code === "ALREADY_CONVERTED" || error.statusCode === 409;
+}
