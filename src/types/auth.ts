@@ -9,9 +9,14 @@ export interface User {
     | "ADMIN"
     | "MANAGEMENT"
     | "MANAGER"
+    | "SALES_MANAGER"
+    | "PROJECT_MANAGER"
     | "FINANCE"
     | "ACCOUNTANT"
-    | "CLIENT";
+    | "CLIENT"
+    | "CLIENT_PORTAL_USER"
+    | "user"
+    | null;
   avatarUrl?: string;
 }
 

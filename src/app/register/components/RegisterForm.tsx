@@ -2,7 +2,7 @@
 // src/app/register/components/RegisterForm.tsx
 import { useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
+import GoogleLoginButton from "@/components/ui/GoogleLoginButton";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -176,16 +176,7 @@ export default function RegisterForm() {
 
       {/* Social Login Row */}
       <div className="mt-8">
-        <AuthButton type="button" variant="google" onClick={() => {}}>
-          <Image
-            src="/logos/google-icon.svg"
-            alt=""
-            width={20}
-            height={20}
-            aria-hidden="true"
-          />
-          Sign in with Google
-        </AuthButton>
+        <GoogleLoginButton disabled={isSubmitting} />
       </div>
     </div>
   );

@@ -11,6 +11,8 @@ import {
   X,
 } from "lucide-react";
 import { useState } from "react";
+import { useSelector } from "react-redux";
+import type { RootState } from "@/store";
 import { dashboardNavItems } from "@/components/dashboard/dashboardConfig";
 
 type DashboardSidebarProps = {
@@ -33,17 +35,19 @@ export default function DashboardSidebar({
   const pathname = usePathname();
   const sections = ["Main", "Finance", "Management"] as const;
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
-  const accountProfile = pathname.startsWith("/dashboard/finance")
-    ? {
-        initials: "MA",
-        name: "Malini Abeywadena",
-        role: "Finance Officer",
-      }
-    : {
-        initials: "AW",
-        name: "Admin Wickrama",
-        role: "Administrator",
-      };
+  const user = useSelector((state: RootState) => state.auth.user);
+  const accountProfile = {
+    initials: user
+      ? `${user.firstName.charAt(0)}${user.lastName.charAt(0)}` || "U"
+      : "?",
+    name: user
+      ? `${user.firstName} ${user.lastName}`.trim() || user.email
+      : "Not signed in",
+    role:
+      user?.role && user.role !== "user"
+        ? user.role.replaceAll("_", " ")
+        : "No role assigned",
+  };
 
   return (
     <>

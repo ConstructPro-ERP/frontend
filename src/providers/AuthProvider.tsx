@@ -1,11 +1,12 @@
 "use client";
 import { useEffect } from "react";
+import { usePathname } from "next/navigation";
 import { useDispatch } from "react-redux";
 import type { AppDispatch } from "@/store";
 import { loginSuccess, logout } from "@/store/slices/authSlice";
 import { getAccessToken, clearTokens } from "@/lib/token";
 import apiClient from "@/lib/axios";
-import type { User } from "@/types/auth";
+import { normalizeAuthUser } from "@/services/googleAuth";
 
 export default function AuthProvider({
   children,
@@ -13,8 +14,12 @@ export default function AuthProvider({
   children: React.ReactNode;
 }) {
   const dispatch = useDispatch<AppDispatch>();
+  const pathname = usePathname();
 
   useEffect(() => {
+    // The callback owns session initialization while exchanging accounts.
+    if (pathname === "/auth/callback") return;
+    let active = true;
     const initializeAuth = async () => {
       const accessToken = getAccessToken();
 
@@ -27,15 +32,17 @@ export default function AuthProvider({
         // We have a token in storage, let's validate it and get the user profile.
         // Note: The apiClient automatically attaches the token from localStorage
         // via its request interceptor, so we don't need to pass headers manually.
-        const res = await apiClient.get<User>("/auth/me");
+        const res = await apiClient.get<unknown>("/auth/me");
+        if (!active) return;
 
         // The token is valid, fully restore the session
         dispatch(
           loginSuccess({
-            user: res.data,
+            user: normalizeAuthUser(res.data),
           }),
         );
       } catch (error) {
+        if (!active) return;
         // Token is invalid, expired, or user deleted. Wipe everything.
         console.error("Failed to initialize auth session", error);
         clearTokens();
@@ -44,7 +51,10 @@ export default function AuthProvider({
     };
 
     initializeAuth();
-  }, [dispatch]);
+    return () => {
+      active = false;
+    };
+  }, [dispatch, pathname]);
 
   return <>{children}</>;
 }
