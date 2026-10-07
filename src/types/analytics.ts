@@ -65,6 +65,7 @@ export type AnalyticsDashboardData = {
     completionRate: string;
     notes: string[];
   };
+  projectProgress: AnalyticsProjectProgressItem[];
   riskSummary: {
     title: string;
     subtitle: string;
@@ -72,6 +73,32 @@ export type AnalyticsDashboardData = {
     items: AnalyticsRiskItem[];
   };
   exportAvailability: AnalyticsExportAvailability;
+};
+
+export type AnalyticsFinanceTrendPoint = {
+  label: string;
+  totalRevenue: number;
+  paidAmount: number;
+  outstandingBalance: number;
+};
+
+export type AnalyticsProjectProgressItem = {
+  projectId: string;
+  projectName: string;
+  status: string;
+  milestoneCount: number;
+  completedMilestoneCount: number;
+  completionPercentage: number;
+};
+
+export type AnalyticsOverdueInvoiceItem = {
+  invoiceId: string;
+  invoiceNumber: string | null;
+  outstandingAmount: number;
+  customerName: string;
+  projectId: string;
+  projectName: string;
+  daysOverdue: number;
 };
 
 export type AnalyticsAiProjectOption = {
@@ -87,4 +114,25 @@ export type AnalyticsAiPredictionResult = {
   revenueTrend: string;
   explanation: string;
   recommendedAction: string;
+};
+
+export type AnalyticsAiPredictionSource =
+  | "RULE_BASED"
+  | "AI_PROVIDER"
+  | "SAFE_FALLBACK";
+
+export type AnalyticsAiRiskPredictionDto = {
+  projectId: string;
+  projectName: string;
+  projectRiskLevel: AnalyticsRiskLevel;
+  paymentDelayRisk: AnalyticsRiskLevel;
+  milestoneDelayRisk: AnalyticsRiskLevel;
+  revenueTrend: "DECLINING" | "STABLE" | "GROWING";
+  explanation: string;
+  recommendedAction: string;
+  predictionSource: AnalyticsAiPredictionSource;
+  sufficientData: boolean;
+  confidenceScore: number;
+  warnings: string[];
+  generatedAt: string;
 };

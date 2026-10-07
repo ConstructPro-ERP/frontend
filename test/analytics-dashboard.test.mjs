@@ -17,25 +17,19 @@ test("analytics page renders the dedicated analytics dashboard client", () => {
 });
 
 test("analytics dashboard client uses shared API client and analytics endpoints", () => {
-  const clientSource = read(
-    "src/components/dashboard/analytics/AnalyticsDashboardClient.tsx",
-  );
+  const serviceSource = read("src/services/analyticsApi.ts");
+  const aiServiceSource = read("src/services/aiForecastingApi.ts");
 
   assert.match(
-    clientSource,
-    /apiClient\.get<unknown>\("\/analytics\/dashboard\/summary"/,
+    serviceSource,
+    /apiClient\.get<DashboardSummaryDto>\(\s*"\/analytics\/dashboard\/summary"/,
   );
+  assert.match(serviceSource, /"\/analytics\/reports\/overdue-invoices"/);
+  assert.match(serviceSource, /"\/analytics\/reports\/project-completion"/);
+  assert.match(serviceSource, /"\/analytics\/kpis\/revenue"/);
   assert.match(
-    clientSource,
-    /apiClient\.get<unknown>\("\/analytics\/reports\/overdue-invoices"/,
-  );
-  assert.match(
-    clientSource,
-    /apiClient\.get<unknown>\("\/analytics\/reports\/project-completion"/,
-  );
-  assert.match(
-    clientSource,
-    /apiClient\.get<unknown>\(\s*`\/ai-forecasting\/projects\/\$\{effectiveSelectedProjectId\}\/risk`/,
+    aiServiceSource,
+    /apiClient\.get<AnalyticsAiRiskPredictionDto>\(\s*`\/ai-forecasting\/projects\/\$\{projectId\}\/risk`/,
   );
 });
 
@@ -61,37 +55,59 @@ test("analytics dashboard keeps the prototype KPI and section wording", () => {
   assert.match(headerSource, /Search analytics\.\.\./);
 });
 
-test("analytics dashboard client includes loading, empty, unavailable, and error states", () => {
+test("analytics dashboard client includes loading, empty, and error states", () => {
   const clientSource = read(
     "src/components/dashboard/analytics/AnalyticsDashboardClient.tsx",
   );
 
   assert.match(clientSource, /Analytics dashboard unavailable/);
   assert.match(clientSource, /No analytics data available/);
-  assert.match(clientSource, /Analytics APIs are not available yet/);
+  assert.match(clientSource, /No revenue trend data is available/);
+  assert.match(clientSource, /No project progress data is available/);
   assert.match(clientSource, /Export Analytics/);
   assert.match(clientSource, /AI Risk Prediction Engine/);
   assert.match(clientSource, /Running Analysis\.\.\./);
-  assert.match(
-    clientSource,
-    /AI forecasting service is not available right now/,
-  );
+  assert.match(clientSource, /getAiPredictionErrorMessage/);
 });
 
 test("analytics dashboard client matches the live microservice-backed workflow", () => {
   const clientSource = read(
     "src/components/dashboard/analytics/AnalyticsDashboardClient.tsx",
   );
+  const aiServiceSource = read("src/services/aiForecastingApi.ts");
 
   assert.match(clientSource, /Retrieval-Augmented Generation/);
   assert.match(clientSource, /LangChain RAG v2\.1/);
-  assert.match(
-    clientSource,
-    /Live overdue invoice alerts from finance-service/,
-  );
-  assert.match(clientSource, /AI Forecast Prediction/);
+  assert.match(clientSource, /buildAnalyticsRiskItems/);
+  assert.match(aiServiceSource, /AI Forecast Prediction/);
   assert.match(clientSource, /Latest live AI run for/);
   assert.match(clientSource, /Project options:/);
+});
+
+test("AI prediction UI handles exact backend results, fallback, insufficient data, and roles", () => {
+  const clientSource = read(
+    "src/components/dashboard/analytics/AnalyticsDashboardClient.tsx",
+  );
+  const serviceSource = read("src/services/aiForecastingApi.ts");
+  const typesSource = read("src/types/analytics.ts");
+
+  assert.match(typesSource, /AnalyticsAiRiskPredictionDto/);
+  assert.match(typesSource, /predictionSource: AnalyticsAiPredictionSource/);
+  assert.match(typesSource, /sufficientData: boolean/);
+  assert.match(clientSource, /Payment-delay risk/);
+  assert.match(clientSource, /Milestone-delay risk/);
+  assert.match(clientSource, /Revenue trend/);
+  assert.match(clientSource, /Explanation/);
+  assert.match(clientSource, /Recommended action/);
+  assert.match(clientSource, /Insufficient historical data/);
+  assert.match(clientSource, /safe rule-based result is shown/);
+  assert.match(clientSource, /canRunAiForecasting\(user\?\.role\)/);
+  assert.match(serviceSource, /"ADMIN"/);
+  assert.match(serviceSource, /"MANAGEMENT"/);
+  assert.match(serviceSource, /"FINANCE"/);
+  assert.match(serviceSource, /"ACCOUNTANT"/);
+  assert.doesNotMatch(clientSource, /prediction\.context/);
+  assert.doesNotMatch(clientSource, /prediction\.warnings/);
 });
 
 test("analytics utilities keep preview data and normalization helpers", () => {
@@ -111,4 +127,20 @@ test("analytics utilities keep preview data and normalization helpers", () => {
   assert.match(utilsSource, /analyticsAiPredictionPreview/);
   assert.match(utilsSource, /normalizeAnalyticsAiProjectOptions/);
   assert.match(utilsSource, /normalizeAnalyticsAiPredictionResult/);
+});
+
+test("analytics charts use real monthly and project backend data", () => {
+  const clientSource = read(
+    "src/components/dashboard/analytics/AnalyticsDashboardClient.tsx",
+  );
+  const serviceSource = read("src/services/analyticsApi.ts");
+
+  assert.match(serviceSource, /getAnalyticsFinanceTrend/);
+  assert.match(serviceSource, /fromDate: range\.fromDate/);
+  assert.match(serviceSource, /paidAmount: response\.data\.paidAmount/);
+  assert.match(serviceSource, /buildPaymentAndSalesMetrics/);
+  assert.match(clientSource, /ProjectProgressSummary/);
+  assert.match(clientSource, /role="progressbar"/);
+  assert.match(clientSource, /No revenue trend data is available/);
+  assert.match(clientSource, /No project progress data is available/);
 });

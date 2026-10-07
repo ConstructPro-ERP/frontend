@@ -61,3 +61,40 @@ test("shared dashboard layout is applied to finance and analytics pages", () => 
   const layoutSource = read(layoutPath);
   assert.match(layoutSource, /<DashboardShell>{children}<\/DashboardShell>/);
 });
+
+test("dashboard KPI cards use the typed backend summary integration", () => {
+  const pageSource = read("src/app/dashboard/page.tsx");
+  const clientSource = read("src/components/dashboard/DashboardKpiClient.tsx");
+  const serviceSource = read("src/services/dashboardApi.ts");
+  const typesSource = read("src/types/dashboard.ts");
+
+  assert.match(pageSource, /DashboardKpiClient/);
+  assert.doesNotMatch(pageSource, /LKR 48\.2M/);
+  assert.match(
+    serviceSource,
+    /apiClient\.get<DashboardSummaryDto>\(\s*"\/analytics\/dashboard\/summary"/,
+  );
+  assert.match(typesSource, /DashboardRevenueKpisDto/);
+  assert.match(typesSource, /DashboardProjectKpisDto/);
+  assert.match(typesSource, /DashboardSalesKpisDto/);
+  assert.match(clientSource, /Total Revenue/);
+  assert.match(clientSource, /Paid Amount/);
+  assert.match(clientSource, /Outstanding/);
+  assert.match(clientSource, /Active Projects/);
+  assert.match(clientSource, /Completion Rate/);
+  assert.match(clientSource, /Total Leads/);
+  assert.match(clientSource, /Total Quotations/);
+});
+
+test("dashboard KPI integration has loading, empty, error, and zero handling", () => {
+  const clientSource = read("src/components/dashboard/DashboardKpiClient.tsx");
+  const serviceSource = read("src/services/dashboardApi.ts");
+
+  assert.match(clientSource, /Loading dashboard KPIs/);
+  assert.match(clientSource, /No KPI data available/);
+  assert.match(clientSource, /Dashboard KPIs unavailable/);
+  assert.match(clientSource, /Try again/);
+  assert.match(serviceSource, /summary\.revenue\.totalRevenue === 0/);
+  assert.match(serviceSource, /summary\.projects\.totalProjects === 0/);
+  assert.match(serviceSource, /summary\.sales\.totalLeads === 0/);
+});
