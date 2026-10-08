@@ -3,7 +3,8 @@ import QuotationsDashboardClient from "@/components/dashboard/quotations/Quotati
 
 export const metadata: Metadata = {
   title: "Quotations | ConstructPro ERP",
-  description: "Quotations dashboard placeholder for ConstructPro.",
+  description:
+    "Manage and track quotations, approvals, revisions, and project conversions in ConstructPro ERP.",
 };
 
 export default function QuotationsPage() {
