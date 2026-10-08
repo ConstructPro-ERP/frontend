@@ -1,8 +1,24 @@
 "use client";
 
 import { useState } from "react";
+import { usePathname } from "next/navigation";
+import { DM_Sans, DM_Mono } from "next/font/google";
+import { useHomeTheme } from "./homeTheme";
+import "./home-shell.css";
 import DashboardHeader from "@/components/dashboard/DashboardHeader";
 import DashboardSidebar from "@/components/dashboard/DashboardSidebar";
+
+const dmSans = DM_Sans({
+  subsets: ["latin"],
+  variable: "--font-dm-sans",
+  display: "swap",
+});
+const dmMono = DM_Mono({
+  subsets: ["latin"],
+  weight: ["400", "500"],
+  variable: "--font-dm-mono",
+  display: "swap",
+});
 
 export default function DashboardShell({
   children,
@@ -10,9 +26,14 @@ export default function DashboardShell({
   children: React.ReactNode;
 }>) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const isHome = usePathname() === "/dashboard";
+  const { theme, toggleTheme } = useHomeTheme();
 
   return (
-    <div className="flex min-h-screen bg-surface-bg">
+    <div
+      className={`flex min-h-screen bg-surface-bg ${isHome ? `home-dashboard-shell ${dmSans.variable} ${dmMono.variable}` : ""}`}
+      data-home-theme={isHome ? theme : undefined}
+    >
       <DashboardSidebar
         mobileOpen={mobileOpen}
         onClose={() => setMobileOpen(false)}
@@ -26,7 +47,11 @@ export default function DashboardShell({
           Skip to main content
         </a>
 
-        <DashboardHeader onOpenSidebar={() => setMobileOpen(true)} />
+        <DashboardHeader
+          onOpenSidebar={() => setMobileOpen(true)}
+          homeTheme={isHome ? theme : undefined}
+          onToggleTheme={toggleTheme}
+        />
 
         <main
           id="dashboard-main-content"

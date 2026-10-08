@@ -1,15 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type RefObject } from "react";
-import {
-  Check,
-  Download,
-  Eye,
-  FileDigit,
-  FileOutput,
-  Plus,
-  RefreshCcw,
-} from "lucide-react";
+import { Check, Download, Eye, Plus, RefreshCcw } from "lucide-react";
 import apiClient from "@/lib/axios";
 import {
   getFinanceErrorMessage,
@@ -229,13 +221,11 @@ function FinanceTable({
   onRecordPayment,
   onViewDetails,
   onDownloadPdf,
-  onExportInvoice,
 }: {
   invoices: FinanceInvoice[];
   onRecordPayment: (invoice: FinanceInvoice) => void;
   onViewDetails: (invoice: FinanceInvoice) => void;
   onDownloadPdf: (invoice: FinanceInvoice) => void;
-  onExportInvoice: (invoice: FinanceInvoice) => void;
 }) {
   return (
     <div className="overflow-x-auto">
@@ -336,14 +326,6 @@ function FinanceTable({
                     >
                       <Download size={13} />
                       PDF
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => onExportInvoice(invoice)}
-                      className="inline-flex items-center gap-1 rounded-lg border border-outline-variant bg-surface-container px-2.5 py-1.5 text-xs font-medium text-on-background transition hover:bg-surface-container-high"
-                    >
-                      <FileDigit size={13} />
-                      Export
                     </button>
                   </div>
                 </td>
@@ -732,13 +714,6 @@ export default function FinanceDashboardClient() {
     })();
   };
 
-  const handleExportInvoice = (invoice: FinanceInvoice) => {
-    setFeedback({
-      tone: "info",
-      message: `Invoice export for ${invoice.invoiceNumber} is a placeholder until backend support is connected.`,
-    });
-  };
-
   const handleSubmitPayment = async () => {
     const validationErrors = validateFinancePaymentForm(
       paymentFormValues,
@@ -932,20 +907,6 @@ export default function FinanceDashboardClient() {
         <div className="flex items-center gap-2 xl:ml-auto">
           <button
             type="button"
-            onClick={() =>
-              setFeedback({
-                tone: "info",
-                message:
-                  "Finance export is currently a placeholder until backend support is connected.",
-              })
-            }
-            className="inline-flex items-center gap-2 rounded-lg border border-outline-variant bg-transparent px-4 py-2 text-sm font-semibold text-on-surface-variant transition hover:bg-surface-container hover:text-on-background"
-          >
-            <FileOutput size={14} />
-            Export
-          </button>
-          <button
-            type="button"
             onClick={focusPaymentPanel}
             className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-on-primary transition hover:bg-primary-hover"
           >
@@ -982,7 +943,6 @@ export default function FinanceDashboardClient() {
               onRecordPayment={handleSelectInvoiceForPayment}
               onViewDetails={handleViewInvoiceDetails}
               onDownloadPdf={handleDownloadPdf}
-              onExportInvoice={handleExportInvoice}
             />
           )}
         </div>
