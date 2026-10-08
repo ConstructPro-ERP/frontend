@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useSelector } from "react-redux";
-import { Download, Play, RefreshCcw, Radar } from "lucide-react";
+import { Play, RefreshCcw, Radar } from "lucide-react";
 import type { RootState } from "@/store";
 import {
   canRunAiForecasting,
@@ -189,30 +189,15 @@ function AnalyticsCardShell({
 
 function RevenueSummary({
   data,
-  onExport,
 }: {
   data: AnalyticsDashboardData["revenueSummary"];
-  onExport: () => void;
 }) {
   const maxValue = Math.max(...data.points.map((point) => point.value), 1);
   const kinds = new Set(data.points.map((point) => point.kind));
   const hasRevenueData = data.points.some((point) => point.value > 0);
 
   return (
-    <AnalyticsCardShell
-      title={data.title}
-      subtitle={data.subtitle}
-      action={
-        <button
-          type="button"
-          onClick={onExport}
-          className="inline-flex items-center gap-2 rounded-lg border border-outline-variant bg-transparent px-3 py-1.5 text-xs font-semibold text-on-surface-variant transition hover:bg-surface-container hover:text-on-background"
-        >
-          <Download size={13} />
-          Export
-        </button>
-      }
-    >
+    <AnalyticsCardShell title={data.title} subtitle={data.subtitle}>
       <div className="p-5">
         {!hasRevenueData ? (
           <div className="flex h-40 items-center justify-center rounded-lg border border-dashed border-outline text-sm text-on-surface-variant">
@@ -602,29 +587,9 @@ function AiPredictionBanner({
             AI Risk Prediction Engine
           </h2>
           <p className="mt-1 max-w-3xl text-[12.5px] text-blue-100/60">
-            Retrieval-Augmented Generation · Analysing historical project data,
-            payment patterns, and milestone velocity to predict risks and delays
+            Analysing historical project data, payment patterns, and milestone
+            velocity to predict risks and delays
           </p>
-          <div className="mt-3 flex flex-wrap gap-4 text-[11.5px] text-blue-100/55">
-            <span>
-              Route:{" "}
-              <strong className="font-semibold text-white/85">
-                /ai-forecasting/projects/:projectId/risk
-              </strong>
-            </span>
-            <span>
-              Project options:{" "}
-              <strong className="font-semibold text-white/85">
-                {projectOptions.length}
-              </strong>
-            </span>
-            <span>
-              Model:{" "}
-              <strong className="font-semibold text-white/85">
-                LangChain RAG v2.1
-              </strong>
-            </span>
-          </div>
         </div>
         <div className="flex w-full flex-col gap-3 lg:w-[320px]">
           <select
@@ -760,7 +725,6 @@ export default function AnalyticsDashboardClient() {
     kind: "loading",
   });
   const [feedback, setFeedback] = useState<AnalyticsFeedback | null>(null);
-  const [isExporting, setIsExporting] = useState(false);
   const [isRunningAnalysis, setIsRunningAnalysis] = useState(false);
   const [selectedProjectId, setSelectedProjectId] = useState("");
   const [prediction, setPrediction] =
@@ -799,20 +763,6 @@ export default function AnalyticsDashboardClient() {
     null;
   const effectiveSelectedProjectId = selectedProject?.id ?? "";
   const canRunPrediction = canRunAiForecasting(user?.role);
-
-  const handleExport = async () => {
-    setFeedback(null);
-    setIsExporting(true);
-
-    window.setTimeout(() => {
-      setIsExporting(false);
-      setFeedback({
-        tone: "info",
-        message:
-          "Analytics export API is not documented yet. The dashboard is now wired to the live summary and reporting endpoints instead.",
-      });
-    }, 250);
-  };
 
   const handleRunAnalysis = async () => {
     if (!data || !effectiveSelectedProjectId || !canRunPrediction) {
@@ -931,29 +881,13 @@ export default function AnalyticsDashboardClient() {
       {prediction ? <AiPredictionResultPanel prediction={prediction} /> : null}
 
       <section className="grid gap-5 xl:grid-cols-2">
-        <RevenueSummary data={data.revenueSummary} onExport={handleExport} />
+        <RevenueSummary data={data.revenueSummary} />
         <PaymentTrendSummary metrics={data.paymentTrendSummary.metrics} />
       </section>
 
       <ProjectProgressSummary projects={data.projectProgress} />
 
       <RiskSummary data={data.riskSummary} />
-
-      <div className="flex justify-end">
-        <button
-          type="button"
-          onClick={handleExport}
-          disabled={isExporting}
-          className="inline-flex items-center gap-2 rounded-lg border border-outline-variant bg-transparent px-4 py-2 text-sm font-semibold text-on-surface-variant transition hover:bg-surface-container hover:text-on-background disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          {isExporting ? (
-            <RefreshCcw size={14} className="animate-spin" />
-          ) : (
-            <Download size={14} />
-          )}
-          {isExporting ? "Exporting..." : "Export Analytics"}
-        </button>
-      </div>
     </div>
   );
 }

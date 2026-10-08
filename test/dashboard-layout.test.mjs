@@ -78,21 +78,23 @@ test("dashboard KPI cards use the typed backend summary integration", () => {
   assert.match(typesSource, /DashboardProjectKpisDto/);
   assert.match(typesSource, /DashboardSalesKpisDto/);
   assert.match(clientSource, /Total Revenue/);
-  assert.match(clientSource, /Paid Amount/);
+  assert.match(clientSource, /Collected/);
   assert.match(clientSource, /Outstanding/);
   assert.match(clientSource, /Active Projects/);
-  assert.match(clientSource, /Completion Rate/);
+  assert.match(clientSource, /Milestone progress overview/);
   assert.match(clientSource, /Total Leads/);
-  assert.match(clientSource, /Total Quotations/);
+  assert.match(clientSource, /Recent Activity/);
 });
 
 test("dashboard KPI integration has loading, empty, error, and zero handling", () => {
   const clientSource = read("src/components/dashboard/DashboardKpiClient.tsx");
   const serviceSource = read("src/services/dashboardApi.ts");
 
-  assert.match(clientSource, /Loading dashboard KPIs/);
-  assert.match(clientSource, /No KPI data available/);
-  assert.match(clientSource, /Dashboard KPIs unavailable/);
+  assert.match(clientSource, /Loading…/);
+  assert.match(clientSource, /No active projects yet/);
+  assert.match(clientSource, /No recent activity yet/);
+  assert.match(clientSource, /No invoiced revenue in this period/);
+  assert.match(clientSource, /Your role does not have access/);
   assert.match(clientSource, /Try again/);
   assert.match(serviceSource, /summary\.revenue\.totalRevenue === 0/);
   assert.match(serviceSource, /summary\.projects\.totalProjects === 0/);

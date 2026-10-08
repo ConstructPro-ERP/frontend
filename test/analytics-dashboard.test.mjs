@@ -64,7 +64,7 @@ test("analytics dashboard client includes loading, empty, and error states", () 
   assert.match(clientSource, /No analytics data available/);
   assert.match(clientSource, /No revenue trend data is available/);
   assert.match(clientSource, /No project progress data is available/);
-  assert.match(clientSource, /Export Analytics/);
+  assert.doesNotMatch(clientSource, /Export Analytics|onExport|handleExport/);
   assert.match(clientSource, /AI Risk Prediction Engine/);
   assert.match(clientSource, /Running Analysis\.\.\./);
   assert.match(clientSource, /getAiPredictionErrorMessage/);
@@ -76,12 +76,10 @@ test("analytics dashboard client matches the live microservice-backed workflow",
   );
   const aiServiceSource = read("src/services/aiForecastingApi.ts");
 
-  assert.match(clientSource, /Retrieval-Augmented Generation/);
-  assert.match(clientSource, /LangChain RAG v2\.1/);
+  assert.match(clientSource, /Analysing historical project data/);
   assert.match(clientSource, /buildAnalyticsRiskItems/);
   assert.match(aiServiceSource, /AI Forecast Prediction/);
   assert.match(clientSource, /Latest live AI run for/);
-  assert.match(clientSource, /Project options:/);
 });
 
 test("AI prediction UI handles exact backend results, fallback, insufficient data, and roles", () => {

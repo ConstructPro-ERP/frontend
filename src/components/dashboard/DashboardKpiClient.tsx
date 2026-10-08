@@ -1,302 +1,569 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import {
-  Banknote,
-  BriefcaseBusiness,
-  CheckCircle2,
-  CircleDollarSign,
-  FileCheck2,
-  FolderKanban,
-  RefreshCcw,
-  Target,
+  Check,
+  CreditCard,
+  DollarSign,
+  Folder,
+  House,
   Users,
-  WalletCards,
+  FileText,
+  RefreshCcw,
 } from "lucide-react";
 import { ApiError } from "@/lib/ApiError";
 import {
   getDashboardSummary,
-  isDashboardSummaryEmpty,
+  getDashboardProjects,
+  getDashboardRevenue,
+  getDashboardStatusCounts,
+  getDashboardActivity,
 } from "@/services/dashboardApi";
-import type { DashboardSummaryDto } from "@/types/dashboard";
+import type { DashboardActivity } from "@/types/dashboard";
+import styles from "./HomeDashboard.module.css";
 
-type DashboardState =
-  | { kind: "loading" }
-  | { kind: "ready"; summary: DashboardSummaryDto }
-  | { kind: "empty" }
-  | { kind: "error"; message: string };
+function useSection<T>(loader: () => Promise<T>) {
+  const [state, setState] = useState<{
+    data?: T;
+    error?: string;
+    loading: boolean;
+  }>({ loading: true });
+  const [version, setVersion] = useState(0);
+  useEffect(() => {
+    let active = true;
+    loader()
+      .then((data) => {
+        if (active) setState({ data, loading: false });
+      })
+      .catch((error: unknown) => {
+        if (!active) return;
+        const message =
+          error instanceof ApiError && error.statusCode === 403
+            ? "Your role does not have access to this information."
+            : error instanceof ApiError && error.statusCode === 401
+              ? "Please sign in again to view this information."
+              : error instanceof Error
+                ? error.message
+                : "This information could not be loaded.";
+        setState({ error: message, loading: false });
+      });
+    return () => {
+      active = false;
+    };
+  }, [loader, version]);
+  return {
+    ...state,
+    retry: () => {
+      setState({ loading: true });
+      setVersion((value) => value + 1);
+    },
+  };
+}
 
-function formatCurrency(value: number) {
-  return new Intl.NumberFormat("en-LK", {
-    style: "currency",
-    currency: "LKR",
+const compact = (value: number) =>
+  new Intl.NumberFormat("en-LK", {
     notation: "compact",
     maximumFractionDigits: 1,
   }).format(value);
-}
+const money = (value: number) => `LKR ${compact(value)}`;
+const fullMoney = (value: number) =>
+  new Intl.NumberFormat("en-LK", { style: "currency", currency: "LKR" }).format(
+    value,
+  );
 
-function formatCount(value: number) {
-  return new Intl.NumberFormat("en-LK").format(value);
-}
-
-function getDashboardErrorMessage(error: unknown) {
-  if (error instanceof ApiError) {
-    if (error.statusCode === 403) {
-      return "Your role does not have permission to view management KPIs.";
-    }
-    if (error.statusCode === 401) {
-      return "Your session has expired. Please sign in again.";
-    }
-    return error.message;
-  }
-  return error instanceof Error
-    ? error.message
-    : "Dashboard KPIs could not be loaded right now.";
-}
-
-function KpiCard({
-  label,
-  value,
-  note,
-  icon,
+function State({
+  loading,
+  error,
+  retry,
 }: {
-  label: string;
-  value: string;
-  note: string;
-  icon: ReactNode;
+  loading: boolean;
+  error?: string;
+  retry: () => void;
 }) {
   return (
-    <article className="rounded-[24px] border border-outline-variant bg-surface-container-lowest p-5 shadow-level-1">
-      <div className="flex items-start justify-between gap-4">
-        <div className="min-w-0">
-          <p className="text-sm font-medium text-on-surface-variant">{label}</p>
-          <p className="mt-3 truncate text-3xl font-bold tracking-tight text-on-background">
-            {value}
-          </p>
-        </div>
-        <div className="shrink-0 rounded-2xl bg-primary-soft p-3 text-primary">
-          {icon}
-        </div>
-      </div>
-      <p className="mt-5 text-sm text-on-surface-muted">{note}</p>
-    </article>
+    <div className={styles.state} role="status">
+      {loading ? (
+        <>
+          <RefreshCcw size={16} className="animate-spin" /> Loading…
+        </>
+      ) : (
+        <>
+          <p>{error}</p>
+          <button onClick={retry} className={styles.button}>
+            Try again
+          </button>
+        </>
+      )}
+    </div>
   );
 }
-
-function DashboardStateCard({
+function Card({
   title,
-  message,
-  onRetry,
+  subtitle,
+  action,
+  children,
 }: {
   title: string;
-  message: string;
-  onRetry?: () => void;
+  subtitle?: string;
+  action?: ReactNode;
+  children: ReactNode;
 }) {
   return (
-    <section className="rounded-[24px] border border-dashed border-outline bg-surface-container-lowest p-8 text-center shadow-level-1">
-      <h2 className="text-lg font-semibold text-on-background">{title}</h2>
-      <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-on-surface-variant">
-        {message}
-      </p>
-      {onRetry ? (
-        <button
-          type="button"
-          onClick={onRetry}
-          className="mt-5 inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-on-primary transition hover:bg-primary-hover"
-        >
-          <RefreshCcw size={14} />
-          Try again
-        </button>
-      ) : null}
+    <section className={styles.card}>
+      <div className={styles.cardHeader}>
+        <div>
+          <h2>{title}</h2>
+          {subtitle && <p>{subtitle}</p>}
+        </div>
+        {action}
+      </div>
+      {children}
     </section>
   );
 }
 
-export default function DashboardKpiClient() {
-  const [state, setState] = useState<DashboardState>({ kind: "loading" });
-
-  const loadSummary = useCallback(async () => {
-    setState({ kind: "loading" });
-    try {
-      const summary = await getDashboardSummary();
-      setState(
-        isDashboardSummaryEmpty(summary)
-          ? { kind: "empty" }
-          : { kind: "ready", summary },
-      );
-    } catch (error) {
-      setState({ kind: "error", message: getDashboardErrorMessage(error) });
-    }
-  }, []);
-
-  useEffect(() => {
-    let active = true;
-
-    void getDashboardSummary()
-      .then((summary) => {
-        if (!active) return;
-        setState(
-          isDashboardSummaryEmpty(summary)
-            ? { kind: "empty" }
-            : { kind: "ready", summary },
-        );
-      })
-      .catch((error: unknown) => {
-        if (active) {
-          setState({
-            kind: "error",
-            message: getDashboardErrorMessage(error),
-          });
-        }
-      });
-
-    return () => {
-      active = false;
-    };
-  }, []);
-
-  if (state.kind === "loading") {
-    return (
-      <div aria-label="Loading dashboard KPIs" className="space-y-6">
-        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          {Array.from({ length: 8 }, (_, index) => (
-            <div
-              key={index}
-              className="h-40 animate-pulse rounded-[24px] border border-outline-variant bg-surface-container"
-            />
-          ))}
-        </section>
-      </div>
-    );
-  }
-
-  if (state.kind === "empty") {
-    return (
-      <DashboardStateCard
-        title="No KPI data available"
-        message="The analytics service returned valid zero values. Business KPIs will appear here as invoices, projects, leads, and quotations are created."
-      />
-    );
-  }
-
-  if (state.kind === "error") {
-    return (
-      <DashboardStateCard
-        title="Dashboard KPIs unavailable"
-        message={state.message}
-        onRetry={() => void loadSummary()}
-      />
-    );
-  }
-
-  const { revenue, projects, invoices, sales } = state.summary;
-
+function Kpis() {
+  const section = useSection(getDashboardSummary);
+  if (!section.data) return <State {...section} />;
+  const { revenue, projects, sales, invoices } = section.data;
+  const cards = [
+    {
+      label: "Total Revenue",
+      value: money(revenue.totalRevenue),
+      note: "Total invoiced value",
+      icon: DollarSign,
+      tone: "info",
+    },
+    {
+      label: "Active Projects",
+      value: projects.activeProjectCount.toLocaleString(),
+      note: `${projects.completedProjectCount} projects completed`,
+      icon: House,
+      tone: "success",
+    },
+    {
+      label: "Total Leads",
+      value: sales.totalLeads.toLocaleString(),
+      note: `${sales.convertedLeads} converted leads`,
+      icon: Users,
+      tone: "warning",
+    },
+    {
+      label: "Outstanding Payments",
+      value: money(revenue.outstandingBalance),
+      note: `${invoices.overdueCount} invoices overdue`,
+      icon: CreditCard,
+      tone: "danger",
+    },
+  ];
   return (
-    <div className="space-y-7">
-      <section aria-labelledby="finance-kpis">
-        <h2
-          id="finance-kpis"
-          className="mb-3 text-lg font-semibold text-on-background"
-        >
-          Finance overview
-        </h2>
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <KpiCard
-            label="Total Revenue"
-            value={formatCurrency(revenue.totalRevenue)}
-            note="Total invoiced value"
-            icon={<CircleDollarSign size={20} />}
-          />
-          <KpiCard
-            label="Paid Amount"
-            value={formatCurrency(revenue.paidAmount)}
-            note={`${invoices.paidCount} fully paid invoices`}
-            icon={<Banknote size={20} />}
-          />
-          <KpiCard
-            label="Outstanding"
-            value={formatCurrency(revenue.outstandingBalance)}
-            note={`${invoices.overdueCount} overdue invoices`}
-            icon={<WalletCards size={20} />}
-          />
-          <KpiCard
-            label="Total Invoices"
-            value={formatCount(invoices.totalInvoices)}
-            note={`${invoices.partiallyPaidCount} partially paid`}
-            icon={<FileCheck2 size={20} />}
-          />
-        </div>
-      </section>
+    <section className={styles.kpiGrid} aria-label="Business overview">
+      {cards.map(({ label, value, note, icon: Icon, tone }) => (
+        <article key={label} className={styles.kpiCard}>
+          <div className={styles.kpiTop}>
+            <span className={`${styles.icon} ${styles[tone]}`}>
+              <Icon size={20} />
+            </span>
+          </div>
+          <div>
+            <p className={styles.kpiValue}>{value}</p>
+            <h2 className={styles.kpiLabel}>{label}</h2>
+          </div>
+          <p className={styles.kpiSub}>{note}</p>
+        </article>
+      ))}
+    </section>
+  );
+}
 
-      <section aria-labelledby="project-kpis">
-        <h2
-          id="project-kpis"
-          className="mb-3 text-lg font-semibold text-on-background"
+function Projects() {
+  const section = useSection(getDashboardProjects);
+  return (
+    <Card
+      title="Active Projects"
+      subtitle="Milestone progress overview"
+      action={
+        <Link className={styles.link} href="/dashboard/projects">
+          View all →
+        </Link>
+      }
+    >
+      {!section.data ? (
+        <State {...section} />
+      ) : !section.data.length ? (
+        <p className={styles.empty}>No active projects yet.</p>
+      ) : (
+        <div
+          className={styles.tableScroll}
+          tabIndex={0}
+          aria-label="Active projects table"
         >
-          Project overview
-        </h2>
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <KpiCard
-            label="Total Projects"
-            value={formatCount(projects.totalProjects)}
-            note={`${projects.completedProjectCount} completed`}
-            icon={<BriefcaseBusiness size={20} />}
-          />
-          <KpiCard
-            label="Active Projects"
-            value={formatCount(projects.activeProjectCount)}
-            note={`${projects.overdueProjectCount} overdue`}
-            icon={<FolderKanban size={20} />}
-          />
-          <KpiCard
-            label="Completion Rate"
-            value={`${projects.completionRate.toFixed(1)}%`}
-            note="Completed projects as a share of total"
-            icon={<CheckCircle2 size={20} />}
-          />
-          <KpiCard
-            label="Overdue Projects"
-            value={formatCount(projects.overdueProjectCount)}
-            note="Active projects past their end date"
-            icon={<Target size={20} />}
-          />
+          <table className={styles.table}>
+            <thead>
+              <tr>
+                {["Project", "Client", "Progress", "Status", "Due"].map(
+                  (label) => (
+                    <th scope="col" key={label}>
+                      {label}
+                    </th>
+                  ),
+                )}
+              </tr>
+            </thead>
+            <tbody>
+              {section.data.map((project) => {
+                const progress = Math.min(
+                  100,
+                  Math.max(0, project.completionPercentage),
+                );
+                return (
+                  <tr key={project.projectId}>
+                    <td>
+                      <span className={styles.projectName}>
+                        {project.projectName}
+                      </span>
+                      <span className={styles.muted}>
+                        {project.completedMilestoneCount} of{" "}
+                        {project.milestoneCount} milestones
+                      </span>
+                    </td>
+                    <td className={styles.muted}>
+                      <span title="Client information is not provided by the project report">
+                        Unavailable
+                      </span>
+                    </td>
+                    <td>
+                      <div className={styles.progressWrap}>
+                        <div
+                          className={styles.progress}
+                          role="progressbar"
+                          aria-label={`${project.projectName} milestone completion`}
+                          aria-valuemin={0}
+                          aria-valuemax={100}
+                          aria-valuenow={progress}
+                        >
+                          <span style={{ width: `${progress}%` }} />
+                        </div>
+                        <span className={styles.percentage}>
+                          {progress.toFixed(0)}%
+                        </span>
+                      </div>
+                    </td>
+                    <td>
+                      <span className={`${styles.badge} ${styles.info}`}>
+                        <span className={styles.dot} />
+                        Active
+                      </span>
+                    </td>
+                    <td className={styles.due}>
+                      {project.endDate
+                        ? new Date(project.endDate).toLocaleDateString(
+                            "en-GB",
+                            { month: "short", year: "numeric" },
+                          )
+                        : "Not set"}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
-      </section>
+      )}
+    </Card>
+  );
+}
 
-      <section aria-labelledby="sales-kpis">
-        <h2
-          id="sales-kpis"
-          className="mb-3 text-lg font-semibold text-on-background"
+function Revenue() {
+  const section = useSection(getDashboardRevenue);
+  const rows = section.data ?? [];
+  const maximum = Math.max(1, ...rows.map((row) => row.revenue));
+  const totals = rows.reduce(
+    (sum, row) => ({
+      revenue: sum.revenue + row.revenue,
+      paid: sum.paid + row.paid,
+      outstanding: sum.outstanding + row.outstanding,
+    }),
+    { revenue: 0, paid: 0, outstanding: 0 },
+  );
+  const period = rows.length
+    ? `${rows[0].label} – ${rows[rows.length - 1].label}`
+    : "Last six months";
+  return (
+    <Card title="Revenue" subtitle={`${period} · LKR · current month to date`}>
+      {!section.data ? (
+        <State {...section} />
+      ) : (
+        <>
+          <div className={styles.chartWrap}>
+            <div
+              className={styles.bars}
+              role="img"
+              aria-label={`Monthly invoiced revenue. ${rows.map((row) => `${row.label}: ${fullMoney(row.revenue)}`).join(". ")}`}
+            >
+              {rows.map((row) => (
+                <div
+                  key={row.month}
+                  className={styles.barGroup}
+                  title={`${row.label}: ${fullMoney(row.revenue)}`}
+                >
+                  <span className={styles.barValue}>
+                    {compact(row.revenue)}
+                  </span>
+                  <div className={styles.barTrack}>
+                    <div
+                      className={styles.bar}
+                      style={{ height: `${(row.revenue / maximum) * 100}%` }}
+                    />
+                  </div>
+                  <span className={styles.barLabel}>
+                    {row.label.split(" ")[0]}
+                  </span>
+                </div>
+              ))}
+            </div>
+            {totals.revenue === 0 && (
+              <p className={styles.chartNote}>
+                No invoiced revenue in this period.
+              </p>
+            )}
+          </div>
+          <div className={styles.stats}>
+            {[
+              { label: "Period Revenue", value: totals.revenue },
+              { label: "Collected", value: totals.paid },
+              { label: "Outstanding", value: totals.outstanding },
+            ].map((stat) => (
+              <div key={stat.label}>
+                <p title={fullMoney(stat.value)}>{compact(stat.value)}</p>
+                <span>{stat.label}</span>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </Card>
+  );
+}
+
+function ProjectStatus() {
+  const section = useSection(getDashboardStatusCounts);
+  const total = section.data?.reduce((sum, item) => sum + item.count, 0) ?? 0;
+  const segments =
+    section.data?.map((item, index, items) => ({
+      ...item,
+      start:
+        (items
+          .slice(0, index)
+          .reduce((sum, previous) => sum + previous.count, 0) /
+          (total || 1)) *
+        100,
+      percentage: (item.count / (total || 1)) * 100,
+    })) ?? [];
+  return (
+    <Card title="Project Status" subtitle="All projects">
+      <div className={styles.donutWrap}>
+        {!section.data ? (
+          <State {...section} />
+        ) : (
+          <>
+            <svg
+              width="110"
+              height="110"
+              viewBox="0 0 42 42"
+              role="img"
+              aria-label={`${total} projects. ${segments.map((item) => `${item.label}: ${item.count}`).join(". ")}`}
+            >
+              <circle
+                cx="21"
+                cy="21"
+                r="15.9155"
+                fill="none"
+                stroke="var(--dash-border)"
+                strokeWidth="4"
+              />
+              {segments
+                .filter((item) => item.count > 0)
+                .map((item) => (
+                  <circle
+                    key={item.status}
+                    cx="21"
+                    cy="21"
+                    r="15.9155"
+                    fill="none"
+                    stroke={item.color}
+                    strokeWidth="4"
+                    strokeDasharray={`${item.percentage} ${100 - item.percentage}`}
+                    strokeDashoffset={25 - item.start}
+                  />
+                ))}
+              <text
+                x="21"
+                y="24"
+                textAnchor="middle"
+                fontSize="6"
+                fontWeight="700"
+                fill="var(--dash-text)"
+              >
+                {total}
+              </text>
+              <text
+                x="21"
+                y="17"
+                textAnchor="middle"
+                fontSize="3.5"
+                fill="var(--dash-muted)"
+              >
+                projects
+              </text>
+            </svg>
+            <ul className={styles.legend}>
+              {segments.map((item) => (
+                <li key={item.status}>
+                  <span>
+                    <i style={{ background: item.color }} />
+                    {item.label}
+                  </span>
+                  <strong>{item.count}</strong>
+                </li>
+              ))}
+            </ul>
+            {total === 0 && (
+              <p className={styles.chartNote}>No projects yet.</p>
+            )}
+          </>
+        )}
+      </div>
+    </Card>
+  );
+}
+
+const activityIcons: Record<string, typeof Check> = {
+  quotation: Check,
+  payment: CreditCard,
+  invoice: CreditCard,
+  lead: Users,
+  document: Folder,
+  project: House,
+  milestone: FileText,
+};
+function ActivityRow({ item }: { item: DashboardActivity }) {
+  const Icon = activityIcons[item.type] ?? FileText;
+  const tone =
+    item.type === "quotation"
+      ? "success"
+      : item.type === "lead"
+        ? "warning"
+        : "info";
+  return (
+    <li className={styles.activity}>
+      <span className={`${styles.activityIcon} ${styles[tone]}`}>
+        <Icon size={14} />
+      </span>
+      <div>
+        <p>
+          <strong>{item.title}</strong>
+          {item.description && <> — {item.description}</>}
+        </p>
+        <time dateTime={item.occurredAt}>
+          {new Date(item.occurredAt).toLocaleString("en-GB", {
+            dateStyle: "medium",
+            timeStyle: "short",
+          })}
+        </time>
+      </div>
+    </li>
+  );
+}
+function Activity() {
+  const [page, setPage] = useState(1);
+  const [expanded, setExpanded] = useState(false);
+  const loader = useCallback(() => getDashboardActivity(page), [page]);
+  const section = useSection(loader);
+  const visible = section.data?.page === page ? section.data : undefined;
+  const navigate = (next: number) => {
+    setPage(next);
+  };
+  return (
+    <Card
+      title="Recent Activity"
+      subtitle="Latest events across all modules"
+      action={
+        <button
+          className={styles.button}
+          aria-expanded={expanded}
+          aria-controls="dashboard-activity"
+          onClick={() => {
+            setExpanded((value) => !value);
+            setPage(1);
+          }}
         >
-          Sales overview
-        </h2>
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <KpiCard
-            label="Total Leads"
-            value={formatCount(sales.totalLeads)}
-            note={`${sales.convertedLeads} converted leads`}
-            icon={<Users size={20} />}
-          />
-          <KpiCard
-            label="Lead Conversion"
-            value={`${sales.leadConversionRate.toFixed(1)}%`}
-            note="Converted leads as a share of total"
-            icon={<Target size={20} />}
-          />
-          <KpiCard
-            label="Total Quotations"
-            value={formatCount(sales.totalQuotations)}
-            note={`${sales.quotationApprovalCount} approved or converted`}
-            icon={<FileCheck2 size={20} />}
-          />
-          <KpiCard
-            label="Converted Quotations"
-            value={formatCount(sales.convertedQuotationCount)}
-            note={`${sales.rejectedQuotationCount} rejected`}
-            icon={<CheckCircle2 size={20} />}
-          />
+          {expanded ? "Close log" : "View log"}
+        </button>
+      }
+    >
+      <div id="dashboard-activity">
+        {section.error ? (
+          <State {...section} />
+        ) : !visible ? (
+          <State loading retry={section.retry} />
+        ) : (
+          <>
+            <ul className={styles.activities}>
+              {visible.items.map((item, index) => (
+                <ActivityRow
+                  key={`${item.type}-${item.entityId}-${item.occurredAt}-${index}`}
+                  item={item}
+                />
+              ))}
+            </ul>
+            {!visible.items.length && (
+              <p className={styles.empty}>No recent activity yet.</p>
+            )}
+            {expanded && (
+              <nav
+                className={styles.pagination}
+                aria-label="Activity log pages"
+              >
+                <button
+                  className={styles.button}
+                  disabled={page <= 1}
+                  onClick={() => navigate(page - 1)}
+                >
+                  Previous
+                </button>
+                <span>
+                  Page {page} of {Math.max(1, visible.totalPages)}
+                </span>
+                <button
+                  className={styles.button}
+                  disabled={page >= visible.totalPages}
+                  onClick={() => navigate(page + 1)}
+                >
+                  Next
+                </button>
+              </nav>
+            )}
+          </>
+        )}
+      </div>
+    </Card>
+  );
+}
+
+export default function DashboardKpiClient() {
+  return (
+    <div className={styles.dashboard} aria-live="polite">
+      <Kpis />
+      <div className={styles.contentGrid}>
+        <Projects />
+        <div className={styles.rightColumn}>
+          <Revenue />
+          <ProjectStatus />
         </div>
-      </section>
+      </div>
+      <Activity />
     </div>
   );
 }

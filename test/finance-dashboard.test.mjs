@@ -94,7 +94,10 @@ test("finance table source includes invoice actions and live payment workflow", 
   assert.match(clientSource, /View/);
   assert.match(clientSource, /Record/);
   assert.match(clientSource, /PDF/);
-  assert.match(clientSource, /Export/);
+  assert.doesNotMatch(
+    clientSource,
+    /onExportInvoice|handleExportInvoice|Finance export/,
+  );
   assert.match(clientSource, /Record Payment/);
   assert.match(clientSource, /Payment Reference/);
   assert.match(clientSource, /Recording\.\.\./);

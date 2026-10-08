@@ -46,3 +46,44 @@ export interface DashboardSummaryDto {
   invoices: DashboardInvoiceKpisDto;
   sales: DashboardSalesKpisDto;
 }
+
+export type DashboardProjectStatus =
+  | "PLANNING"
+  | "ACTIVE"
+  | "ON_HOLD"
+  | "COMPLETED"
+  | "CANCELLED";
+
+export interface DashboardProject {
+  projectId: string;
+  projectName: string;
+  status: DashboardProjectStatus;
+  endDate: string | null;
+  milestoneCount: number;
+  completedMilestoneCount: number;
+  completionPercentage: number;
+}
+
+export interface DashboardActivity {
+  type: string;
+  entityId: string;
+  title: string;
+  description: string;
+  occurredAt: string;
+  relatedProjectId: string | null;
+  relatedProjectName: string | null;
+}
+
+export interface DashboardActivityPage {
+  items: DashboardActivity[];
+  page: number;
+  totalPages: number;
+}
+
+export interface DashboardRevenueMonth {
+  month: string;
+  label: string;
+  revenue: number;
+  paid: number;
+  outstanding: number;
+}

@@ -1,0 +1,128 @@
+/* Scoped home dashboard palette from v2_dashboard.html. */
+.home-dashboard-shell {
+  --dash-bg: #f1f5f9;
+  --dash-surface: #fff;
+  --dash-surface-2: #f8fafc;
+  --dash-border: #e2e8f0;
+  --dash-border-light: #f1f5f9;
+  --dash-text: #0f172a;
+  --dash-secondary: #64748b;
+  --dash-muted: #64748b;
+  --dash-success: #047857;
+  --dash-success-bg: #ecfdf5;
+  --dash-warning: #92400e;
+  --dash-warning-bg: #fffbeb;
+  --dash-danger: #dc2626;
+  --dash-danger-bg: #fef2f2;
+  --dash-info: #2563eb;
+  --dash-info-bg: #eff6ff;
+  --dash-link: #2563eb;
+  --color-primary: #2563eb;
+  --color-primary-soft: var(--dash-info-bg);
+  --color-on-background: var(--dash-text);
+  --color-on-surface-variant: var(--dash-secondary);
+  --color-on-surface-muted: var(--dash-muted);
+  --color-surface-bg: var(--dash-bg);
+  --color-surface-container-lowest: var(--dash-surface);
+  --color-surface-container: var(--dash-surface-2);
+  --color-outline-variant: var(--dash-border);
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+  font-family: var(--font-dm-sans), sans-serif;
+}
+.home-dashboard-shell[data-home-theme="dark"] {
+  --dash-bg: #070d1a;
+  --dash-surface: #0f1929;
+  --dash-surface-2: #162035;
+  --dash-border: #1e2d45;
+  --dash-border-light: #162035;
+  --dash-text: #f0f6ff;
+  --dash-secondary: #8ba4c0;
+  --dash-muted: #8ba4c0;
+  --dash-success: #34d399;
+  --dash-success-bg: rgb(16 185 129 / 12%);
+  --dash-warning: #fbbf24;
+  --dash-warning-bg: rgb(245 158 11 / 12%);
+  --dash-danger: #f87171;
+  --dash-danger-bg: rgb(239 68 68 / 12%);
+  --dash-info: #60a5fa;
+  --dash-info-bg: rgb(59 130 246 / 12%);
+  --dash-link: #60a5fa;
+  --color-primary: #60a5fa;
+  color-scheme: dark;
+}
+.home-dashboard-shell > div:last-child {
+  min-height: 0;
+}
+.home-dashboard-shell > div:last-child > header {
+  flex-shrink: 0;
+}
+.home-dashboard-shell main {
+  padding: 24px;
+  overflow-y: auto;
+}
+.home-dashboard-shell [aria-label="Dashboard sidebar"] {
+  flex-shrink: 0;
+}
+.home-dashboard-shell[data-home-theme="dark"] [aria-label="Dashboard sidebar"] {
+  background: #060e1c;
+}
+.home-dashboard-shell :is(button, a, input, [tabindex]):focus-visible {
+  outline: 2px solid var(--dash-link);
+  outline-offset: 3px;
+}
+.home-dashboard-shell button:disabled,
+.home-dashboard-shell input:disabled {
+  cursor: not-allowed;
+}
+.home-theme-toggle {
+  width: 56px;
+  height: 28px;
+  border-radius: 99px;
+  background: var(--dash-border);
+  position: relative;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+.home-theme-toggle span {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 22px;
+  height: 22px;
+  background: white;
+  color: #0f172a;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  transition: transform 0.3s;
+}
+.home-dashboard-shell[data-home-theme="dark"] .home-theme-toggle {
+  background: #1d4ed8;
+}
+.home-dashboard-shell[data-home-theme="dark"] .home-theme-toggle span {
+  transform: translateX(28px);
+}
+@media (max-width: 640px) {
+  .home-dashboard-shell main {
+    padding: 16px 12px;
+  }
+}
+@media (max-width: 1023px) {
+  .home-dashboard-shell aside[class~="-translate-x-full"] {
+    visibility: hidden;
+  }
+}
+.home-dashboard-shell header p {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+@media (prefers-reduced-motion: reduce) {
+  .home-theme-toggle span {
+    transition: none;
+  }
+}
