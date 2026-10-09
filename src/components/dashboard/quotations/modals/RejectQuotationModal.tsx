@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { AlertTriangle, Ban, Loader2, X } from "lucide-react";
-import apiClient from "@/lib/axios";
+import { rejectQuotation } from "@/services/quotationsApi";
 import type { Quotation } from "@/types/quotation";
 import { getQuotationErrorMessage } from "@/components/dashboard/quotations/quotationUtils";
 
@@ -52,11 +52,10 @@ export default function RejectQuotationModal({
 
     setIsSubmitting(true);
     try {
-      const res = await apiClient.patch<Quotation>(
-        `/quotations/${quotation.id}/reject`,
-        { reason: trimmedReason },
-      );
-      onSuccess(res.data);
+      const updated = await rejectQuotation(quotation.id, {
+        reason: trimmedReason,
+      });
+      onSuccess(updated);
       onClose();
     } catch (err) {
       setApiError(getQuotationErrorMessage(err));

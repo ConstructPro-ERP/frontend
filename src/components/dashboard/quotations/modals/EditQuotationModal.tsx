@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { AlertCircle, Check, Loader2, Plus, Trash2, X } from "lucide-react";
-import apiClient from "@/lib/axios";
+import { updateQuotation } from "@/services/quotationsApi";
 import type {
   Quotation,
   QuotationItemInput,
@@ -141,11 +141,7 @@ export default function EditQuotationModal({
     };
 
     try {
-      const res = await apiClient.put<Quotation>(
-        `/quotations/${quotation.id}`,
-        payload,
-      );
-      const updated = res.data;
+      const updated = await updateQuotation(quotation.id, payload);
       onSuccess(updated);
       onClose();
     } catch (err) {
