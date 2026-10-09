@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { AlertTriangle, Ban, Loader2, X } from "lucide-react";
-import apiClient from "@/lib/axios";
+import { rejectQuotation } from "@/services/quotationsApi";
 import type { Quotation } from "@/types/quotation";
 import { getQuotationErrorMessage } from "@/components/dashboard/quotations/quotationUtils";
+import { useModalFocusTrap } from "@/components/dashboard/quotations/useModalFocusTrap";
 
 interface RejectQuotationModalProps {
   quotation: Quotation;
@@ -24,15 +25,7 @@ export default function RejectQuotationModal({
   const [apiError, setApiError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  useEffect(() => {
-    function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape" && isOpen && !isSubmitting) {
-        onClose();
-      }
-    }
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen, isSubmitting, onClose]);
+  const modalRef = useModalFocusTrap(isOpen, onClose, isSubmitting);
 
   if (!isOpen) {
     return null;
@@ -52,11 +45,10 @@ export default function RejectQuotationModal({
 
     setIsSubmitting(true);
     try {
-      const res = await apiClient.patch<Quotation>(
-        `/quotations/${quotation.id}/reject`,
-        { reason: trimmedReason },
-      );
-      onSuccess(res.data);
+      const updated = await rejectQuotation(quotation.id, {
+        reason: trimmedReason,
+      });
+      onSuccess(updated);
       onClose();
     } catch (err) {
       setApiError(getQuotationErrorMessage(err));
@@ -73,6 +65,7 @@ export default function RejectQuotationModal({
       aria-labelledby="reject-quotation-modal-title"
     >
       <div
+        ref={modalRef}
         className="w-full max-w-lg rounded-2xl border border-outline-variant bg-surface-container-lowest shadow-2xl overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
@@ -101,7 +94,7 @@ export default function RejectQuotationModal({
             type="button"
             onClick={onClose}
             disabled={isSubmitting}
-            aria-label="Close"
+            aria-label="Close dialog"
             className="rounded-lg p-1.5 text-on-surface-muted hover:bg-surface-container hover:text-on-background transition"
           >
             <X size={18} />
@@ -152,6 +145,9 @@ export default function RejectQuotationModal({
               rows={4}
               value={reason}
               disabled={isSubmitting}
+              aria-required="true"
+              aria-invalid={touched && isReasonTooShort}
+              aria-describedby={touched && isReasonTooShort ? "rejection-reason-error" : undefined}
               onBlur={() => setTouched(true)}
               onChange={(e) => {
                 setReason(e.target.value);
@@ -165,7 +161,7 @@ export default function RejectQuotationModal({
               }`}
             />
             {touched && isReasonTooShort ? (
-              <p className="text-xs font-medium text-error">
+              <p id="rejection-reason-error" className="text-xs font-medium text-error">
                 Rejection reason must be at least 5 characters long.
               </p>
             ) : null}

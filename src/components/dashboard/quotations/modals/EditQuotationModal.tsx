@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { AlertCircle, Check, Loader2, Plus, Trash2, X } from "lucide-react";
-import apiClient from "@/lib/axios";
+import { updateQuotation } from "@/services/quotationsApi";
 import type {
   Quotation,
   QuotationItemInput,
@@ -14,6 +14,7 @@ import {
   formatCurrency,
   getQuotationErrorMessage,
 } from "@/components/dashboard/quotations/quotationUtils";
+import { useModalFocusTrap } from "@/components/dashboard/quotations/useModalFocusTrap";
 
 interface EditQuotationModalProps {
   quotation: Quotation;
@@ -45,16 +46,7 @@ export default function EditQuotationModal({
   const [apiError, setApiError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Handle escape key
-  useEffect(() => {
-    function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape" && isOpen && !isSubmitting) {
-        onClose();
-      }
-    }
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen, isSubmitting, onClose]);
+  const modalRef = useModalFocusTrap(isOpen, onClose, isSubmitting);
 
   if (!isOpen) {
     return null;
@@ -141,11 +133,7 @@ export default function EditQuotationModal({
     };
 
     try {
-      const res = await apiClient.put<Quotation>(
-        `/quotations/${quotation.id}`,
-        payload,
-      );
-      const updated = res.data;
+      const updated = await updateQuotation(quotation.id, payload);
       onSuccess(updated);
       onClose();
     } catch (err) {
@@ -163,6 +151,7 @@ export default function EditQuotationModal({
       aria-labelledby="edit-quotation-modal-title"
     >
       <div
+        ref={modalRef}
         className="w-full max-w-2xl max-h-[90vh] flex flex-col rounded-2xl border border-outline-variant bg-surface-container-lowest shadow-2xl overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
@@ -191,7 +180,7 @@ export default function EditQuotationModal({
             type="button"
             onClick={onClose}
             disabled={isSubmitting}
-            aria-label="Close"
+            aria-label="Close dialog"
             className="rounded-lg p-1.5 text-on-surface-muted hover:bg-surface-container hover:text-on-background transition"
           >
             <X size={18} />
@@ -273,6 +262,7 @@ export default function EditQuotationModal({
                       type="text"
                       value={item.itemName}
                       disabled={isLocked || isSubmitting}
+                      aria-label={`Item ${idx + 1} description`}
                       onChange={(e) =>
                         handleItemChange(idx, "itemName", e.target.value)
                       }
@@ -285,6 +275,7 @@ export default function EditQuotationModal({
                       step="any"
                       value={item.quantity === 0 ? "" : item.quantity}
                       disabled={isLocked || isSubmitting}
+                      aria-label={`Item ${idx + 1} quantity`}
                       onChange={(e) =>
                         handleItemChange(idx, "quantity", e.target.value)
                       }
@@ -297,6 +288,7 @@ export default function EditQuotationModal({
                       step="any"
                       value={item.unitPrice === 0 ? "" : item.unitPrice}
                       disabled={isLocked || isSubmitting}
+                      aria-label={`Item ${idx + 1} unit price`}
                       onChange={(e) =>
                         handleItemChange(idx, "unitPrice", e.target.value)
                       }
@@ -333,13 +325,18 @@ export default function EditQuotationModal({
 
           {/* Notes Section */}
           <div className="space-y-1.5">
-            <label className="text-xs font-bold uppercase tracking-wider text-on-surface-variant">
+            <label
+              htmlFor="edit-quotation-notes"
+              className="text-xs font-bold uppercase tracking-wider text-on-surface-variant"
+            >
               Scope & Terms Notes
             </label>
             <textarea
+              id="edit-quotation-notes"
               rows={3}
               value={notes}
               disabled={isLocked || isSubmitting}
+              aria-label="Scope and terms notes"
               onChange={(e) => setNotes(e.target.value)}
               placeholder="Add terms, schedule details, or updated notes..."
               className="w-full rounded-lg border border-outline-variant bg-surface-container p-3 text-xs text-on-background outline-none focus:border-primary"

@@ -1,10 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import {
   Ban,
   Check,
+  ChevronLeft,
+  ChevronRight,
   ExternalLink,
   FileText,
   FolderKanban,
@@ -12,19 +14,28 @@ import {
   Pencil,
   Plus,
   RefreshCcw,
+  Search,
   Trash2,
+  X,
 } from "lucide-react";
 import { useSelector } from "react-redux";
 import type { RootState } from "@/store";
-import apiClient from "@/lib/axios";
 import { ApiError } from "@/lib/ApiError";
+import {
+  approveQuotation,
+  createQuotation,
+  getQuotationById,
+  getQuotationPdf,
+  listQuotations,
+  reviseQuotation,
+} from "@/services/quotationsApi";
+import LeadSelectDropdown from "@/components/dashboard/quotations/LeadSelectDropdown";
 import type {
   Quotation,
   QuotationFilterTab,
   QuotationFormErrors,
   QuotationFormValues,
   QuotationItemInput,
-  QuotationListResponse,
 } from "@/types/quotation";
 import {
   calculateLineItemAmount,
@@ -33,6 +44,7 @@ import {
   canCreateQuotation,
   canRejectQuotation,
   createQuotationFormValues,
+  filterQuotationsBySearch,
   formatCurrency,
   formatDate,
   getQuotationErrorMessage,
@@ -40,6 +52,7 @@ import {
   getQuotationStatusLabel,
   isQuotationUnavailableError,
   normalizeQuotations,
+  paginateQuotations,
   quotationFilterTabs,
   quotationPreviewList,
   validateQuotationForm,
@@ -76,9 +89,16 @@ function QuotationStatusBadge({ status }: { status: Quotation["status"] }) {
 function QuotationStateCard({
   title,
   message,
+  onRetry,
+  action,
 }: {
   title: string;
   message: string;
+  onRetry?: () => void;
+  action?: {
+    label: string;
+    onClick: () => void;
+  };
 }) {
   return (
     <div className="rounded-xl border border-dashed border-outline bg-surface-container-lowest p-8 text-center shadow-level-1">
@@ -86,6 +106,24 @@ function QuotationStateCard({
       <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-on-surface-variant">
         {message}
       </p>
+      {onRetry ? (
+        <button
+          type="button"
+          onClick={onRetry}
+          className="mt-4 inline-flex items-center gap-1.5 rounded-lg bg-primary px-3.5 py-1.5 text-xs font-semibold text-on-primary hover:bg-primary-hover transition shadow-xs"
+        >
+          <RefreshCcw size={13} />
+          Retry
+        </button>
+      ) : action ? (
+        <button
+          type="button"
+          onClick={action.onClick}
+          className="mt-4 inline-flex items-center gap-1.5 rounded-lg bg-primary px-3.5 py-1.5 text-xs font-semibold text-on-primary hover:bg-primary-hover transition shadow-xs"
+        >
+          {action.label}
+        </button>
+      ) : null}
     </div>
   );
 }
@@ -158,41 +196,29 @@ function QuotationForm({
             {unavailableMessage}
           </div>
         ) : null}
-        <div>
-          <label className="mb-[5px] block text-[11.5px] font-semibold text-on-surface-variant">
-            Lead ID
-          </label>
-          <input
-            type="text"
-            value={values.leadId}
-            onChange={(event) => onFieldChange("leadId", event.target.value)}
-            placeholder="lead-2026-108"
-            className={`w-full rounded-lg border px-3 py-[9px] text-[13px] text-on-background outline-none ${
-              errors.leadId
-                ? "border-error bg-error-container"
-                : "border-outline-variant bg-surface-container"
-            }`}
-          />
-          {errors.leadId ? (
-            <p className="mt-1 text-xs text-error">{errors.leadId}</p>
-          ) : null}
-        </div>
+        <LeadSelectDropdown
+          value={values.leadId}
+          onChange={(leadId) => onFieldChange("leadId", leadId)}
+          error={errors.leadId}
+          disabled={isSubmitting}
+        />
 
         <div>
           <div className="mb-[5px] flex items-center justify-between">
-            <label className="block text-[11.5px] font-semibold text-on-surface-variant">
+            <label id="quotation-form-items-label" className="block text-[11.5px] font-semibold text-on-surface-variant">
               Items
             </label>
             <button
               type="button"
               onClick={onAddItem}
+              aria-label="Add item to quotation"
               className="inline-flex items-center gap-1 rounded-lg border border-outline-variant bg-surface-container px-2.5 py-1 text-xs font-medium text-on-background transition hover:bg-surface-container-high"
             >
               <Plus size={12} />
               Add Item
             </button>
           </div>
-          <div className="space-y-2">
+          <div className="space-y-2" aria-labelledby="quotation-form-items-label">
             {values.items.map((item, index) => {
               calculateLineItemAmount(item.quantity, item.unitPrice);
               return (
@@ -203,6 +229,9 @@ function QuotationForm({
                   <input
                     type="text"
                     value={item.itemName}
+                    aria-label={`Item ${index + 1} name`}
+                    aria-invalid={Boolean(errors.items)}
+                    aria-describedby={errors.items ? "quotation-items-error" : undefined}
                     onChange={(event) =>
                       onItemChange(index, "itemName", event.target.value)
                     }
@@ -214,6 +243,9 @@ function QuotationForm({
                     min="1"
                     step="any"
                     value={item.quantity === 0 ? "" : item.quantity}
+                    aria-label={`Item ${index + 1} quantity`}
+                    aria-invalid={Boolean(errors.items)}
+                    aria-describedby={errors.items ? "quotation-items-error" : undefined}
                     onChange={(event) =>
                       onItemChange(index, "quantity", event.target.value)
                     }
@@ -225,6 +257,9 @@ function QuotationForm({
                     min="0"
                     step="any"
                     value={item.unitPrice === 0 ? "" : item.unitPrice}
+                    aria-label={`Item ${index + 1} unit price`}
+                    aria-invalid={Boolean(errors.items)}
+                    aria-describedby={errors.items ? "quotation-items-error" : undefined}
                     onChange={(event) =>
                       onItemChange(index, "unitPrice", event.target.value)
                     }
@@ -235,6 +270,7 @@ function QuotationForm({
                     type="button"
                     onClick={() => onRemoveItem(index)}
                     disabled={values.items.length === 1}
+                    aria-label={`Remove item ${index + 1}`}
                     className="rounded-lg border border-outline-variant bg-surface-container p-[9px] text-on-surface-muted transition hover:bg-surface-container-high disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     <Trash2 size={14} />
@@ -244,7 +280,7 @@ function QuotationForm({
             })}
           </div>
           {errors.items ? (
-            <p className="mt-1 text-xs text-error">{errors.items}</p>
+            <p id="quotation-items-error" className="mt-1 text-xs text-error">{errors.items}</p>
           ) : null}
 
           <div className="mt-2.5 flex items-center justify-end gap-2 text-xs">
@@ -256,11 +292,13 @@ function QuotationForm({
         </div>
 
         <div>
-          <label className="mb-[5px] block text-[11.5px] font-semibold text-on-surface-variant">
+          <label htmlFor="create-quotation-notes" className="mb-[5px] block text-[11.5px] font-semibold text-on-surface-variant">
             Notes
           </label>
           <textarea
+            id="create-quotation-notes"
             value={values.notes}
+            aria-label="Optional notes for this quotation"
             onChange={(event) => onFieldChange("notes", event.target.value)}
             placeholder="Optional notes for this quotation..."
             className="h-[70px] w-full resize-none rounded-lg border border-outline-variant bg-surface-container px-3 py-[9px] text-[13px] text-on-background outline-none placeholder:text-on-surface-muted"
@@ -288,7 +326,9 @@ function QuotationCard({
   canReject,
   isGeneratingPdf,
   isRevising,
+  isApproving,
   onEdit,
+  onApprove,
   onReject,
   onRevise,
   onConvert,
@@ -299,7 +339,9 @@ function QuotationCard({
   canReject: boolean;
   isGeneratingPdf: boolean;
   isRevising: boolean;
+  isApproving: boolean;
   onEdit: (quotation: Quotation) => void;
+  onApprove: (quotation: Quotation) => void;
   onReject: (quotation: Quotation) => void;
   onRevise: (quotation: Quotation) => void;
   onConvert: (quotation: Quotation) => void;
@@ -345,16 +387,28 @@ function QuotationCard({
           <table className="w-full border-collapse text-[12.5px]">
             <thead>
               <tr className="border-b border-outline-variant">
-                <th className="py-2 text-left font-semibold uppercase tracking-[0.06em] text-[11px] text-on-surface-muted">
+                <th
+                  scope="col"
+                  className="py-2 text-left font-semibold uppercase tracking-[0.06em] text-[11px] text-on-surface-muted"
+                >
                   Item
                 </th>
-                <th className="py-2 text-right font-semibold uppercase tracking-[0.06em] text-[11px] text-on-surface-muted">
+                <th
+                  scope="col"
+                  className="py-2 text-right font-semibold uppercase tracking-[0.06em] text-[11px] text-on-surface-muted"
+                >
                   Qty
                 </th>
-                <th className="py-2 text-right font-semibold uppercase tracking-[0.06em] text-[11px] text-on-surface-muted">
+                <th
+                  scope="col"
+                  className="py-2 text-right font-semibold uppercase tracking-[0.06em] text-[11px] text-on-surface-muted"
+                >
                   Unit Price
                 </th>
-                <th className="py-2 text-right font-semibold uppercase tracking-[0.06em] text-[11px] text-on-surface-muted">
+                <th
+                  scope="col"
+                  className="py-2 text-right font-semibold uppercase tracking-[0.06em] text-[11px] text-on-surface-muted"
+                >
                   Amount
                 </th>
               </tr>
@@ -395,6 +449,7 @@ function QuotationCard({
               type="button"
               onClick={() => onDownloadPdf(quotation)}
               disabled={isGeneratingPdf}
+              aria-label={`Download or view PDF for quotation ${quotation.id}`}
               className="inline-flex items-center gap-1 rounded-lg border border-outline-variant bg-surface-container px-2.5 py-1.5 text-xs font-medium text-on-background transition hover:bg-surface-container-high disabled:opacity-60"
             >
               {isGeneratingPdf ? (
@@ -414,6 +469,7 @@ function QuotationCard({
               <button
                 type="button"
                 onClick={() => onEdit(quotation)}
+                aria-label={`Edit quotation ${quotation.id}`}
                 className="inline-flex items-center gap-1 rounded-lg border border-outline-variant bg-surface-container px-2.5 py-1.5 text-xs font-semibold text-on-background transition hover:bg-surface-container-high"
               >
                 <Pencil size={13} />
@@ -426,6 +482,7 @@ function QuotationCard({
               <button
                 type="button"
                 onClick={() => onReject(quotation)}
+                aria-label={`Reject quotation ${quotation.id}`}
                 className="inline-flex items-center gap-1 rounded-lg border border-error/20 bg-error-container px-2.5 py-1.5 text-xs font-semibold text-error transition hover:bg-error-hover/20"
               >
                 <Ban size={13} />
@@ -439,6 +496,7 @@ function QuotationCard({
                 type="button"
                 onClick={() => onRevise(quotation)}
                 disabled={isRevising}
+                aria-label={`Revise quotation ${quotation.id}`}
                 className="inline-flex items-center gap-1 rounded-lg border border-outline-variant bg-surface-container px-2.5 py-1.5 text-xs font-semibold text-on-background transition hover:bg-surface-container-high disabled:opacity-60"
               >
                 <RefreshCcw
@@ -449,14 +507,33 @@ function QuotationCard({
               </button>
             ) : null}
 
+            {/* Direct Approve Action: Visible on PENDING_APPROVAL for Admin/Sales Manager */}
+            {canApprove && quotation.status === "PENDING_APPROVAL" ? (
+              <button
+                type="button"
+                onClick={() => onApprove(quotation)}
+                disabled={isApproving}
+                aria-label={`Approve quotation ${quotation.id}`}
+                className="inline-flex items-center gap-1 rounded-lg border border-risk-low/30 bg-risk-low-container px-2.5 py-1.5 text-xs font-semibold text-risk-low transition hover:bg-risk-low/20 disabled:opacity-60"
+              >
+                {isApproving ? (
+                  <Loader2 size={13} className="animate-spin text-risk-low" />
+                ) : (
+                  <Check size={13} />
+                )}
+                {isApproving ? "Approving..." : "Approve"}
+              </button>
+            ) : null}
+
             {/* Convert to Project Button: Visible on PENDING_APPROVAL and APPROVED for Admin/Sales Manager */}
             {canApprove && isConvertible ? (
               <button
                 type="button"
                 onClick={() => onConvert(quotation)}
+                aria-label={`Convert quotation ${quotation.id} to project`}
                 className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-on-primary transition hover:bg-primary-hover shadow-xs"
               >
-                <Check size={13} />
+                <FolderKanban size={13} />
                 Convert to Project
               </button>
             ) : null}
@@ -506,6 +583,11 @@ export default function QuotationsDashboardClient() {
   const user = useSelector((state: RootState) => state.auth.user);
 
   const [activeTab, setActiveTab] = useState<QuotationFilterTab>("ALL");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 5;
+
   const [quotationsState, setQuotationsState] = useState<QuotationsState>({
     kind: "loading",
   });
@@ -531,6 +613,15 @@ export default function QuotationsDashboardClient() {
   // Async tracking per card
   const [pdfLoadingId, setPdfLoadingId] = useState<string | null>(null);
   const [revisingId, setRevisingId] = useState<string | null>(null);
+  const [approvingId, setApprovingId] = useState<string | null>(null);
+
+  // Debounce search input changes
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchTerm);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
 
   const replaceQuotationInState = (updated: Quotation) => {
     setQuotationsState((current) => {
@@ -547,60 +638,99 @@ export default function QuotationsDashboardClient() {
     });
   };
 
-  // Fetch real quotations on page load or status filter tab changes asynchronously
-  useEffect(() => {
-    let isMounted = true;
-    const query = activeTab !== "ALL" ? `?status=${activeTab}` : "";
-
-    apiClient
-      .get<QuotationListResponse | { items: Quotation[]; total: number }>(
-        `/quotations${query}`,
-      )
-      .then((res) => {
-        if (!isMounted) return;
-        const items = normalizeQuotations(res.data);
-        if (items.length === 0) {
-          setQuotationsState({ kind: "empty" });
-        } else {
-          setQuotationsState({ kind: "ready", quotations: items });
+  // Fetch real quotations on page load, search changes, or status filter tab changes asynchronously
+  const fetchQuotationsData = useCallback(
+    async (tab: QuotationFilterTab, search: string = "") => {
+      try {
+        const res = await listQuotations({
+          status: tab,
+          search: search.trim() || undefined,
+        });
+        let items = normalizeQuotations(res);
+        if (search.trim()) {
+          items = filterQuotationsBySearch(items, search);
         }
-      })
-      .catch((error) => {
-        if (!isMounted) return;
+        if (items.length === 0) {
+          return { kind: "empty" as const };
+        }
+        return { kind: "ready" as const, quotations: items };
+      } catch (error) {
         if (isQuotationUnavailableError(error)) {
-          const previewItems =
-            activeTab === "ALL"
+          let previewItems =
+            tab === "ALL"
               ? quotationPreviewList
-              : quotationPreviewList.filter((q) => q.status === activeTab);
+              : quotationPreviewList.filter((q) => q.status === tab);
 
-          setQuotationsState({
-            kind: "unavailable",
+          if (search.trim()) {
+            previewItems = filterQuotationsBySearch(previewItems, search);
+          }
+
+          if (previewItems.length === 0) {
+            return { kind: "empty" as const };
+          }
+
+          return {
+            kind: "unavailable" as const,
             quotations: previewItems,
             message:
               "Quotation APIs are not available yet. Showing prototype preview data until backend endpoints are connected.",
-          });
-        } else {
-          setQuotationsState({
-            kind: "error",
-            message: "Failed to load quotations from server.",
-          });
+          };
         }
-      });
+        return {
+          kind: "error" as const,
+          message: "Failed to load quotations from server.",
+        };
+      }
+    },
+    [],
+  );
+
+  useEffect(() => {
+    let active = true;
+
+    async function load() {
+      const nextState = await fetchQuotationsData(activeTab, debouncedSearch);
+      if (active) {
+        setQuotationsState(nextState);
+      }
+    }
+
+    load();
 
     return () => {
-      isMounted = false;
+      active = false;
     };
-  }, [activeTab]);
+  }, [activeTab, debouncedSearch, fetchQuotationsData]);
+
+  const loadQuotations = async () => {
+    setQuotationsState({ kind: "loading" });
+    const nextState = await fetchQuotationsData(activeTab, debouncedSearch);
+    setQuotationsState(nextState);
+  };
 
   const handleTabChange = (tabId: QuotationFilterTab) => {
     setActiveTab(tabId);
+    setCurrentPage(1);
     setQuotationsState({ kind: "loading" });
   };
 
-  const quotations =
+  const handleSearchChange = (value: string) => {
+    setSearchTerm(value);
+    setCurrentPage(1);
+  };
+
+  const allQuotations =
     quotationsState.kind === "ready" || quotationsState.kind === "unavailable"
       ? quotationsState.quotations
       : [];
+
+  const {
+    items: paginatedQuotations,
+    total: totalCount,
+    totalPages,
+    startIndex,
+    endIndex,
+  } = paginateQuotations(allQuotations, currentPage, pageSize);
 
   const handleFieldChange = (field: "leadId" | "notes", value: string) => {
     setFormValues((current) => ({ ...current, [field]: value }));
@@ -655,11 +785,8 @@ export default function QuotationsDashboardClient() {
 
     setPdfLoadingId(quotation.id);
     try {
-      const res = await apiClient.get<{ pdfUrl: string }>(
-        `/quotations/${quotation.id}/pdf`,
-      );
-      const resData = res.data as { pdfUrl?: string } | undefined;
-      const pdfUrl = resData?.pdfUrl;
+      const res = await getQuotationPdf(quotation.id);
+      const pdfUrl = res.pdfUrl;
       if (pdfUrl) {
         replaceQuotationInState({ ...quotation, pdfUrl });
         window.open(pdfUrl, "_blank", "noopener,noreferrer");
@@ -681,11 +808,7 @@ export default function QuotationsDashboardClient() {
     setRevisingId(quotation.id);
     setFeedback(null);
     try {
-      const res = await apiClient.patch<Quotation>(
-        `/quotations/${quotation.id}/revise`,
-        {},
-      );
-      const revised = res.data;
+      const revised = await reviseQuotation(quotation.id);
       replaceQuotationInState(revised);
       setFeedback({
         tone: "info",
@@ -699,6 +822,28 @@ export default function QuotationsDashboardClient() {
       });
     } finally {
       setRevisingId(null);
+    }
+  };
+
+  // Direct Approve handler: moves PENDING_APPROVAL -> APPROVED
+  const handleApproveQuotation = async (quotation: Quotation) => {
+    setApprovingId(quotation.id);
+    setFeedback(null);
+    try {
+      const res = await approveQuotation(quotation.id);
+      const updated = "quotation" in res ? res.quotation : (res as Quotation);
+      replaceQuotationInState({ ...updated, status: "APPROVED" });
+      setFeedback({
+        tone: "success",
+        message: `Quotation ${quotation.id} approved successfully. You can now convert it to a project.`,
+      });
+    } catch (error) {
+      setFeedback({
+        tone: "error",
+        message: getQuotationErrorMessage(error),
+      });
+    } finally {
+      setApprovingId(null);
     }
   };
 
@@ -721,7 +866,7 @@ export default function QuotationsDashboardClient() {
     setApiUnavailableMessage(null);
 
     try {
-      const createResponse = await apiClient.post<Quotation>("/quotations", {
+      let createdQuotation = await createQuotation({
         leadId: formValues.leadId.trim(),
         notes: formValues.notes.trim() || undefined,
         items: formValues.items.map((it) => ({
@@ -731,13 +876,9 @@ export default function QuotationsDashboardClient() {
         })),
       });
 
-      let createdQuotation = createResponse.data;
-
       try {
-        const refreshedResponse = await apiClient.get<Quotation>(
-          `/quotations/${createdQuotation.id}`,
-        );
-        createdQuotation = refreshedResponse.data;
+        const refreshedResponse = await getQuotationById(createdQuotation.id);
+        createdQuotation = refreshedResponse;
       } catch {
         // Read-path confirmation is best-effort
       }
@@ -808,7 +949,7 @@ export default function QuotationsDashboardClient() {
 
       {/* Main Grid: Quotations List + Create Quotation Form */}
       <section className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_380px]">
-        {/* Left Column: Filter Tabs & Cards */}
+        {/* Left Column: Filter Tabs, Search Bar & Cards */}
         <div className="flex flex-col gap-4">
           {/* Status Filter Tabs */}
           <div className="flex flex-wrap items-center gap-1.5 rounded-xl border border-outline-variant bg-surface-container-lowest p-1.5 shadow-level-1">
@@ -831,6 +972,32 @@ export default function QuotationsDashboardClient() {
             })}
           </div>
 
+          {/* Search Input Bar */}
+          <div className="relative flex items-center">
+            <Search
+              size={15}
+              className="absolute left-3.5 text-on-surface-muted pointer-events-none"
+            />
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => handleSearchChange(e.target.value)}
+              placeholder="Search by customer name, lead ID, or quotation ID..."
+              aria-label="Search quotations"
+              className="w-full rounded-xl border border-outline-variant bg-surface-container-lowest pl-10 pr-9 py-2.5 text-xs text-on-background outline-none transition placeholder:text-on-surface-muted focus:border-primary shadow-level-1"
+            />
+            {searchTerm ? (
+              <button
+                type="button"
+                onClick={() => handleSearchChange("")}
+                aria-label="Clear search"
+                className="absolute right-3 rounded-md p-1 text-on-surface-muted hover:bg-surface-container hover:text-on-background transition"
+              >
+                <X size={14} />
+              </button>
+            ) : null}
+          </div>
+
           {/* Cards or Empty/Loading State */}
           {quotationsState.kind === "loading" ? (
             <div className="flex flex-col items-center justify-center rounded-xl border border-outline-variant bg-surface-container-lowest p-12 text-center shadow-level-1">
@@ -843,36 +1010,103 @@ export default function QuotationsDashboardClient() {
             <QuotationStateCard
               title="Failed to Load Quotations"
               message={quotationsState.message}
+              onRetry={loadQuotations}
             />
-          ) : quotations.length === 0 ? (
-            <QuotationStateCard
-              title={
-                activeTab === "ALL"
-                  ? "No quotations created yet"
-                  : `No ${activeTab.toLowerCase().replaceAll("_", " ")} quotations found`
-              }
-              message={
-                activeTab === "ALL"
-                  ? "No quotations found in the system. Use the form on the right to generate your first quotation."
-                  : `There are currently no quotations matching the "${activeTab}" filter.`
-              }
-            />
-          ) : (
-            quotations.map((quotation) => (
-              <QuotationCard
-                key={quotation.id}
-                quotation={quotation}
-                canApprove={canApproveQuotation(user?.role)}
-                canReject={canRejectQuotation(user?.role)}
-                isGeneratingPdf={pdfLoadingId === quotation.id}
-                isRevising={revisingId === quotation.id}
-                onEdit={(q) => setEditingQuotation(q)}
-                onReject={(q) => setRejectingQuotation(q)}
-                onRevise={handleReviseQuotation}
-                onConvert={(q) => setConvertingQuotation(q)}
-                onDownloadPdf={handleDownloadPdf}
+          ) : allQuotations.length === 0 ? (
+            debouncedSearch.trim() ? (
+              <QuotationStateCard
+                title="No matching quotations"
+                message={`No quotations match the search term "${debouncedSearch}". Try adjusting your keywords or clearing the search.`}
+                action={{
+                  label: "Clear Search",
+                  onClick: () => handleSearchChange(""),
+                }}
               />
-            ))
+            ) : (
+              <QuotationStateCard
+                title={
+                  activeTab === "ALL"
+                    ? "No quotations created yet"
+                    : `No ${activeTab.toLowerCase().replaceAll("_", " ")} quotations found`
+                }
+                message={
+                  activeTab === "ALL"
+                    ? "No quotations found in the system. Use the form on the right to generate your first quotation."
+                    : `There are currently no quotations matching the "${activeTab}" filter.`
+                }
+              />
+            )
+          ) : (
+            <>
+              {paginatedQuotations.map((quotation) => (
+                <QuotationCard
+                  key={quotation.id}
+                  quotation={quotation}
+                  canApprove={canApproveQuotation(user?.role)}
+                  canReject={canRejectQuotation(user?.role)}
+                  isGeneratingPdf={pdfLoadingId === quotation.id}
+                  isRevising={revisingId === quotation.id}
+                  isApproving={approvingId === quotation.id}
+                  onEdit={(q) => setEditingQuotation(q)}
+                  onApprove={handleApproveQuotation}
+                  onReject={(q) => setRejectingQuotation(q)}
+                  onRevise={handleReviseQuotation}
+                  onConvert={(q) => setConvertingQuotation(q)}
+                  onDownloadPdf={handleDownloadPdf}
+                />
+              ))}
+
+              {/* Pagination Controls */}
+              {totalCount > pageSize ? (
+                <nav
+                  aria-label="Quotations pagination"
+                  className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-outline-variant bg-surface-container-lowest px-4 py-3 text-xs shadow-level-1"
+                >
+                  <span className="text-on-surface-muted">
+                    Showing{" "}
+                    <span className="font-semibold text-on-background">
+                      {startIndex}
+                    </span>{" "}
+                    to{" "}
+                    <span className="font-semibold text-on-background">
+                      {endIndex}
+                    </span>{" "}
+                    of{" "}
+                    <span className="font-semibold text-on-background">
+                      {totalCount}
+                    </span>{" "}
+                    quotations
+                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                      disabled={currentPage <= 1}
+                      aria-label="Previous page"
+                      className="inline-flex items-center gap-1 rounded-lg border border-outline-variant bg-surface-container px-2.5 py-1.5 font-medium text-on-background transition hover:bg-surface-container-high disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      <ChevronLeft size={13} />
+                      Previous
+                    </button>
+                    <span className="px-2 font-medium text-on-surface-variant">
+                      Page {currentPage} of {totalPages}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setCurrentPage((p) => Math.min(totalPages, p + 1))
+                      }
+                      disabled={currentPage >= totalPages}
+                      aria-label="Next page"
+                      className="inline-flex items-center gap-1 rounded-lg border border-outline-variant bg-surface-container px-2.5 py-1.5 font-medium text-on-background transition hover:bg-surface-container-high disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      Next
+                      <ChevronRight size={13} />
+                    </button>
+                  </div>
+                </nav>
+              ) : null}
+            </>
           )}
         </div>
 
