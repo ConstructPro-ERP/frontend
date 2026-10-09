@@ -38,11 +38,10 @@ export interface LoginCredentials {
 }
 
 export interface RegisterCredentials {
-  firstName: string;
-  lastName: string;
+  username: string;
   email: string;
   password: string;
-  confirmPassword: string;
+  roleId: string;
 }
 
 export interface ForgotPasswordPayload {

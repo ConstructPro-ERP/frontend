@@ -265,7 +265,7 @@ test("delete lead permits only ADMIN from the profile", () => {
   }
 });
 
-test("capture lead permits only ADMIN or SALES_MANAGER from the profile", () => {
+test("capture lead permits ADMIN, MANAGEMENT or SALES_MANAGER from the profile", () => {
   const exports = {};
   const code = ts.transpileModule(
     read("src/components/dashboard/leads/leadPermissions.ts"),
@@ -273,7 +273,7 @@ test("capture lead permits only ADMIN or SALES_MANAGER from the profile", () => 
   ).outputText;
   vm.runInNewContext(code, { exports });
   const { canCaptureLead } = exports;
-  for (const role of ["ADMIN", "SALES_MANAGER"]) {
+  for (const role of ["ADMIN", "MANAGEMENT", "SALES_MANAGER"]) {
     assert.equal(canCaptureLead({ role }), true);
     assert.equal(canCaptureLead({ roles: ["CLIENT", role] }), true);
   }
@@ -287,4 +287,26 @@ test("capture lead permits only ADMIN or SALES_MANAGER from the profile", () => 
     { roles: ["ENGINEER"] },
   ])
     assert.equal(canCaptureLead(user), false);
+});
+
+test("assignment requires access to both assignment and user catalog endpoints", () => {
+  const exports = {};
+  vm.runInNewContext(
+    ts.transpileModule(
+      read("src/components/dashboard/leads/leadPermissions.ts"),
+      { compilerOptions: { module: ts.ModuleKind.CommonJS } },
+    ).outputText,
+    { exports },
+  );
+  assert.equal(exports.canAssignLead({ role: "ADMIN" }), true);
+  for (const role of [
+    "MANAGEMENT",
+    "SALES_MANAGER",
+    "ACCOUNTANT",
+    "CLIENT_PORTAL_USER",
+    null,
+    undefined,
+  ]) {
+    assert.equal(exports.canAssignLead({ role }), false);
+  }
 });

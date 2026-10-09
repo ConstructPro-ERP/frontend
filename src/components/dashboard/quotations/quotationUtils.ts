@@ -326,8 +326,6 @@ export function isQuotationUnavailableError(error: unknown) {
   );
 }
 
-// TODO: revisit once the backend team confirms the real JWT role string â€”
-// this may be "SALES_MANAGER" rather than "MANAGER".
 export function canCreateQuotation(role: string | null | undefined): boolean {
-  return role === "ADMIN" || role === "MANAGER";
+  return role === "ADMIN" || role === "SALES_MANAGER";
 }

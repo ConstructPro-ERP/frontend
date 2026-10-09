@@ -421,6 +421,7 @@ export default function QuotationsDashboardClient() {
   };
 
   const handleSubmit = async () => {
+    if (!canCreateQuotation(user?.role)) return;
     const validationErrors = validateQuotationForm(formValues);
 
     if (Object.keys(validationErrors).length > 0) {
@@ -517,7 +518,9 @@ export default function QuotationsDashboardClient() {
       ) : null}
       {feedback ? <QuotationFeedbackBanner feedback={feedback} /> : null}
 
-      <section className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_380px]">
+      <section
+        className={`grid gap-5 ${canCreateQuotation(user?.role) ? "xl:grid-cols-[minmax(0,1fr)_380px]" : ""}`}
+      >
         <div className="flex flex-col gap-4">
           {quotations.length === 0 ? (
             <QuotationStateCard
@@ -548,12 +551,7 @@ export default function QuotationsDashboardClient() {
               onRemoveItem={handleRemoveItem}
               onSubmit={handleSubmit}
             />
-          ) : (
-            <QuotationStateCard
-              title="Quotation generation restricted"
-              message="Only Admin or Manager roles can generate quotations."
-            />
-          )}
+          ) : null}
         </div>
       </section>
     </div>

@@ -5,6 +5,7 @@ import type { RootState } from "@/store";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import {
   canCaptureLead,
+  canAssignLead,
   canUpdateLead,
   canDeleteLead,
 } from "./leadPermissions";
@@ -136,6 +137,8 @@ function LeadModal({
   lead?: Lead;
   onUpdate?: (payload: Partial<LeadMutationPayload>) => Promise<void>;
 }) {
+  const user = useSelector((state: RootState) => state.auth.user);
+  const canAssign = canAssignLead(user);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [assignees, setAssignees] = useState<LeadAssignee[]>([]);
@@ -144,6 +147,7 @@ function LeadModal({
   const [usersAttempt, setUsersAttempt] = useState(0);
   useEffect(() => {
     let active = true;
+    if (!canAssign) return;
     listLeadAssignees()
       .then((users) => {
         if (active) setAssignees(users);
@@ -162,14 +166,16 @@ function LeadModal({
     return () => {
       active = false;
     };
-  }, [usersAttempt]);
+  }, [usersAttempt, canAssign]);
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
     const name = String(data.get("customerName") ?? "").trim();
     const phone = String(data.get("phone") ?? "").trim();
     const email = String(data.get("email") ?? "").trim();
-    const assignedToId = String(data.get("assignedToId") ?? "");
+    const assignedToId = canAssign
+      ? String(data.get("assignedToId") ?? "")
+      : "";
     const status = String(data.get("status") ?? "NEW") as LeadStatus;
     if (!name) {
       setError("Customer name is required.");
@@ -190,6 +196,7 @@ function LeadModal({
           changes.email = email;
         }
         if (
+          canAssign &&
           data.has("assignedToId") &&
           assignedToId !== (lead.assignedToId ?? "")
         ) {
@@ -291,62 +298,64 @@ function LeadModal({
               placeholder="client@email.com"
             />
           </label>
-          <div>
-            <label className="text-xs font-semibold">
-              Assigned to (optional)
-              <select
-                name="assignedToId"
-                className={fieldClass}
-                defaultValue={lead?.assignedToId ?? ""}
-                disabled={usersLoading || !!usersError || submitting}
-                aria-describedby="lead-assignee-help"
-              >
-                <option value="" disabled={!!lead?.assignedToId}>
-                  {usersLoading ? "Loading users..." : "Unassigned"}
-                </option>
-                {lead?.assignedToId &&
-                !assignees.some((user) => user.id === lead.assignedToId) ? (
-                  <option value={lead.assignedToId}>
-                    {lead.assignedTo?.fullName ||
-                      lead.assignedTo?.email ||
-                      "Current assignee"}
-                  </option>
-                ) : null}
-                {assignees.map((user) => (
-                  <option key={user.id} value={user.id}>
-                    {user.fullName || user.email || user.id}
-                    {user.fullName && user.email ? ` (${user.email})` : ""}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <p
-              id="lead-assignee-help"
-              className="mt-1.5 text-xs text-on-surface-muted"
-            >
-              {usersError
-                ? "Users could not be loaded. Retry to change assignment."
-                : !usersLoading && !assignees.length
-                  ? "No users available. You can leave the lead unassigned."
-                  : "Select the sales manager responsible for this lead."}
-            </p>
-            {usersError ? (
-              <div role="alert" className="mt-1.5 text-xs text-error">
-                {usersError}{" "}
-                <button
-                  type="button"
-                  className="font-semibold underline"
-                  onClick={() => {
-                    setUsersError("");
-                    setUsersLoading(true);
-                    setUsersAttempt((attempt) => attempt + 1);
-                  }}
+          {canAssign ? (
+            <div>
+              <label className="text-xs font-semibold">
+                Assigned to (optional)
+                <select
+                  name="assignedToId"
+                  className={fieldClass}
+                  defaultValue={lead?.assignedToId ?? ""}
+                  disabled={usersLoading || !!usersError || submitting}
+                  aria-describedby="lead-assignee-help"
                 >
-                  Retry
-                </button>
-              </div>
-            ) : null}
-          </div>
+                  <option value="" disabled={!!lead?.assignedToId}>
+                    {usersLoading ? "Loading users..." : "Unassigned"}
+                  </option>
+                  {lead?.assignedToId &&
+                  !assignees.some((user) => user.id === lead.assignedToId) ? (
+                    <option value={lead.assignedToId}>
+                      {lead.assignedTo?.fullName ||
+                        lead.assignedTo?.email ||
+                        "Current assignee"}
+                    </option>
+                  ) : null}
+                  {assignees.map((user) => (
+                    <option key={user.id} value={user.id}>
+                      {user.fullName || user.email || user.id}
+                      {user.fullName && user.email ? ` (${user.email})` : ""}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <p
+                id="lead-assignee-help"
+                className="mt-1.5 text-xs text-on-surface-muted"
+              >
+                {usersError
+                  ? "Users could not be loaded. Retry to change assignment."
+                  : !usersLoading && !assignees.length
+                    ? "No users available. You can leave the lead unassigned."
+                    : "Select the sales manager responsible for this lead."}
+              </p>
+              {usersError ? (
+                <div role="alert" className="mt-1.5 text-xs text-error">
+                  {usersError}{" "}
+                  <button
+                    type="button"
+                    className="font-semibold underline"
+                    onClick={() => {
+                      setUsersError("");
+                      setUsersLoading(true);
+                      setUsersAttempt((attempt) => attempt + 1);
+                    }}
+                  >
+                    Retry
+                  </button>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
           <label className="text-xs font-semibold">
             Status
             <select
@@ -648,6 +657,7 @@ function DetailPanel({
   onStatusChange,
   onEdit,
   canEdit,
+  canAssign,
   canDelete,
   deleting,
   onDelete,
@@ -658,6 +668,7 @@ function DetailPanel({
   onStatusChange: (status: LeadStatus) => void;
   onEdit: () => void;
   canEdit: boolean;
+  canAssign: boolean;
   canDelete: boolean;
   deleting: boolean;
   onDelete: () => void;
@@ -769,41 +780,14 @@ function DetailPanel({
               </p>
             </div>
           </div>
-          {canEdit ? (
+          {canAssign ? (
             <LeadAssignment
               key={`${lead.id}:${lead.assignedToId}`}
               lead={lead}
               onAssigned={onAssigned}
               disabled={deleting}
             />
-          ) : (
-            <div className="mt-4 space-y-2">
-              <label
-                htmlFor="lead-assignment-user"
-                className="text-xs font-semibold"
-              >
-                Assign to user
-              </label>
-              <div className="flex items-center gap-2">
-                <select
-                  id="lead-assignment-user"
-                  disabled
-                  className="min-w-0 flex-1 rounded-lg border border-outline-variant bg-surface-container-lowest px-3 py-2.5 text-sm"
-                >
-                  <option>Select a user</option>
-                </select>
-                <button
-                  disabled
-                  className="shrink-0 rounded-lg border border-primary bg-primary-soft px-3 py-2.5 text-xs font-semibold text-primary disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  Assign lead
-                </button>
-              </div>
-              <p className="text-xs text-on-surface-muted">
-                Assignment requires an ADMIN or SALES_MANAGER account.
-              </p>
-            </div>
-          )}
+          ) : null}
         </section>
       </div>
       <div className="flex flex-wrap gap-2 border-t border-outline-variant p-4">
@@ -844,21 +828,18 @@ function DetailPanel({
           </select>
         ) : null}
       </div>
-      <div className="border-t border-outline-variant px-4 py-3">
-        <button
-          type="button"
-          onClick={onDelete}
-          disabled={deleting || !canDelete}
-          className="w-full rounded-lg border border-error-outline px-3 py-2 text-xs font-semibold text-error hover:bg-error-container disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {deleting ? "Deleting lead..." : "Delete lead"}
-        </button>
-        {!canDelete ? (
-          <p className="mt-2 text-xs text-on-surface-muted">
-            Deleting leads requires an ADMIN account.
-          </p>
-        ) : null}
-      </div>
+      {canDelete ? (
+        <div className="border-t border-outline-variant px-4 py-3">
+          <button
+            type="button"
+            onClick={onDelete}
+            disabled={deleting}
+            className="w-full rounded-lg border border-error-outline px-3 py-2 text-xs font-semibold text-error hover:bg-error-container disabled:opacity-50"
+          >
+            {deleting ? "Deleting lead..." : "Delete lead"}
+          </button>
+        </div>
+      ) : null}
     </aside>
   );
 }
@@ -866,6 +847,7 @@ function DetailPanel({
 export default function LeadsDashboardClient() {
   const user = useSelector((state: RootState) => state.auth.user);
   const canCapture = canCaptureLead(user);
+  const canAssign = canAssignLead(user);
   const canEdit = canUpdateLead(user);
   const canDelete = canDeleteLead(user);
   const [deleting, setDeleting] = useState(false);
@@ -989,8 +971,7 @@ export default function LeadsDashboardClient() {
     }
   };
   const createLead = async (payload: LeadMutationPayload) => {
-    if (!canCapture)
-      throw new Error("Only Admin or Sales Manager users can capture leads.");
+    if (!canCapture) throw new Error("Your role cannot capture leads.");
     const created = await createLeadRequest(payload);
     setLeads((items) => [created, ...items]);
     setFeedback("Lead created successfully.");
@@ -1084,27 +1065,18 @@ export default function LeadsDashboardClient() {
             <Filter size={14} />
             Filter
           </button>
-          <button
-            type="button"
-            onClick={() => setShowModal(true)}
-            disabled={!canCapture}
-            className="inline-flex h-9 items-center gap-2 rounded-lg bg-primary px-4 text-xs font-semibold text-white hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            <Plus size={15} />
-            Capture Lead
-          </button>
+          {canCapture ? (
+            <button
+              type="button"
+              onClick={() => setShowModal(true)}
+              className="inline-flex h-9 items-center gap-2 rounded-lg bg-primary px-4 text-xs font-semibold text-white hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <Plus size={15} />
+              Capture Lead
+            </button>
+          ) : null}
         </div>
       </section>
-      {!canCapture ? (
-        <p
-          role="status"
-          className="rounded-lg border border-outline-variant bg-white px-4 py-3 text-xs text-on-surface-variant"
-        >
-          {user
-            ? `Current account role: ${user.role || "unavailable"}. Capture and assignment require ADMIN or SALES_MANAGER; deletion requires ADMIN.`
-            : "Your account profile is unavailable or still loading. Sign in to enable lead actions for your role."}
-        </p>
-      ) : null}
       <section className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
         <div className="overflow-hidden rounded-xl border border-outline-variant bg-white shadow-level-1">
           <div className="border-b border-outline-variant bg-surface-container px-5 py-3 text-[10px] font-bold uppercase tracking-[.08em] text-on-surface-muted">
@@ -1182,6 +1154,7 @@ export default function LeadsDashboardClient() {
             }}
             onStatusChange={updateStatus}
             canEdit={canEdit}
+            canAssign={canAssign}
             canDelete={canDelete}
             deleting={deleting}
             onDelete={() => {
