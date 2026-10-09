@@ -82,6 +82,7 @@ export const quotationFilterTabs: Array<{
 }> = [
   { id: "ALL", label: "All Quotations" },
   { id: "DRAFT", label: "Draft" },
+  { id: "SENT", label: "Sent" },
   { id: "PENDING_APPROVAL", label: "Pending Approval" },
   { id: "APPROVED", label: "Approved" },
   { id: "REJECTED", label: "Rejected" },
@@ -210,6 +211,8 @@ export function getQuotationStatusBadgeClasses(status: QuotationStatus) {
       return "bg-error-container text-error";
     case "PENDING_APPROVAL":
       return "bg-risk-medium-container text-risk-medium";
+    case "SENT":
+      return "border border-secondary/30 bg-secondary-container text-secondary";
     case "DRAFT":
     default:
       return "bg-surface-container text-on-surface-muted";
@@ -226,6 +229,8 @@ export function getQuotationStatusLabel(status: QuotationStatus) {
       return "Rejected";
     case "CONVERTED":
       return "Converted";
+    case "SENT":
+      return "Sent";
     case "DRAFT":
     default:
       return "Draft";

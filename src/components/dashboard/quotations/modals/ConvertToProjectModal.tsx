@@ -12,11 +12,10 @@ import {
   User,
   X,
 } from "lucide-react";
-import apiClient from "@/lib/axios";
+import { convertQuotationToProject } from "@/services/projectConversionApi";
 import { ApiError } from "@/lib/ApiError";
 import type {
   ConvertToProjectInput,
-  ConvertToProjectResponse,
   Quotation,
 } from "@/types/quotation";
 import {
@@ -126,52 +125,13 @@ export default function ConvertToProjectModal({
 
     setIsSubmitting(true);
     try {
-      const res = await apiClient.patch<ConvertToProjectResponse | Quotation>(
-        `/quotations/${quotation.id}/approve`,
-        payload,
-      );
+      const projResponse = await convertQuotationToProject(quotation.id, payload);
 
-      const data = res.data;
-
-      // Check if response contains nested quotation and projectId
-      if (
-        data &&
-        typeof data === "object" &&
-        "projectId" in data &&
-        typeof data.projectId === "string"
-      ) {
-        const projResponse = data as ConvertToProjectResponse;
-        const updatedQuotation: Quotation = projResponse.quotation
-          ? {
-              ...projResponse.quotation,
-              status: "CONVERTED",
-              projectId: projResponse.projectId,
-            }
-          : {
-              ...quotation,
-              status: "CONVERTED",
-              projectId: projResponse.projectId,
-            };
-
-        onSuccess({
-          quotation: updatedQuotation,
-          projectId: projResponse.projectId,
-          projectStatus: projResponse.projectStatus ?? "ACTIVE",
-        });
-      } else {
-        const quotationObj = data as Quotation;
-        const projId =
-          quotationObj.projectId ?? quotation.projectId ?? "created";
-        onSuccess({
-          quotation: {
-            ...quotationObj,
-            status: "CONVERTED",
-            projectId: projId,
-          },
-          projectId: projId,
-          projectStatus: "ACTIVE",
-        });
-      }
+      onSuccess({
+        quotation: projResponse.quotation,
+        projectId: projResponse.projectId,
+        projectStatus: projResponse.projectStatus ?? "ACTIVE",
+      });
 
       onClose();
     } catch (err) {
