@@ -173,7 +173,9 @@ export default function LeadSelectDropdown({
               </span>
               <span className="text-[11px] text-on-surface-muted">
                 {selectedLead.id}
-                {selectedLead.companyName ? ` • ${selectedLead.companyName}` : ""}
+                {selectedLead.companyName
+                  ? ` • ${selectedLead.companyName}`
+                  : ""}
               </span>
             </>
           ) : value ? (
@@ -244,7 +246,9 @@ export default function LeadSelectDropdown({
                   >
                     <div>
                       <div className="flex items-center gap-1.5">
-                        <span className="font-semibold">{lead.customerName}</span>
+                        <span className="font-semibold">
+                          {lead.customerName}
+                        </span>
                         {lead.status ? (
                           <span className="rounded-full bg-surface-container px-1.5 py-0.5 text-[10px] text-on-surface-muted">
                             {lead.status}
@@ -256,7 +260,9 @@ export default function LeadSelectDropdown({
                         {lead.email ? ` • ${lead.email}` : ""}
                       </div>
                     </div>
-                    {isSelected ? <Check size={14} className="text-primary" /> : null}
+                    {isSelected ? (
+                      <Check size={14} className="text-primary" />
+                    ) : null}
                   </button>
                 );
               })

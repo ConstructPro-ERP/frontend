@@ -147,7 +147,11 @@ export default function RejectQuotationModal({
               disabled={isSubmitting}
               aria-required="true"
               aria-invalid={touched && isReasonTooShort}
-              aria-describedby={touched && isReasonTooShort ? "rejection-reason-error" : undefined}
+              aria-describedby={
+                touched && isReasonTooShort
+                  ? "rejection-reason-error"
+                  : undefined
+              }
               onBlur={() => setTouched(true)}
               onChange={(e) => {
                 setReason(e.target.value);
@@ -161,7 +165,10 @@ export default function RejectQuotationModal({
               }`}
             />
             {touched && isReasonTooShort ? (
-              <p id="rejection-reason-error" className="text-xs font-medium text-error">
+              <p
+                id="rejection-reason-error"
+                className="text-xs font-medium text-error"
+              >
                 Rejection reason must be at least 5 characters long.
               </p>
             ) : null}

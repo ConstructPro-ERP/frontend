@@ -114,4 +114,3 @@ export interface QuotationListResponse {
   limit?: number;
   totalPages?: number;
 }
-

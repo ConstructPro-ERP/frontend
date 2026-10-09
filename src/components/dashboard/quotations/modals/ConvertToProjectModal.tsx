@@ -14,10 +14,7 @@ import {
 } from "lucide-react";
 import { convertQuotationToProject } from "@/services/projectConversionApi";
 import { ApiError } from "@/lib/ApiError";
-import type {
-  ConvertToProjectInput,
-  Quotation,
-} from "@/types/quotation";
+import type { ConvertToProjectInput, Quotation } from "@/types/quotation";
 import {
   formatCurrency,
   getQuotationErrorMessage,
@@ -118,7 +115,10 @@ export default function ConvertToProjectModal({
 
     setIsSubmitting(true);
     try {
-      const projResponse = await convertQuotationToProject(quotation.id, payload);
+      const projResponse = await convertQuotationToProject(
+        quotation.id,
+        payload,
+      );
 
       onSuccess({
         quotation: projResponse.quotation,

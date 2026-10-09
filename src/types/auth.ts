@@ -9,9 +9,14 @@ export interface User {
     | "ADMIN"
     | "MANAGEMENT"
     | "MANAGER"
+    | "SALES_MANAGER"
+    | "PROJECT_MANAGER"
     | "FINANCE"
     | "ACCOUNTANT"
-    | "CLIENT";
+    | "CLIENT"
+    | "CLIENT_PORTAL_USER"
+    | "user"
+    | null;
   avatarUrl?: string;
 }
 
@@ -33,11 +38,10 @@ export interface LoginCredentials {
 }
 
 export interface RegisterCredentials {
-  firstName: string;
-  lastName: string;
+  username: string;
   email: string;
   password: string;
-  confirmPassword: string;
+  roleId: string;
 }
 
 export interface ForgotPasswordPayload {

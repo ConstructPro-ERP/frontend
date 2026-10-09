@@ -11,17 +11,13 @@ import {
 } from "./token";
 import { ApiError } from "./ApiError";
 import type { ApiResponse } from "@/types/api";
+import { API_URL } from "./apiConfig";
 
-function resolveApiUrl() {
-  const configuredUrl =
-    process.env.NEXT_PUBLIC_API_URL ??
-    process.env.NEXT_PUBLIC_API_GATEWAY_URL ??
-    "http://localhost:4000";
-  const baseUrl = configuredUrl.replace(/\/+$/, "");
-  return baseUrl.endsWith("/api") ? baseUrl : `${baseUrl}/api`;
+declare module "axios" {
+  interface AxiosRequestConfig {
+    skipAuthRefresh?: boolean;
+  }
 }
-
-const API_URL = resolveApiUrl();
 
 const axiosInstance = axios.create({
   baseURL: API_URL,
@@ -34,7 +30,7 @@ const axiosInstance = axios.create({
 axiosInstance.interceptors.request.use(
   (config) => {
     const token = getAccessToken();
-    if (token) {
+    if (token && !config.headers.Authorization) {
       config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
@@ -77,7 +73,12 @@ axiosInstance.interceptors.response.use(
       originalRequest.url?.includes("/auth/login") ||
       originalRequest.url?.includes("/auth/register");
 
-    if (status === 401 && !originalRequest._retry && !isAuthRoute) {
+    if (
+      status === 401 &&
+      !originalRequest._retry &&
+      !originalRequest.skipAuthRefresh &&
+      !isAuthRoute
+    ) {
       if (
         code === "TOKEN_EXPIRED" ||
         code === "TOKEN_INVALID" ||

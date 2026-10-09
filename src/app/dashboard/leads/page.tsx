@@ -1,17 +1,11 @@
 import type { Metadata } from "next";
-import DashboardPlaceholderPage from "@/components/dashboard/DashboardPlaceholderPage";
+import LeadsDashboardClient from "@/components/dashboard/leads/LeadsDashboardClient";
 
 export const metadata: Metadata = {
   title: "Leads | ConstructPro ERP",
-  description: "Leads dashboard placeholder for ConstructPro.",
+  description: "Capture, qualify, and manage construction leads.",
 };
 
 export default function LeadsPage() {
-  return (
-    <DashboardPlaceholderPage
-      eyebrow="Leads"
-      title="Leads Placeholder"
-      description="This route is intentionally lightweight and only provides the shared dashboard frame needed for navigation continuity."
-    />
-  );
+  return <LeadsDashboardClient />;
 }

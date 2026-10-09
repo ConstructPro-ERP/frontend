@@ -13,9 +13,10 @@ export async function convertQuotationToProject(
   quotationId: string,
   payload: ConvertToProjectInput,
 ): Promise<ConvertToProjectResponse> {
-  const response = await apiClient.patch<
-    ConvertToProjectResponse | Quotation
-  >(`/quotations/${quotationId}/approve`, payload);
+  const response = await apiClient.patch<ConvertToProjectResponse | Quotation>(
+    `/quotations/${quotationId}/approve`,
+    payload,
+  );
 
   const data = response.data;
 

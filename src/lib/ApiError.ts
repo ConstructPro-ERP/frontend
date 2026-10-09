@@ -14,9 +14,16 @@ export class ApiError extends Error {
     details?: unknown[],
     traceId?: string,
   ) {
-    // If the error code exists in our frontend map, use the user-friendly message.
-    // Otherwise, fall back to the backend's message.
-    const message = getErrorMessage(code, backendMessage);
+    // Preserve every backend detail in the message consumed by form alerts.
+    const detailMessages = Array.isArray(details)
+      ? details.filter(
+          (detail): detail is string =>
+            typeof detail === "string" && detail.trim().length > 0,
+        )
+      : [];
+    const message = detailMessages.length
+      ? detailMessages.join("; ")
+      : getErrorMessage(code, backendMessage);
     super(message);
     this.name = "ApiError";
     this.statusCode = statusCode;

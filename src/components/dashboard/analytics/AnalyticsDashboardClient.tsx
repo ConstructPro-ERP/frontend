@@ -871,12 +871,7 @@ export default function AnalyticsDashboardClient() {
           }}
           onRunAnalysis={handleRunAnalysis}
         />
-      ) : (
-        <section className="rounded-xl border border-outline-variant bg-surface-container-lowest p-5 text-sm text-on-surface-variant shadow-level-1">
-          AI forecasting is available only to Admin, Management, Finance, and
-          Accountant roles.
-        </section>
-      )}
+      ) : null}
 
       {prediction ? <AiPredictionResultPanel prediction={prediction} /> : null}
 

@@ -103,10 +103,12 @@ Create a `.env.local` file in the project root.
 Example:
 
 ```env
-NEXT_PUBLIC_API_BASE_URL=http://localhost:3000/api
+NEXT_PUBLIC_API_BASE_URL=http://localhost:4000/api
 ```
 
 > Only example values should be committed. Never commit secrets or production configuration.
+
+Google login uses the backend redirect endpoint `/auth/google`. See [Google login setup](docs/google-login.md) for callback configuration and [the file guide](docs/project-structure.md) for the architecture and each source file's responsibility.
 
 ---
 

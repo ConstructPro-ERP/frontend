@@ -12,6 +12,7 @@
 As **Person 2**, your primary responsibility in Sprint 7 is owning the **Quotation lifecycle and Project conversion** flow end-to-end on the frontend. This bridges the Sales pipeline (from Person 1's Leads) into Project Execution (Person 3's Projects) and provides financial data for downstream accounting (Person 4's Finance & KPIs).
 
 ### Core Responsibilities
+
 - Connecting the Quotation Management page and detail views to real backend APIs.
 - Replacing manual Lead ID string inputs with real Lead selection (dropdown/search).
 - Polishing line item management (add, edit, delete, live `round2` calculation preview).
@@ -27,24 +28,26 @@ As **Person 2**, your primary responsibility in Sprint 7 is owning the **Quotati
 
 Based on an inspection of the current frontend repository:
 
-| Feature Area | Current Status in Repo | Required for Sprint 7 (Person 2) | Gap / Action Needed |
-| :--- | :--- | :--- | :--- |
-| **API Service Layer** | Only `aiForecastingApi.ts`, `analyticsApi.ts`, `dashboardApi.ts`, `financeApi.ts` exist in [`src/services`](file:///c:/Users/minin/Documents/GitHub/frontend/src/services). | PDF explicitly requires `quotationsApi.ts`, `quotationItemsApi.ts`, and `projectConversionApi.ts`. | **Missing**: Must create these 3 service modules using [`src/lib/axios.ts`](file:///c:/Users/minin/Documents/GitHub/frontend/src/lib/axios.ts) and decouple direct Axios calls from UI components. |
-| **Lead Selection** | In [`QuotationsDashboardClient.tsx`](file:///c:/Users/minin/Documents/GitHub/frontend/src/components/dashboard/quotations/QuotationsDashboardClient.tsx), Lead ID is a manual text input (`<input placeholder="lead-2026-108" />`). | Implement lead selection when creating a quotation instead of manual ID entry. | **Missing**: Replace text input with a Lead dropdown/combobox fetching qualified leads from backend with customer name & status display. |
-| **Quotation Detail View** | Quotations are displayed in cards within [`QuotationsDashboardClient.tsx`](file:///c:/Users/minin/Documents/GitHub/frontend/src/components/dashboard/quotations/QuotationsDashboardClient.tsx). | Real backend list and detail views. | **Incomplete**: Ensure full detail modal/drawer or expandable view displays all backend fields, timestamps, customer summary, and audit info. |
-| **Quotation States** | Types define `DRAFT`, `PENDING_APPROVAL`, `APPROVED`, `REJECTED`, `CONVERTED`. | PDF requires: `Draft`, `Sent`, `Approved`, `Rejected`, `Revised`, and `Converted`. | **Needs alignment**: Add `SENT` state handling (send to client action) and formalize `REVISED` state handling and status badge styling. |
-| **Approval vs Conversion** | "Convert to Project" directly triggers `PATCH /quotations/:id/approve`. | FE-07 (Approval UI) and FE-08 (Conversion UI) are separate issues. | **Needs refinement**: Provide explicit two-step capability (direct approval vs conversion to project) with role guards. |
-| **PDF Actions** | Simple button triggers `GET /quotations/:id/pdf`. | PDF view & download actions with proper loading feedback and error handling. | **Complete & Polish**: Integrate with document viewer/blob download and ensure reliable regeneration handling. |
-| **Error & Retry States** | Basic inline errors and prototype fallback exist. | Standardized retry mechanisms, 409 conflict handling, network failure banners, and field-level validation feedback. | **Needs Polish**: Add explicit "Retry" button when API fails and polish duplicate conversion handling. |
+| Feature Area               | Current Status in Repo                                                                                                                                                                                                              | Required for Sprint 7 (Person 2)                                                                                    | Gap / Action Needed                                                                                                                                                                                |
+| :------------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------ | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **API Service Layer**      | Only `aiForecastingApi.ts`, `analyticsApi.ts`, `dashboardApi.ts`, `financeApi.ts` exist in [`src/services`](file:///c:/Users/minin/Documents/GitHub/frontend/src/services).                                                         | PDF explicitly requires `quotationsApi.ts`, `quotationItemsApi.ts`, and `projectConversionApi.ts`.                  | **Missing**: Must create these 3 service modules using [`src/lib/axios.ts`](file:///c:/Users/minin/Documents/GitHub/frontend/src/lib/axios.ts) and decouple direct Axios calls from UI components. |
+| **Lead Selection**         | In [`QuotationsDashboardClient.tsx`](file:///c:/Users/minin/Documents/GitHub/frontend/src/components/dashboard/quotations/QuotationsDashboardClient.tsx), Lead ID is a manual text input (`<input placeholder="lead-2026-108" />`). | Implement lead selection when creating a quotation instead of manual ID entry.                                      | **Missing**: Replace text input with a Lead dropdown/combobox fetching qualified leads from backend with customer name & status display.                                                           |
+| **Quotation Detail View**  | Quotations are displayed in cards within [`QuotationsDashboardClient.tsx`](file:///c:/Users/minin/Documents/GitHub/frontend/src/components/dashboard/quotations/QuotationsDashboardClient.tsx).                                     | Real backend list and detail views.                                                                                 | **Incomplete**: Ensure full detail modal/drawer or expandable view displays all backend fields, timestamps, customer summary, and audit info.                                                      |
+| **Quotation States**       | Types define `DRAFT`, `PENDING_APPROVAL`, `APPROVED`, `REJECTED`, `CONVERTED`.                                                                                                                                                      | PDF requires: `Draft`, `Sent`, `Approved`, `Rejected`, `Revised`, and `Converted`.                                  | **Needs alignment**: Add `SENT` state handling (send to client action) and formalize `REVISED` state handling and status badge styling.                                                            |
+| **Approval vs Conversion** | "Convert to Project" directly triggers `PATCH /quotations/:id/approve`.                                                                                                                                                             | FE-07 (Approval UI) and FE-08 (Conversion UI) are separate issues.                                                  | **Needs refinement**: Provide explicit two-step capability (direct approval vs conversion to project) with role guards.                                                                            |
+| **PDF Actions**            | Simple button triggers `GET /quotations/:id/pdf`.                                                                                                                                                                                   | PDF view & download actions with proper loading feedback and error handling.                                        | **Complete & Polish**: Integrate with document viewer/blob download and ensure reliable regeneration handling.                                                                                     |
+| **Error & Retry States**   | Basic inline errors and prototype fallback exist.                                                                                                                                                                                   | Standardized retry mechanisms, 409 conflict handling, network failure banners, and field-level validation feedback. | **Needs Polish**: Add explicit "Retry" button when API fails and polish duplicate conversion handling.                                                                                             |
 
 ---
 
 ## 3. Detailed Work Breakdown by Issue (FE-05 to FE-08)
 
 ### **FE-05: Connect Quotation Management Page to Backend APIs**
-*Branch:* `feature/FE-05-quotation-api-integration`
+
+_Branch:_ `feature/FE-05-quotation-api-integration`
 
 #### What to Develop:
+
 1. **Create Service File [`src/services/quotationsApi.ts`](file:///c:/Users/minin/Documents/GitHub/frontend/src/services/quotationsApi.ts)**:
    - Encapsulate all Quotation HTTP calls using `apiClient` from [`src/lib/axios.ts`](file:///c:/Users/minin/Documents/GitHub/frontend/src/lib/axios.ts).
    - Functions to implement:
@@ -66,9 +69,11 @@ Based on an inspection of the current frontend repository:
 ---
 
 ### **FE-06: Implement Quotation Item Form and Total Calculation UI**
-*Branch:* `feature/FE-06-quotation-items-ui`
+
+_Branch:_ `feature/FE-06-quotation-items-ui`
 
 #### What to Develop:
+
 1. **Create Service File [`src/services/quotationItemsApi.ts`](file:///c:/Users/minin/Documents/GitHub/frontend/src/services/quotationItemsApi.ts)** (if backend exposes granular item endpoints):
    - Support batch item update or individual item CRUD if exposed by the backend schema.
 2. **Enhanced Line Item Management in Creation Form & [`EditQuotationModal.tsx`](file:///c:/Users/minin/Documents/GitHub/frontend/src/components/dashboard/quotations/modals/EditQuotationModal.tsx)**:
@@ -87,9 +92,11 @@ Based on an inspection of the current frontend repository:
 ---
 
 ### **FE-07: Implement Quotation Approval, Rejection and Revision UI**
-*Branch:* `feature/FE-07-quotation-approval-ui`
+
+_Branch:_ `feature/FE-07-quotation-approval-ui`
 
 #### What to Develop:
+
 1. **Quotation Status Lifecycle Support**:
    - Ensure the UI handles and displays the complete lifecycle:
      - `DRAFT`: Editable, can submit for approval or send to client.
@@ -115,9 +122,11 @@ Based on an inspection of the current frontend repository:
 ---
 
 ### **FE-08: Implement Quotation-to-Project Conversion UI and PDF Action**
-*Branch:* `feature/FE-08-project-conversion-pdf-ui`
+
+_Branch:_ `feature/FE-08-project-conversion-pdf-ui`
 
 #### What to Develop:
+
 1. **Create Service File [`src/services/projectConversionApi.ts`](file:///c:/Users/minin/Documents/GitHub/frontend/src/services/projectConversionApi.ts)**:
    - `convertQuotationToProject(quotationId: string, payload: ConvertToProjectInput)`: Returns `Promise<ConvertToProjectResponse>`
    - Handles both:
@@ -139,12 +148,14 @@ Based on an inspection of the current frontend repository:
 ## 4. File Checklist for Person 2
 
 ### Files to Create (New):
+
 - [ ] [`src/services/quotationsApi.ts`](file:///c:/Users/minin/Documents/GitHub/frontend/src/services/quotationsApi.ts) — Full service for quotation CRUD, PDF, approve, reject, revise.
 - [ ] [`src/services/quotationItemsApi.ts`](file:///c:/Users/minin/Documents/GitHub/frontend/src/services/quotationItemsApi.ts) — Line item operations helper.
 - [ ] [`src/services/projectConversionApi.ts`](file:///c:/Users/minin/Documents/GitHub/frontend/src/services/projectConversionApi.ts) — Quotation-to-project conversion service.
 - [ ] [`src/components/dashboard/quotations/LeadSelectDropdown.tsx`](file:///c:/Users/minin/Documents/GitHub/frontend/src/components/dashboard/quotations/LeadSelectDropdown.tsx) — Lead selector replacing manual ID input.
 
 ### Files to Update / Refactor:
+
 - [ ] [`src/types/quotation.ts`](file:///c:/Users/minin/Documents/GitHub/frontend/src/types/quotation.ts) — Update quotation status enums (including `SENT`), DTO types, and filter parameters.
 - [ ] [`src/components/dashboard/quotations/QuotationsDashboardClient.tsx`](file:///c:/Users/minin/Documents/GitHub/frontend/src/components/dashboard/quotations/QuotationsDashboardClient.tsx) — Replace raw `apiClient` calls with service layer functions; embed lead selector; improve retry & loading states.
 - [ ] [`src/components/dashboard/quotations/quotationUtils.ts`](file:///c:/Users/minin/Documents/GitHub/frontend/src/components/dashboard/quotations/quotationUtils.ts) — Add any missing status handlers and ensure error codes map cleanly.
@@ -173,6 +184,7 @@ Based on an inspection of the current frontend repository:
 ## 6. Sprint 7 Completion Criteria for Person 2
 
 As defined in Section 10 of the Sprint 7 Plan:
+
 - [x] **Sales Manager can create quotations from leads with line items and correct totals** (lead selector + dynamic items + `round2` calculation).
 - [x] **Management can approve/reject quotations and convert approved quotations to projects** (role guards + modals + 409 conflict handling).
 - [x] **Quotation PDF view and download actions operate reliably** (spinner indicator + open/download URL).

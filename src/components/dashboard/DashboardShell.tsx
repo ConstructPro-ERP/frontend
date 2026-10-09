@@ -1,7 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useSelector } from "react-redux";
+import type { RootState } from "@/store";
+import { canAccessDashboardPath } from "@/lib/dashboardAccess";
 import { DM_Sans, DM_Mono } from "next/font/google";
 import { useHomeTheme } from "./homeTheme";
 import "./home-shell.css";
@@ -26,6 +30,9 @@ export default function DashboardShell({
   children: React.ReactNode;
 }>) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const pathname = usePathname();
+  const { user, isLoading } = useSelector((state: RootState) => state.auth);
+  const allowed = canAccessDashboardPath(user?.role, pathname);
   const isHome = usePathname() === "/dashboard";
   const { theme, toggleTheme } = useHomeTheme();
 
@@ -57,7 +64,27 @@ export default function DashboardShell({
           id="dashboard-main-content"
           className="flex-1 overflow-x-hidden px-3 py-3 sm:px-4 sm:py-4 lg:px-4"
         >
-          <div className="w-full">{children}</div>
+          <div className="w-full">
+            {isLoading ? (
+              <p role="status">Loading your account...</p>
+            ) : allowed ? (
+              children
+            ) : (
+              <div className="rounded-xl border border-outline-variant bg-surface-container-lowest p-6">
+                <p role="status">
+                  {user
+                    ? "This page is not available for your role. Choose an available module from the sidebar."
+                    : "Sign in to access your workspace."}
+                </p>
+                <Link
+                  href={user ? "/modules" : "/login"}
+                  className="mt-4 inline-block text-primary"
+                >
+                  {user ? "Back to modules" : "Sign in"}
+                </Link>
+              </div>
+            )}
+          </div>
         </main>
       </div>
     </div>

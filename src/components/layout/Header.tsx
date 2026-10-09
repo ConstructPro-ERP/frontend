@@ -10,6 +10,8 @@ import type { RootState, AppDispatch } from "@/store";
 import { logout } from "@/store/slices/authSlice";
 import { clearTokens } from "@/lib/token";
 import { Menu, X } from "lucide-react";
+import { dashboardNavItems } from "@/components/dashboard/dashboardConfig";
+import { canAccessDashboardPath } from "@/lib/dashboardAccess";
 
 const navLinks = [
   { label: "Overview", href: "/" },
@@ -27,7 +29,12 @@ export default function Header() {
   const pathname = usePathname();
   const router = useRouter();
   const dispatch = useDispatch<AppDispatch>();
-  const { isAuthenticated } = useSelector((state: RootState) => state.auth);
+  const { isAuthenticated, user } = useSelector(
+    (state: RootState) => state.auth,
+  );
+  const workspace = dashboardNavItems.find((item) =>
+    canAccessDashboardPath(user?.role, item.href),
+  );
 
   const handleSignOut = () => {
     dispatch(logout());
@@ -93,12 +100,14 @@ export default function Header() {
         <div className="hidden md:flex items-center gap-3">
           {isAuthenticated ? (
             <>
-              <Link
-                href="/"
-                className="text-sm font-semibold text-primary px-4 py-2 rounded-lg hover:bg-surface-container transition-colors duration-200"
-              >
-                Dashboard
-              </Link>
+              {workspace && (
+                <Link
+                  href={workspace.href}
+                  className="text-sm font-semibold text-primary px-4 py-2 rounded-lg hover:bg-surface-container transition-colors duration-200"
+                >
+                  Dashboard
+                </Link>
+              )}
               <button
                 type="button"
                 onClick={handleSignOut}

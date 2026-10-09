@@ -14,6 +14,7 @@ import { useState } from "react";
 import { useSelector } from "react-redux";
 import type { RootState } from "@/store";
 import { dashboardNavItems } from "@/components/dashboard/dashboardConfig";
+import { canAccessDashboardPath } from "@/lib/dashboardAccess";
 
 type DashboardSidebarProps = {
   mobileOpen: boolean;
@@ -36,12 +37,20 @@ export default function DashboardSidebar({
   const sections = ["Main", "Finance", "Management"] as const;
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const user = useSelector((state: RootState) => state.auth.user);
+  const visibleItems = dashboardNavItems.filter((item) =>
+    canAccessDashboardPath(user?.role, item.href),
+  );
   const accountProfile = {
     initials: user
-      ? `${user.firstName?.[0] ?? ""}${user.lastName?.[0] ?? ""}`
-      : "CP",
-    name: user ? `${user.firstName} ${user.lastName}` : "Your account",
-    role: user?.role.replaceAll("_", " ") ?? "Signed-in user",
+      ? `${user.firstName.charAt(0)}${user.lastName.charAt(0)}` || "U"
+      : "?",
+    name: user
+      ? `${user.firstName} ${user.lastName}`.trim() || user.email
+      : "Not signed in",
+    role:
+      user?.role && user.role !== "user"
+        ? user.role.replaceAll("_", " ")
+        : "No role assigned",
   };
 
   return (
@@ -64,7 +73,7 @@ export default function DashboardSidebar({
       >
         <div className="flex h-16 items-center justify-between border-b border-outline-variant px-4">
           <Link
-            href="/dashboard"
+            href={visibleItems[0]?.href ?? "/modules"}
             className="flex items-center gap-2.5"
             onClick={onClose}
           >
@@ -97,44 +106,48 @@ export default function DashboardSidebar({
         </div>
 
         <nav className="flex-1 overflow-y-auto" aria-label="Primary">
-          {sections.map((section) => (
-            <div key={section} className="px-2.5 pt-4 pb-1">
-              <p className="mb-1 px-2 text-[9.5px] font-bold uppercase tracking-[0.18em] text-on-surface-muted">
-                {section}
-              </p>
-              <div>
-                {dashboardNavItems
-                  .filter((item) => item.section === section)
-                  .map((item) => {
-                    const Icon = item.icon;
-                    const active = isNavItemActive(pathname, item.href);
+          {sections
+            .filter((section) =>
+              visibleItems.some((item) => item.section === section),
+            )
+            .map((section) => (
+              <div key={section} className="px-2.5 pt-4 pb-1">
+                <p className="mb-1 px-2 text-[9.5px] font-bold uppercase tracking-[0.18em] text-on-surface-muted">
+                  {section}
+                </p>
+                <div>
+                  {visibleItems
+                    .filter((item) => item.section === section)
+                    .map((item) => {
+                      const Icon = item.icon;
+                      const active = isNavItemActive(pathname, item.href);
 
-                    return (
-                      <Link
-                        key={item.href}
-                        href={item.href}
-                        className={`relative mb-px flex items-center gap-[9px] rounded-lg px-2.5 py-2 text-[13.5px] font-medium transition ${
-                          active
-                            ? "bg-primary-soft font-semibold text-primary"
-                            : "text-on-surface-variant hover:bg-surface-container hover:text-on-background"
-                        }`}
-                        onClick={onClose}
-                        aria-current={active ? "page" : undefined}
-                      >
-                        {active ? (
-                          <span
-                            className="absolute left-0 top-1/2 h-[18px] w-[3px] -translate-y-1/2 rounded-r-[3px] bg-primary"
-                            aria-hidden="true"
-                          />
-                        ) : null}
-                        <Icon size={16} className="shrink-0" />
-                        <span>{item.title}</span>
-                      </Link>
-                    );
-                  })}
+                      return (
+                        <Link
+                          key={item.href}
+                          href={item.href}
+                          className={`relative mb-px flex items-center gap-[9px] rounded-lg px-2.5 py-2 text-[13.5px] font-medium transition ${
+                            active
+                              ? "bg-primary-soft font-semibold text-primary"
+                              : "text-on-surface-variant hover:bg-surface-container hover:text-on-background"
+                          }`}
+                          onClick={onClose}
+                          aria-current={active ? "page" : undefined}
+                        >
+                          {active ? (
+                            <span
+                              className="absolute left-0 top-1/2 h-[18px] w-[3px] -translate-y-1/2 rounded-r-[3px] bg-primary"
+                              aria-hidden="true"
+                            />
+                          ) : null}
+                          <Icon size={16} className="shrink-0" />
+                          <span>{item.title}</span>
+                        </Link>
+                      );
+                    })}
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
         </nav>
 
         <div className="border-t border-outline-variant p-2.5">
