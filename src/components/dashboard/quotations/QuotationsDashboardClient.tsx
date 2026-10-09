@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import {
   Ban,
@@ -16,15 +16,22 @@ import {
 } from "lucide-react";
 import { useSelector } from "react-redux";
 import type { RootState } from "@/store";
-import apiClient from "@/lib/axios";
 import { ApiError } from "@/lib/ApiError";
+import {
+  approveQuotation,
+  createQuotation,
+  getQuotationById,
+  getQuotationPdf,
+  listQuotations,
+  reviseQuotation,
+} from "@/services/quotationsApi";
+import LeadSelectDropdown from "@/components/dashboard/quotations/LeadSelectDropdown";
 import type {
   Quotation,
   QuotationFilterTab,
   QuotationFormErrors,
   QuotationFormValues,
   QuotationItemInput,
-  QuotationListResponse,
 } from "@/types/quotation";
 import {
   calculateLineItemAmount,
@@ -76,9 +83,11 @@ function QuotationStatusBadge({ status }: { status: Quotation["status"] }) {
 function QuotationStateCard({
   title,
   message,
+  onRetry,
 }: {
   title: string;
   message: string;
+  onRetry?: () => void;
 }) {
   return (
     <div className="rounded-xl border border-dashed border-outline bg-surface-container-lowest p-8 text-center shadow-level-1">
@@ -86,6 +95,16 @@ function QuotationStateCard({
       <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-on-surface-variant">
         {message}
       </p>
+      {onRetry ? (
+        <button
+          type="button"
+          onClick={onRetry}
+          className="mt-4 inline-flex items-center gap-1.5 rounded-lg bg-primary px-3.5 py-1.5 text-xs font-semibold text-on-primary hover:bg-primary-hover transition shadow-xs"
+        >
+          <RefreshCcw size={13} />
+          Retry
+        </button>
+      ) : null}
     </div>
   );
 }
@@ -158,25 +177,12 @@ function QuotationForm({
             {unavailableMessage}
           </div>
         ) : null}
-        <div>
-          <label className="mb-[5px] block text-[11.5px] font-semibold text-on-surface-variant">
-            Lead ID
-          </label>
-          <input
-            type="text"
-            value={values.leadId}
-            onChange={(event) => onFieldChange("leadId", event.target.value)}
-            placeholder="lead-2026-108"
-            className={`w-full rounded-lg border px-3 py-[9px] text-[13px] text-on-background outline-none ${
-              errors.leadId
-                ? "border-error bg-error-container"
-                : "border-outline-variant bg-surface-container"
-            }`}
-          />
-          {errors.leadId ? (
-            <p className="mt-1 text-xs text-error">{errors.leadId}</p>
-          ) : null}
-        </div>
+        <LeadSelectDropdown
+          value={values.leadId}
+          onChange={(leadId) => onFieldChange("leadId", leadId)}
+          error={errors.leadId}
+          disabled={isSubmitting}
+        />
 
         <div>
           <div className="mb-[5px] flex items-center justify-between">
@@ -288,7 +294,9 @@ function QuotationCard({
   canReject,
   isGeneratingPdf,
   isRevising,
+  isApproving,
   onEdit,
+  onApprove,
   onReject,
   onRevise,
   onConvert,
@@ -299,7 +307,9 @@ function QuotationCard({
   canReject: boolean;
   isGeneratingPdf: boolean;
   isRevising: boolean;
+  isApproving: boolean;
   onEdit: (quotation: Quotation) => void;
+  onApprove: (quotation: Quotation) => void;
   onReject: (quotation: Quotation) => void;
   onRevise: (quotation: Quotation) => void;
   onConvert: (quotation: Quotation) => void;
@@ -449,6 +459,23 @@ function QuotationCard({
               </button>
             ) : null}
 
+            {/* Direct Approve Action: Visible on PENDING_APPROVAL for Admin/Sales Manager */}
+            {canApprove && quotation.status === "PENDING_APPROVAL" ? (
+              <button
+                type="button"
+                onClick={() => onApprove(quotation)}
+                disabled={isApproving}
+                className="inline-flex items-center gap-1 rounded-lg border border-risk-low/30 bg-risk-low-container px-2.5 py-1.5 text-xs font-semibold text-risk-low transition hover:bg-risk-low/20 disabled:opacity-60"
+              >
+                {isApproving ? (
+                  <Loader2 size={13} className="animate-spin text-risk-low" />
+                ) : (
+                  <Check size={13} />
+                )}
+                {isApproving ? "Approving..." : "Approve"}
+              </button>
+            ) : null}
+
             {/* Convert to Project Button: Visible on PENDING_APPROVAL and APPROVED for Admin/Sales Manager */}
             {canApprove && isConvertible ? (
               <button
@@ -456,7 +483,7 @@ function QuotationCard({
                 onClick={() => onConvert(quotation)}
                 className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-on-primary transition hover:bg-primary-hover shadow-xs"
               >
-                <Check size={13} />
+                <FolderKanban size={13} />
                 Convert to Project
               </button>
             ) : null}
@@ -531,6 +558,7 @@ export default function QuotationsDashboardClient() {
   // Async tracking per card
   const [pdfLoadingId, setPdfLoadingId] = useState<string | null>(null);
   const [revisingId, setRevisingId] = useState<string | null>(null);
+  const [approvingId, setApprovingId] = useState<string | null>(null);
 
   const replaceQuotationInState = (updated: Quotation) => {
     setQuotationsState((current) => {
@@ -548,49 +576,57 @@ export default function QuotationsDashboardClient() {
   };
 
   // Fetch real quotations on page load or status filter tab changes asynchronously
+  const fetchQuotationsData = useCallback(async (tab: QuotationFilterTab) => {
+    try {
+      const res = await listQuotations({ status: tab });
+      const items = normalizeQuotations(res);
+      if (items.length === 0) {
+        return { kind: "empty" as const };
+      }
+      return { kind: "ready" as const, quotations: items };
+    } catch (error) {
+      if (isQuotationUnavailableError(error)) {
+        const previewItems =
+          tab === "ALL"
+            ? quotationPreviewList
+            : quotationPreviewList.filter((q) => q.status === tab);
+
+        return {
+          kind: "unavailable" as const,
+          quotations: previewItems,
+          message:
+            "Quotation APIs are not available yet. Showing prototype preview data until backend endpoints are connected.",
+        };
+      }
+      return {
+        kind: "error" as const,
+        message: "Failed to load quotations from server.",
+      };
+    }
+  }, []);
+
   useEffect(() => {
-    let isMounted = true;
-    const query = activeTab !== "ALL" ? `?status=${activeTab}` : "";
+    let active = true;
 
-    apiClient
-      .get<QuotationListResponse | { items: Quotation[]; total: number }>(
-        `/quotations${query}`,
-      )
-      .then((res) => {
-        if (!isMounted) return;
-        const items = normalizeQuotations(res.data);
-        if (items.length === 0) {
-          setQuotationsState({ kind: "empty" });
-        } else {
-          setQuotationsState({ kind: "ready", quotations: items });
-        }
-      })
-      .catch((error) => {
-        if (!isMounted) return;
-        if (isQuotationUnavailableError(error)) {
-          const previewItems =
-            activeTab === "ALL"
-              ? quotationPreviewList
-              : quotationPreviewList.filter((q) => q.status === activeTab);
+    async function load() {
+      const nextState = await fetchQuotationsData(activeTab);
+      if (active) {
+        setQuotationsState(nextState);
+      }
+    }
 
-          setQuotationsState({
-            kind: "unavailable",
-            quotations: previewItems,
-            message:
-              "Quotation APIs are not available yet. Showing prototype preview data until backend endpoints are connected.",
-          });
-        } else {
-          setQuotationsState({
-            kind: "error",
-            message: "Failed to load quotations from server.",
-          });
-        }
-      });
+    load();
 
     return () => {
-      isMounted = false;
+      active = false;
     };
-  }, [activeTab]);
+  }, [activeTab, fetchQuotationsData]);
+
+  const loadQuotations = async () => {
+    setQuotationsState({ kind: "loading" });
+    const nextState = await fetchQuotationsData(activeTab);
+    setQuotationsState(nextState);
+  };
 
   const handleTabChange = (tabId: QuotationFilterTab) => {
     setActiveTab(tabId);
@@ -655,11 +691,8 @@ export default function QuotationsDashboardClient() {
 
     setPdfLoadingId(quotation.id);
     try {
-      const res = await apiClient.get<{ pdfUrl: string }>(
-        `/quotations/${quotation.id}/pdf`,
-      );
-      const resData = res.data as { pdfUrl?: string } | undefined;
-      const pdfUrl = resData?.pdfUrl;
+      const res = await getQuotationPdf(quotation.id);
+      const pdfUrl = res.pdfUrl;
       if (pdfUrl) {
         replaceQuotationInState({ ...quotation, pdfUrl });
         window.open(pdfUrl, "_blank", "noopener,noreferrer");
@@ -681,11 +714,7 @@ export default function QuotationsDashboardClient() {
     setRevisingId(quotation.id);
     setFeedback(null);
     try {
-      const res = await apiClient.patch<Quotation>(
-        `/quotations/${quotation.id}/revise`,
-        {},
-      );
-      const revised = res.data;
+      const revised = await reviseQuotation(quotation.id);
       replaceQuotationInState(revised);
       setFeedback({
         tone: "info",
@@ -699,6 +728,28 @@ export default function QuotationsDashboardClient() {
       });
     } finally {
       setRevisingId(null);
+    }
+  };
+
+  // Direct Approve handler: moves PENDING_APPROVAL -> APPROVED
+  const handleApproveQuotation = async (quotation: Quotation) => {
+    setApprovingId(quotation.id);
+    setFeedback(null);
+    try {
+      const res = await approveQuotation(quotation.id);
+      const updated = "quotation" in res ? res.quotation : (res as Quotation);
+      replaceQuotationInState({ ...updated, status: "APPROVED" });
+      setFeedback({
+        tone: "success",
+        message: `Quotation ${quotation.id} approved successfully. You can now convert it to a project.`,
+      });
+    } catch (error) {
+      setFeedback({
+        tone: "error",
+        message: getQuotationErrorMessage(error),
+      });
+    } finally {
+      setApprovingId(null);
     }
   };
 
@@ -720,7 +771,7 @@ export default function QuotationsDashboardClient() {
     setApiUnavailableMessage(null);
 
     try {
-      const createResponse = await apiClient.post<Quotation>("/quotations", {
+      let createdQuotation = await createQuotation({
         leadId: formValues.leadId.trim(),
         notes: formValues.notes.trim() || undefined,
         items: formValues.items.map((it) => ({
@@ -730,13 +781,9 @@ export default function QuotationsDashboardClient() {
         })),
       });
 
-      let createdQuotation = createResponse.data;
-
       try {
-        const refreshedResponse = await apiClient.get<Quotation>(
-          `/quotations/${createdQuotation.id}`,
-        );
-        createdQuotation = refreshedResponse.data;
+        const refreshedResponse = await getQuotationById(createdQuotation.id);
+        createdQuotation = refreshedResponse;
       } catch {
         // Read-path confirmation is best-effort
       }
@@ -842,6 +889,7 @@ export default function QuotationsDashboardClient() {
             <QuotationStateCard
               title="Failed to Load Quotations"
               message={quotationsState.message}
+              onRetry={loadQuotations}
             />
           ) : quotations.length === 0 ? (
             <QuotationStateCard
@@ -865,7 +913,9 @@ export default function QuotationsDashboardClient() {
                 canReject={canRejectQuotation(user?.role)}
                 isGeneratingPdf={pdfLoadingId === quotation.id}
                 isRevising={revisingId === quotation.id}
+                isApproving={approvingId === quotation.id}
                 onEdit={(q) => setEditingQuotation(q)}
+                onApprove={handleApproveQuotation}
                 onReject={(q) => setRejectingQuotation(q)}
                 onRevise={handleReviseQuotation}
                 onConvert={(q) => setConvertingQuotation(q)}
