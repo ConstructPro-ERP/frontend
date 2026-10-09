@@ -29,7 +29,8 @@ export function useModalFocusTrap(
     }
 
     if (typeof document !== "undefined") {
-      previouslyFocusedRef.current = document.activeElement as HTMLElement | null;
+      previouslyFocusedRef.current =
+        document.activeElement as HTMLElement | null;
     }
 
     const container = containerRef.current;
@@ -40,7 +41,8 @@ export function useModalFocusTrap(
 
     // Delay slightly to let animations or children render
     const timer = setTimeout(() => {
-      const focusable = container.querySelectorAll<HTMLElement>(focusableSelector);
+      const focusable =
+        container.querySelectorAll<HTMLElement>(focusableSelector);
       if (focusable.length > 0) {
         const firstEditable = Array.from(focusable).find(
           (el) => el.tagName === "INPUT" || el.tagName === "TEXTAREA",
@@ -58,7 +60,8 @@ export function useModalFocusTrap(
 
       if (event.key !== "Tab") return;
 
-      const elements = container?.querySelectorAll<HTMLElement>(focusableSelector);
+      const elements =
+        container?.querySelectorAll<HTMLElement>(focusableSelector);
       if (!elements || elements.length === 0) return;
 
       const firstEl = elements[0];

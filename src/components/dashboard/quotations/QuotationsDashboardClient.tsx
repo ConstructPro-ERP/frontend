@@ -205,7 +205,10 @@ function QuotationForm({
 
         <div>
           <div className="mb-[5px] flex items-center justify-between">
-            <label id="quotation-form-items-label" className="block text-[11.5px] font-semibold text-on-surface-variant">
+            <label
+              id="quotation-form-items-label"
+              className="block text-[11.5px] font-semibold text-on-surface-variant"
+            >
               Items
             </label>
             <button
@@ -218,7 +221,10 @@ function QuotationForm({
               Add Item
             </button>
           </div>
-          <div className="space-y-2" aria-labelledby="quotation-form-items-label">
+          <div
+            className="space-y-2"
+            aria-labelledby="quotation-form-items-label"
+          >
             {values.items.map((item, index) => {
               calculateLineItemAmount(item.quantity, item.unitPrice);
               return (
@@ -231,7 +237,9 @@ function QuotationForm({
                     value={item.itemName}
                     aria-label={`Item ${index + 1} name`}
                     aria-invalid={Boolean(errors.items)}
-                    aria-describedby={errors.items ? "quotation-items-error" : undefined}
+                    aria-describedby={
+                      errors.items ? "quotation-items-error" : undefined
+                    }
                     onChange={(event) =>
                       onItemChange(index, "itemName", event.target.value)
                     }
@@ -245,7 +253,9 @@ function QuotationForm({
                     value={item.quantity === 0 ? "" : item.quantity}
                     aria-label={`Item ${index + 1} quantity`}
                     aria-invalid={Boolean(errors.items)}
-                    aria-describedby={errors.items ? "quotation-items-error" : undefined}
+                    aria-describedby={
+                      errors.items ? "quotation-items-error" : undefined
+                    }
                     onChange={(event) =>
                       onItemChange(index, "quantity", event.target.value)
                     }
@@ -259,7 +269,9 @@ function QuotationForm({
                     value={item.unitPrice === 0 ? "" : item.unitPrice}
                     aria-label={`Item ${index + 1} unit price`}
                     aria-invalid={Boolean(errors.items)}
-                    aria-describedby={errors.items ? "quotation-items-error" : undefined}
+                    aria-describedby={
+                      errors.items ? "quotation-items-error" : undefined
+                    }
                     onChange={(event) =>
                       onItemChange(index, "unitPrice", event.target.value)
                     }
@@ -280,7 +292,9 @@ function QuotationForm({
             })}
           </div>
           {errors.items ? (
-            <p id="quotation-items-error" className="mt-1 text-xs text-error">{errors.items}</p>
+            <p id="quotation-items-error" className="mt-1 text-xs text-error">
+              {errors.items}
+            </p>
           ) : null}
 
           <div className="mt-2.5 flex items-center justify-end gap-2 text-xs">
@@ -292,7 +306,10 @@ function QuotationForm({
         </div>
 
         <div>
-          <label htmlFor="create-quotation-notes" className="mb-[5px] block text-[11.5px] font-semibold text-on-surface-variant">
+          <label
+            htmlFor="create-quotation-notes"
+            className="mb-[5px] block text-[11.5px] font-semibold text-on-surface-variant"
+          >
             Notes
           </label>
           <textarea

@@ -531,11 +531,7 @@ export function filterQuotationsBySearch(
       quotation.notes?.toLowerCase().includes(normalized) ?? false;
 
     return (
-      idMatch ||
-      leadIdMatch ||
-      customerNameMatch ||
-      companyMatch ||
-      notesMatch
+      idMatch || leadIdMatch || customerNameMatch || companyMatch || notesMatch
     );
   });
 }

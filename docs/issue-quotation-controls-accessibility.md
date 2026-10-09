@@ -8,14 +8,14 @@
 **Sprint:** Sprint 7 – Integration & UX  
 **Phase:** Development  
 **Base Branch:** `develop`  
-**Working Branch:** `feature/50-quotation-controls-and-accessibility`  
+**Working Branch:** `feature/50-quotation-controls-and-accessibility`
 
 ---
 
 ## 1. User Story
 
-- **As a** sales or management user,  
-- **I want to** search, filter, and paginate through quotations and interact with accessible forms and modals,  
+- **As a** sales or management user,
+- **I want to** search, filter, and paginate through quotations and interact with accessible forms and modals,
 - **So that** I can rapidly locate quotation records and efficiently navigate the full quotation workflow across desktop and mobile devices complying with WCAG 2.1 AA.
 
 ---
@@ -24,15 +24,16 @@
 
 This issue addresses remaining gaps identified in Sprint 7 specification documents ([`quotation-list-controls.md`](./quotation-list-controls.md) and [`quotation-ux-accessibility.md`](./quotation-ux-accessibility.md)). While core quotation creation and lifecycle transitions are implemented, list navigation lacks server-backed search and pagination controls, and form/modal elements require WCAG 2.1 AA accessibility attributes.
 
-- **SRS:** FR-003, FR-004, NFR-05, NFR-06, NFR-14  
-- **SDS:** Section 5.1.3 Quotations UI; Section 5.3 Accessibility Considerations  
-- **WCAG Target:** WCAG 2.1 Level AA  
+- **SRS:** FR-003, FR-004, NFR-05, NFR-06, NFR-14
+- **SDS:** Section 5.1.3 Quotations UI; Section 5.3 Accessibility Considerations
+- **WCAG Target:** WCAG 2.1 Level AA
 
 ---
 
 ## 3. Acceptance Criteria
 
 ### AC1: Quotation Search (List Controls)
+
 - **Given** quotation records exist in the system,
 - **When** a user types a search term into the quotation search bar,
 - **Then** the list is filtered to display matching records (by Lead ID, Customer Name, or Quotation ID).
@@ -40,6 +41,7 @@ This issue addresses remaining gaps identified in Sprint 7 specification documen
 - **Then** a clear empty state is rendered indicating no matching results for that query.
 
 ### AC2: Quotation Pagination (List Controls)
+
 - **Given** quotation records spanning multiple pages,
 - **When** a user navigates between pages or changes page limit,
 - **Then** the corresponding page is requested and rendered with current page and total count displayed.
@@ -47,6 +49,7 @@ This issue addresses remaining gaps identified in Sprint 7 specification documen
 - **Then** page index resets to 1.
 
 ### AC3: Form Accessibility & Semantic Inputs (UX & Accessibility)
+
 - **Given** the quotation creation form and edit modal line items,
 - **When** traversed using keyboard navigation or assistive technology (screen readers),
 - **Then** all inputs (item name, quantity, unit price) have explicit labels or `aria-label` associations.
@@ -54,6 +57,7 @@ This issue addresses remaining gaps identified in Sprint 7 specification documen
 - **Then** validation errors are linked to their corresponding inputs with `aria-describedby` and `aria-invalid`.
 
 ### AC4: Modal Focus Management (UX & Accessibility)
+
 - **Given** quotation action dialogs (`EditQuotationModal`, `RejectQuotationModal`, `ConvertToProjectModal`),
 - **When** the dialog opens,
 - **Then** initial focus is placed on the first interactive element.
@@ -63,6 +67,7 @@ This issue addresses remaining gaps identified in Sprint 7 specification documen
 - **Then** focus is restored to the initiating trigger button.
 
 ### AC5: Table Semantic Markup & Responsive Layout
+
 - **Given** quotation line item tables,
 - **When** rendered across viewports,
 - **Then** table header cells use semantic `scope="col"` markup.

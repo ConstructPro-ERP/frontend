@@ -97,10 +97,7 @@ export async function updateQuotation(
   id: string,
   payload: UpdateQuotationInput,
 ): Promise<Quotation> {
-  const response = await apiClient.put<Quotation>(
-    `/quotations/${id}`,
-    payload,
-  );
+  const response = await apiClient.put<Quotation>(`/quotations/${id}`, payload);
   return response.data;
 }
 
@@ -111,9 +108,10 @@ export async function approveQuotation(
   id: string,
   payload?: Partial<ConvertToProjectInput>,
 ): Promise<ConvertToProjectResponse | Quotation> {
-  const response = await apiClient.patch<
-    ConvertToProjectResponse | Quotation
-  >(`/quotations/${id}/approve`, payload ?? {});
+  const response = await apiClient.patch<ConvertToProjectResponse | Quotation>(
+    `/quotations/${id}/approve`,
+    payload ?? {},
+  );
   return response.data;
 }
 
@@ -145,9 +143,7 @@ export async function reviseQuotation(id: string): Promise<Quotation> {
 /**
  * Fetch or generate the quotation PDF.
  */
-export async function getQuotationPdf(
-  id: string,
-): Promise<{ pdfUrl: string }> {
+export async function getQuotationPdf(id: string): Promise<{ pdfUrl: string }> {
   const response = await apiClient.get<{ pdfUrl: string }>(
     `/quotations/${id}/pdf`,
   );

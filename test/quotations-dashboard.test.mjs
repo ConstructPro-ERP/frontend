@@ -82,10 +82,7 @@ test("quotation utilities support SALES_MANAGER, ADMIN, and MANAGER role guards"
 test("quotationsApi service encapsulates all Quotation HTTP calls using shared apiClient", () => {
   const serviceSource = read("src/services/quotationsApi.ts");
 
-  assert.match(
-    serviceSource,
-    /apiClient\.get<[\s\S]*?>\(\s*"\/quotations"/,
-  );
+  assert.match(serviceSource, /apiClient\.get<[\s\S]*?>\(\s*"\/quotations"/);
   assert.match(serviceSource, /`\/quotations\/\$\{id\}`/);
   assert.match(
     serviceSource,
@@ -149,7 +146,10 @@ test("quotations dashboard client integrates service layer, lead selector, and s
     "src/components/dashboard/quotations/QuotationsDashboardClient.tsx",
   );
 
-  assert.match(clientSource, /listQuotations\(\{\s*status:\s*(?:activeTab|tab)/);
+  assert.match(
+    clientSource,
+    /listQuotations\(\{\s*status:\s*(?:activeTab|tab)/,
+  );
   assert.match(clientSource, /LeadSelectDropdown/);
   assert.match(clientSource, /loadQuotations/);
   assert.match(clientSource, /onRetry=\{loadQuotations\}/);
@@ -191,10 +191,7 @@ test("EditQuotationModal submits updateQuotation and enforces lock rules", () =>
     modalSource,
     /quotation\.status === "APPROVED" \|\| quotation\.status === "CONVERTED"/,
   );
-  assert.match(
-    modalSource,
-    /updateQuotation\(quotation\.id,\s*payload\)/,
-  );
+  assert.match(modalSource, /updateQuotation\(quotation\.id,\s*payload\)/);
   assert.match(modalSource, /calculateLineItemAmount/);
   assert.match(modalSource, /calculateTotalAmount/);
 });
@@ -276,4 +273,3 @@ test("quotation modals implement focus trapping and accessible dialog markup", (
   assert.match(convertModalSource, /useModalFocusTrap/);
   assert.match(convertModalSource, /aria-label="Close dialog"/);
 });
-
