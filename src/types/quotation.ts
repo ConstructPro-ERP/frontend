@@ -102,6 +102,7 @@ export interface ConvertToProjectResponse {
 export interface ListQuotationsParams {
   status?: QuotationFilterTab | string;
   leadId?: string;
+  search?: string;
   page?: number;
   limit?: number;
 }

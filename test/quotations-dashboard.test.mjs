@@ -149,7 +149,7 @@ test("quotations dashboard client integrates service layer, lead selector, and s
     "src/components/dashboard/quotations/QuotationsDashboardClient.tsx",
   );
 
-  assert.match(clientSource, /listQuotations\(\{\s*status:\s*(?:activeTab|tab)\s*\}\)/);
+  assert.match(clientSource, /listQuotations\(\{\s*status:\s*(?:activeTab|tab)/);
   assert.match(clientSource, /LeadSelectDropdown/);
   assert.match(clientSource, /loadQuotations/);
   assert.match(clientSource, /onRetry=\{loadQuotations\}/);
@@ -227,3 +227,53 @@ test("ConvertToProjectModal submits convertQuotationToProject and handles 409 co
   assert.match(modalSource, /isAlreadyConvertedError/);
   assert.match(modalSource, /onAlreadyConverted/);
 });
+
+test("quotationsApi service and types support search filtering", () => {
+  const typesSource = read("src/types/quotation.ts");
+  const serviceSource = read("src/services/quotationsApi.ts");
+
+  assert.match(typesSource, /search\?:\s*string/);
+  assert.match(serviceSource, /queryParams\.search\s*=\s*params\.search/);
+});
+
+test("quotation utilities expose search filter and pagination helpers", () => {
+  const utilsSource = read(
+    "src/components/dashboard/quotations/quotationUtils.ts",
+  );
+
+  assert.match(utilsSource, /function filterQuotationsBySearch/);
+  assert.match(utilsSource, /function paginateQuotations/);
+});
+
+test("quotations dashboard client provides search bar, pagination controls, and accessibility", () => {
+  const clientSource = read(
+    "src/components/dashboard/quotations/QuotationsDashboardClient.tsx",
+  );
+
+  assert.match(clientSource, /aria-label="Search quotations"/);
+  assert.match(clientSource, /aria-label="Quotations pagination"/);
+  assert.match(clientSource, /aria-label="Previous page"/);
+  assert.match(clientSource, /aria-label="Next page"/);
+  assert.match(clientSource, /scope="col"/);
+  assert.match(clientSource, /aria-label=\{`Item \$\{index \+ 1\} name`\}/);
+});
+
+test("quotation modals implement focus trapping and accessible dialog markup", () => {
+  const editModalSource = read(
+    "src/components/dashboard/quotations/modals/EditQuotationModal.tsx",
+  );
+  const rejectModalSource = read(
+    "src/components/dashboard/quotations/modals/RejectQuotationModal.tsx",
+  );
+  const convertModalSource = read(
+    "src/components/dashboard/quotations/modals/ConvertToProjectModal.tsx",
+  );
+
+  assert.match(editModalSource, /useModalFocusTrap/);
+  assert.match(editModalSource, /aria-label="Close dialog"/);
+  assert.match(rejectModalSource, /useModalFocusTrap/);
+  assert.match(rejectModalSource, /aria-label="Close dialog"/);
+  assert.match(convertModalSource, /useModalFocusTrap/);
+  assert.match(convertModalSource, /aria-label="Close dialog"/);
+});
+

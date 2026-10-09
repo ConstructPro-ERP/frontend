@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   AlertCircle,
   Calendar,
@@ -23,6 +23,7 @@ import {
   getQuotationErrorMessage,
   isAlreadyConvertedError,
 } from "@/components/dashboard/quotations/quotationUtils";
+import { useModalFocusTrap } from "@/components/dashboard/quotations/useModalFocusTrap";
 
 interface ConvertToProjectModalProps {
   quotation: Quotation;
@@ -64,15 +65,7 @@ export default function ConvertToProjectModal({
   const [apiError, setApiError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  useEffect(() => {
-    function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape" && isOpen && !isSubmitting) {
-        onClose();
-      }
-    }
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen, isSubmitting, onClose]);
+  const modalRef = useModalFocusTrap(isOpen, onClose, isSubmitting);
 
   if (!isOpen) {
     return null;
@@ -157,6 +150,7 @@ export default function ConvertToProjectModal({
       aria-labelledby="convert-project-modal-title"
     >
       <div
+        ref={modalRef}
         className="w-full max-w-xl rounded-2xl border border-outline-variant bg-surface-container-lowest shadow-2xl overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
@@ -188,7 +182,7 @@ export default function ConvertToProjectModal({
             type="button"
             onClick={onClose}
             disabled={isSubmitting}
-            aria-label="Close"
+            aria-label="Close dialog"
             className="rounded-lg p-1.5 text-on-surface-muted hover:bg-surface-container hover:text-on-background transition"
           >
             <X size={18} />

@@ -507,3 +507,67 @@ export function getQuotationErrorMessage(error: unknown): string {
     ? error.message
     : "An unexpected error occurred.";
 }
+
+/**
+ * Filter quotations locally (used for client-side search fallback and preview lists)
+ */
+export function filterQuotationsBySearch(
+  quotations: Quotation[],
+  searchTerm: string,
+): Quotation[] {
+  const normalized = searchTerm.trim().toLowerCase();
+  if (!normalized) {
+    return quotations;
+  }
+
+  return quotations.filter((quotation) => {
+    const idMatch = quotation.id.toLowerCase().includes(normalized);
+    const leadIdMatch = quotation.leadId.toLowerCase().includes(normalized);
+    const customerNameMatch =
+      quotation.lead?.customerName?.toLowerCase().includes(normalized) ?? false;
+    const companyMatch =
+      quotation.lead?.companyName?.toLowerCase().includes(normalized) ?? false;
+    const notesMatch =
+      quotation.notes?.toLowerCase().includes(normalized) ?? false;
+
+    return (
+      idMatch ||
+      leadIdMatch ||
+      customerNameMatch ||
+      companyMatch ||
+      notesMatch
+    );
+  });
+}
+
+/**
+ * Slice quotations by page and compute pagination boundaries
+ */
+export function paginateQuotations(
+  items: Quotation[],
+  page: number,
+  pageSize: number = 5,
+): {
+  items: Quotation[];
+  total: number;
+  page: number;
+  totalPages: number;
+  startIndex: number;
+  endIndex: number;
+} {
+  const total = items.length;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const currentPage = Math.min(Math.max(1, page), totalPages);
+  const startIndex = (currentPage - 1) * pageSize;
+  const endIndex = Math.min(startIndex + pageSize, total);
+  const paginatedItems = items.slice(startIndex, endIndex);
+
+  return {
+    items: paginatedItems,
+    total,
+    page: currentPage,
+    totalPages,
+    startIndex: total > 0 ? startIndex + 1 : 0,
+    endIndex,
+  };
+}

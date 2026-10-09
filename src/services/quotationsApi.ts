@@ -24,6 +24,9 @@ export async function listQuotations(
   if (params?.leadId) {
     queryParams.leadId = params.leadId;
   }
+  if (params?.search && params.search.trim()) {
+    queryParams.search = params.search.trim();
+  }
   if (params?.page) {
     queryParams.page = params.page;
   }
