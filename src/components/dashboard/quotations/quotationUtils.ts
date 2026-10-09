@@ -1,11 +1,37 @@
 import { ApiError } from "@/lib/ApiError";
 import type {
   Quotation,
+  QuotationFilterTab,
   QuotationFormErrors,
   QuotationFormValues,
   QuotationItem,
+  QuotationLeadSummary,
   QuotationStatus,
 } from "@/types/quotation";
+
+/**
+ * Floating-point calculation helpers synchronized with backend round2 precision
+ */
+export function round2(n: number): number {
+  return Math.round((n + Number.EPSILON) * 100) / 100;
+}
+
+export function calculateLineItemAmount(
+  quantity: number,
+  unitPrice: number,
+): number {
+  return round2(quantity * unitPrice);
+}
+
+export function calculateTotalAmount(
+  items: Array<{ quantity: number; unitPrice: number }>,
+): number {
+  const total = items.reduce(
+    (sum, item) => sum + round2(item.quantity * item.unitPrice),
+    0,
+  );
+  return round2(total);
+}
 
 export function createQuotationFormValues(): QuotationFormValues {
   return {
@@ -50,6 +76,18 @@ export function validateQuotationForm(
   return errors;
 }
 
+export const quotationFilterTabs: Array<{
+  id: QuotationFilterTab;
+  label: string;
+}> = [
+  { id: "ALL", label: "All Quotations" },
+  { id: "DRAFT", label: "Draft" },
+  { id: "PENDING_APPROVAL", label: "Pending Approval" },
+  { id: "APPROVED", label: "Approved" },
+  { id: "REJECTED", label: "Rejected" },
+  { id: "CONVERTED", label: "Converted" },
+];
+
 export const quotationPreviewList: Quotation[] = [
   {
     id: "quo-2026-014",
@@ -60,6 +98,11 @@ export const quotationPreviewList: Quotation[] = [
     pdfUrl: null,
     notes: "Awaiting manager approval before sending to client.",
     projectId: null,
+    lead: {
+      id: "lead-2026-108",
+      customerName: "Skyline Heights",
+      status: "QUALIFIED",
+    },
     items: [
       {
         id: "quo-2026-014-item-1",
@@ -86,6 +129,11 @@ export const quotationPreviewList: Quotation[] = [
     pdfUrl: null,
     notes: null,
     projectId: "proj-2026-009",
+    lead: {
+      id: "lead-2026-101",
+      customerName: "Lotus Villa",
+      status: "WON",
+    },
     items: [
       {
         id: "quo-2026-013-item-1",
@@ -110,8 +158,14 @@ export const quotationPreviewList: Quotation[] = [
     status: "REJECTED",
     totalAmount: 960_000,
     pdfUrl: null,
-    notes: "Client requested a revised quotation with a lower budget.",
+    notes:
+      "[Rejection Reason]: Client requested a revised quotation with a lower budget.",
     projectId: null,
+    lead: {
+      id: "lead-2026-095",
+      customerName: "Ocean Breeze",
+      status: "CONTACTED",
+    },
     items: [
       {
         id: "quo-2026-012-item-1",
@@ -144,6 +198,38 @@ export function formatDate(value: string) {
     day: "numeric",
     year: "numeric",
   }).format(parsed);
+}
+
+export function getQuotationStatusBadgeClasses(status: QuotationStatus) {
+  switch (status) {
+    case "APPROVED":
+      return "bg-risk-low-container text-risk-low";
+    case "CONVERTED":
+      return "bg-primary-soft text-primary";
+    case "REJECTED":
+      return "bg-error-container text-error";
+    case "PENDING_APPROVAL":
+      return "bg-risk-medium-container text-risk-medium";
+    case "DRAFT":
+    default:
+      return "bg-surface-container text-on-surface-muted";
+  }
+}
+
+export function getQuotationStatusLabel(status: QuotationStatus) {
+  switch (status) {
+    case "PENDING_APPROVAL":
+      return "Pending Approval";
+    case "APPROVED":
+      return "Approved";
+    case "REJECTED":
+      return "Rejected";
+    case "CONVERTED":
+      return "Converted";
+    case "DRAFT":
+    default:
+      return "Draft";
+  }
 }
 
 function readString(
@@ -201,7 +287,7 @@ function readNumber(
   return fallback;
 }
 
-function normalizeQuotationStatus(value: unknown): QuotationStatus {
+export function normalizeQuotationStatus(value: unknown): QuotationStatus {
   const normalized = String(value ?? "")
     .trim()
     .toUpperCase()
@@ -230,6 +316,7 @@ function normalizeQuotationItemRecord(
 
   return {
     id: readString(record, ["id", "itemId", "item_id"], `item-${index}`),
+    quotationId: readString(record, ["quotationId", "quotation_id"], ""),
     itemName: readString(
       record,
       ["itemName", "item_name", "name", "description"],
@@ -240,8 +327,12 @@ function normalizeQuotationItemRecord(
     amount: readNumber(
       record,
       ["amount", "total", "lineTotal"],
-      quantity * unitPrice,
+      calculateLineItemAmount(quantity, unitPrice),
     ),
+    createdAt:
+      readNullableString(record, ["createdAt", "created_at"]) ?? undefined,
+    updatedAt:
+      readNullableString(record, ["updatedAt", "updated_at"]) ?? undefined,
   };
 }
 
@@ -258,12 +349,39 @@ function normalizeQuotationItems(payload: unknown): QuotationItem[] {
     .map((record, index) => normalizeQuotationItemRecord(record, index));
 }
 
-function normalizeQuotationRecord(
+function normalizeQuotationLead(
+  payload: unknown,
+): QuotationLeadSummary | undefined {
+  if (typeof payload !== "object" || payload === null) {
+    return undefined;
+  }
+
+  const record = payload as Record<string, unknown>;
+  const customerName = readString(
+    record,
+    ["customerName", "customer_name", "name"],
+    "",
+  );
+
+  if (!customerName) {
+    return undefined;
+  }
+
+  return {
+    id: readNullableString(record, ["id", "leadId", "lead_id"]) ?? undefined,
+    customerName,
+    email: readNullableString(record, ["email"]) ?? undefined,
+    phone: readNullableString(record, ["phone"]) ?? undefined,
+    status: readNullableString(record, ["status"]) ?? undefined,
+  };
+}
+
+export function normalizeQuotationRecord(
   record: Record<string, unknown>,
   index: number,
 ): Quotation {
   const items = normalizeQuotationItems(record.items);
-  const fallbackTotal = items.reduce((total, item) => total + item.amount, 0);
+  const calculatedTotal = calculateTotalAmount(items);
 
   return {
     id: readString(
@@ -275,33 +393,47 @@ function normalizeQuotationRecord(
     quotationDate: readString(
       record,
       ["quotationDate", "quotation_date", "createdAt", "created_at"],
-      "",
+      new Date().toISOString(),
     ),
     status: normalizeQuotationStatus(record.status),
     totalAmount: readNumber(
       record,
       ["totalAmount", "total_amount", "total"],
-      fallbackTotal,
+      calculatedTotal,
     ),
     pdfUrl: readNullableString(record, ["pdfUrl", "pdf_url"]),
     notes: readNullableString(record, ["notes", "note"]),
     projectId: readNullableString(record, ["projectId", "project_id"]),
+    createdAt:
+      readNullableString(record, ["createdAt", "created_at"]) ?? undefined,
+    updatedAt:
+      readNullableString(record, ["updatedAt", "updated_at"]) ?? undefined,
     items,
+    lead: normalizeQuotationLead(record.lead),
   };
 }
 
 export function normalizeQuotations(payload: unknown): Quotation[] {
-  const records = Array.isArray(payload)
-    ? payload
-    : typeof payload === "object" && payload !== null
-      ? ((payload as Record<string, unknown>).items ??
-        (payload as Record<string, unknown>).quotations ??
-        (payload as Record<string, unknown>).results ??
-        [])
-      : [];
+  let records: unknown[] = [];
 
-  if (!Array.isArray(records)) {
-    return [];
+  if (Array.isArray(payload)) {
+    records = payload;
+  } else if (typeof payload === "object" && payload !== null) {
+    const raw = payload as Record<string, unknown>;
+    if (Array.isArray(raw.items)) {
+      records = raw.items;
+    } else if (raw.data && typeof raw.data === "object") {
+      const dataObj = raw.data as Record<string, unknown>;
+      if (Array.isArray(dataObj.items)) {
+        records = dataObj.items;
+      } else if (Array.isArray(raw.data)) {
+        records = raw.data;
+      }
+    } else if (Array.isArray(raw.quotations)) {
+      records = raw.quotations;
+    } else if (Array.isArray(raw.results)) {
+      records = raw.results;
+    }
   }
 
   return records
@@ -326,6 +458,47 @@ export function isQuotationUnavailableError(error: unknown) {
   );
 }
 
-export function canCreateQuotation(role: string | null | undefined): boolean {
-  return role === "ADMIN" || role === "SALES_MANAGER";
+export function canCreateQuotation(role: string | undefined): boolean {
+  return role === "ADMIN" || role === "MANAGER" || role === "SALES_MANAGER";
+}
+
+export function canApproveQuotation(role: string | undefined): boolean {
+  return role === "ADMIN" || role === "MANAGER" || role === "SALES_MANAGER";
+}
+
+export function canRejectQuotation(role: string | undefined): boolean {
+  return role === "ADMIN" || role === "MANAGER" || role === "SALES_MANAGER";
+}
+
+export function isAlreadyConvertedError(error: unknown) {
+  if (!(error instanceof ApiError)) {
+    return false;
+  }
+
+  return error.code === "ALREADY_CONVERTED" || error.statusCode === 409;
+}
+
+export function getQuotationErrorMessage(error: unknown): string {
+  if (error instanceof ApiError) {
+    switch (error.code) {
+      case "INVALID_STATUS_TRANSITION":
+        return "This quotation cannot transition to the requested status.";
+      case "QUOTATION_LOCKED":
+        return "Approved or converted quotations cannot be edited.";
+      case "QUOTATION_REJECTED":
+        return "Rejected quotations cannot be converted. Send for revision first.";
+      case "ALREADY_CONVERTED":
+        return "This quotation has already been converted to a project.";
+      case "VALIDATION_ERROR":
+        return error.message || "Please provide valid quotation data.";
+      case "LEAD_NOT_FOUND":
+        return "The selected lead could not be found.";
+      default:
+        return error.message || "An unexpected error occurred.";
+    }
+  }
+
+  return error instanceof Error
+    ? error.message
+    : "An unexpected error occurred.";
 }
