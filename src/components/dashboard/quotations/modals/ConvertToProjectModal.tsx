@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   AlertCircle,
   Calendar,
@@ -12,18 +12,15 @@ import {
   User,
   X,
 } from "lucide-react";
-import apiClient from "@/lib/axios";
+import { convertQuotationToProject } from "@/services/projectConversionApi";
 import { ApiError } from "@/lib/ApiError";
-import type {
-  ConvertToProjectInput,
-  ConvertToProjectResponse,
-  Quotation,
-} from "@/types/quotation";
+import type { ConvertToProjectInput, Quotation } from "@/types/quotation";
 import {
   formatCurrency,
   getQuotationErrorMessage,
   isAlreadyConvertedError,
 } from "@/components/dashboard/quotations/quotationUtils";
+import { useModalFocusTrap } from "@/components/dashboard/quotations/useModalFocusTrap";
 
 interface ConvertToProjectModalProps {
   quotation: Quotation;
@@ -65,15 +62,7 @@ export default function ConvertToProjectModal({
   const [apiError, setApiError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  useEffect(() => {
-    function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape" && isOpen && !isSubmitting) {
-        onClose();
-      }
-    }
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen, isSubmitting, onClose]);
+  const modalRef = useModalFocusTrap(isOpen, onClose, isSubmitting);
 
   if (!isOpen) {
     return null;
@@ -126,52 +115,16 @@ export default function ConvertToProjectModal({
 
     setIsSubmitting(true);
     try {
-      const res = await apiClient.patch<ConvertToProjectResponse | Quotation>(
-        `/quotations/${quotation.id}/approve`,
+      const projResponse = await convertQuotationToProject(
+        quotation.id,
         payload,
       );
 
-      const data = res.data;
-
-      // Check if response contains nested quotation and projectId
-      if (
-        data &&
-        typeof data === "object" &&
-        "projectId" in data &&
-        typeof data.projectId === "string"
-      ) {
-        const projResponse = data as ConvertToProjectResponse;
-        const updatedQuotation: Quotation = projResponse.quotation
-          ? {
-              ...projResponse.quotation,
-              status: "CONVERTED",
-              projectId: projResponse.projectId,
-            }
-          : {
-              ...quotation,
-              status: "CONVERTED",
-              projectId: projResponse.projectId,
-            };
-
-        onSuccess({
-          quotation: updatedQuotation,
-          projectId: projResponse.projectId,
-          projectStatus: projResponse.projectStatus ?? "ACTIVE",
-        });
-      } else {
-        const quotationObj = data as Quotation;
-        const projId =
-          quotationObj.projectId ?? quotation.projectId ?? "created";
-        onSuccess({
-          quotation: {
-            ...quotationObj,
-            status: "CONVERTED",
-            projectId: projId,
-          },
-          projectId: projId,
-          projectStatus: "ACTIVE",
-        });
-      }
+      onSuccess({
+        quotation: projResponse.quotation,
+        projectId: projResponse.projectId,
+        projectStatus: projResponse.projectStatus ?? "ACTIVE",
+      });
 
       onClose();
     } catch (err) {
@@ -197,6 +150,7 @@ export default function ConvertToProjectModal({
       aria-labelledby="convert-project-modal-title"
     >
       <div
+        ref={modalRef}
         className="w-full max-w-xl rounded-2xl border border-outline-variant bg-surface-container-lowest shadow-2xl overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
@@ -228,7 +182,7 @@ export default function ConvertToProjectModal({
             type="button"
             onClick={onClose}
             disabled={isSubmitting}
-            aria-label="Close"
+            aria-label="Close dialog"
             className="rounded-lg p-1.5 text-on-surface-muted hover:bg-surface-container hover:text-on-background transition"
           >
             <X size={18} />

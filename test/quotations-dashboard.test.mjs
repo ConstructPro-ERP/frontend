@@ -106,29 +106,93 @@ test("quotations dashboard client calls GET /quotations on mount and on filter c
     "src/components/dashboard/quotations/QuotationsDashboardClient.tsx",
   );
 
-  assert.match(clientSource, /apiClient\s*\.\s*get/);
-  assert.match(clientSource, /`\/quotations\$\{query\}`/);
-  assert.match(clientSource, /useEffect\(\(\) => \{/);
-  assert.match(clientSource, /\[activeTab\]/);
+  assert.match(serviceSource, /apiClient\.get<[\s\S]*?>\(\s*"\/quotations"/);
+  assert.match(serviceSource, /`\/quotations\/\$\{id\}`/);
+  assert.match(
+    serviceSource,
+    /apiClient\.post<Quotation>\("\/quotations",\s*\{/,
+  );
+  assert.match(
+    serviceSource,
+    /apiClient\.put<Quotation>\(\s*`\/quotations\/\$\{id\}`,/,
+  );
+  assert.match(
+    serviceSource,
+    /apiClient\.patch<[\s\S]*?>\(\s*`\/quotations\/\$\{id\}\/approve`/,
+  );
+  assert.match(
+    serviceSource,
+    /apiClient\.patch<Quotation>\(\s*`\/quotations\/\$\{id\}\/reject`/,
+  );
+  assert.match(
+    serviceSource,
+    /apiClient\.patch<Quotation>\(\s*`\/quotations\/\$\{id\}\/revise`/,
+  );
+  assert.match(
+    serviceSource,
+    /apiClient\.get<\{ pdfUrl: string \}>\(\s*`\/quotations\/\$\{id\}\/pdf`/,
+  );
 });
 
-test("quotations dashboard client wires edit, reject, revise, PDF, and convert actions", () => {
+test("projectConversionApi encapsulates quotation to project conversion with typed response", () => {
+  const serviceSource = read("src/services/projectConversionApi.ts");
+
+  assert.match(
+    serviceSource,
+    /apiClient\.patch<[\s\S]*?>\(\s*`\/quotations\/\$\{quotationId\}\/approve`/,
+  );
+  assert.match(serviceSource, /convertQuotationToProject/);
+  assert.match(serviceSource, /projectStatus:\s*projResponse\.projectStatus/);
+});
+
+test("quotationItemsApi exposes line item calculation and validation helpers", () => {
+  const serviceSource = read("src/services/quotationItemsApi.ts");
+
+  assert.match(serviceSource, /calculateItemTotal/);
+  assert.match(serviceSource, /calculateQuotationGrandTotal/);
+  assert.match(serviceSource, /validateLineItems/);
+  assert.match(serviceSource, /normalizeLineItems/);
+});
+
+test("LeadSelectDropdown fetches leads with fallback and search capability", () => {
+  const dropdownSource = read(
+    "src/components/dashboard/quotations/LeadSelectDropdown.tsx",
+  );
+
+  assert.match(dropdownSource, /apiClient\.get<[^>]+>\("\/leads"\)/);
+  assert.match(dropdownSource, /fallbackLeads/);
+  assert.match(dropdownSource, /Select Qualified Lead/);
+  assert.match(dropdownSource, /Search leads/);
+});
+
+test("quotations dashboard client integrates service layer, lead selector, and status tabs", () => {
   const clientSource = read(
     "src/components/dashboard/quotations/QuotationsDashboardClient.tsx",
   );
 
-  // PDF generation/download
   assert.match(
     clientSource,
-    /apiClient\.get<\{ pdfUrl: string \}>\(\s*`\/quotations\/\$\{quotation\.id\}\/pdf`/,
+    /listQuotations\(\{\s*status:\s*(?:activeTab|tab)/,
   );
+  assert.match(clientSource, /LeadSelectDropdown/);
+  assert.match(clientSource, /loadQuotations/);
+  assert.match(clientSource, /onRetry=\{loadQuotations\}/);
+});
+
+test("quotations dashboard client wires edit, reject, revise, direct approve, PDF, and convert actions", () => {
+  const clientSource = read(
+    "src/components/dashboard/quotations/QuotationsDashboardClient.tsx",
+  );
+
+  // PDF generation/download via service
+  assert.match(clientSource, /getQuotationPdf\(quotation\.id\)/);
   assert.match(clientSource, /window\.open\(quotation\.pdfUrl/);
 
-  // Revise action (PATCH /quotations/:id/revise)
-  assert.match(
-    clientSource,
-    /apiClient\.patch<Quotation>\(\s*`\/quotations\/\$\{quotation\.id\}\/revise`,\s*\{\}/,
-  );
+  // Revise action via service
+  assert.match(clientSource, /reviseQuotation\(quotation\.id\)/);
+
+  // Direct approve action via service
+  assert.match(clientSource, /approveQuotation\(quotation\.id\)/);
 
   // Modals integration
   assert.match(clientSource, /<EditQuotationModal/);
@@ -142,7 +206,7 @@ test("quotations dashboard client wires edit, reject, revise, PDF, and convert a
   );
 });
 
-test("EditQuotationModal submits PUT /quotations/:id and enforces lock rules", () => {
+test("EditQuotationModal submits updateQuotation and enforces lock rules", () => {
   const modalSource = read(
     "src/components/dashboard/quotations/modals/EditQuotationModal.tsx",
   );
@@ -151,15 +215,12 @@ test("EditQuotationModal submits PUT /quotations/:id and enforces lock rules", (
     modalSource,
     /quotation\.status === "APPROVED" \|\| quotation\.status === "CONVERTED"/,
   );
-  assert.match(
-    modalSource,
-    /apiClient\.put<Quotation>\(\s*`\/quotations\/\$\{quotation\.id\}`,\s*payload/,
-  );
+  assert.match(modalSource, /updateQuotation\(quotation\.id,\s*payload\)/);
   assert.match(modalSource, /calculateLineItemAmount/);
   assert.match(modalSource, /calculateTotalAmount/);
 });
 
-test("RejectQuotationModal submits PATCH /quotations/:id/reject with min 5 chars validation", () => {
+test("RejectQuotationModal submits rejectQuotation with min 5 chars validation", () => {
   const modalSource = read(
     "src/components/dashboard/quotations/modals/RejectQuotationModal.tsx",
   );
@@ -171,19 +232,68 @@ test("RejectQuotationModal submits PATCH /quotations/:id/reject with min 5 chars
   );
   assert.match(
     modalSource,
-    /apiClient\.patch<Quotation>\(\s*`\/quotations\/\$\{quotation\.id\}\/reject`,\s*\{\s*reason:\s*trimmedReason\s*\}/,
+    /rejectQuotation\(quotation\.id,\s*\{\s*reason:\s*trimmedReason,?\s*\}\)/,
   );
 });
 
-test("ConvertToProjectModal submits PATCH /quotations/:id/approve and handles 409 conflict", () => {
+test("ConvertToProjectModal submits convertQuotationToProject and handles 409 conflict", () => {
   const modalSource = read(
     "src/components/dashboard/quotations/modals/ConvertToProjectModal.tsx",
   );
 
   assert.match(
     modalSource,
-    /apiClient\.patch<ConvertToProjectResponse \| Quotation>\(\s*`\/quotations\/\$\{quotation\.id\}\/approve`,\s*payload/,
+    /convertQuotationToProject\(quotation\.id,\s*payload\)/,
   );
   assert.match(modalSource, /isAlreadyConvertedError/);
   assert.match(modalSource, /onAlreadyConverted/);
+});
+
+test("quotationsApi service and types support search filtering", () => {
+  const typesSource = read("src/types/quotation.ts");
+  const serviceSource = read("src/services/quotationsApi.ts");
+
+  assert.match(typesSource, /search\?:\s*string/);
+  assert.match(serviceSource, /queryParams\.search\s*=\s*params\.search/);
+});
+
+test("quotation utilities expose search filter and pagination helpers", () => {
+  const utilsSource = read(
+    "src/components/dashboard/quotations/quotationUtils.ts",
+  );
+
+  assert.match(utilsSource, /function filterQuotationsBySearch/);
+  assert.match(utilsSource, /function paginateQuotations/);
+});
+
+test("quotations dashboard client provides search bar, pagination controls, and accessibility", () => {
+  const clientSource = read(
+    "src/components/dashboard/quotations/QuotationsDashboardClient.tsx",
+  );
+
+  assert.match(clientSource, /aria-label="Search quotations"/);
+  assert.match(clientSource, /aria-label="Quotations pagination"/);
+  assert.match(clientSource, /aria-label="Previous page"/);
+  assert.match(clientSource, /aria-label="Next page"/);
+  assert.match(clientSource, /scope="col"/);
+  assert.match(clientSource, /aria-label=\{`Item \$\{index \+ 1\} name`\}/);
+});
+
+test("quotation modals implement focus trapping and accessible dialog markup", () => {
+  const editModalSource = read(
+    "src/components/dashboard/quotations/modals/EditQuotationModal.tsx",
+  );
+  const rejectModalSource = read(
+    "src/components/dashboard/quotations/modals/RejectQuotationModal.tsx",
+  );
+  const convertModalSource = read(
+    "src/components/dashboard/quotations/modals/ConvertToProjectModal.tsx",
+  );
+
+  assert.match(editModalSource, /useModalFocusTrap/);
+  assert.match(editModalSource, /aria-label="Close dialog"/);
+  assert.match(rejectModalSource, /useModalFocusTrap/);
+  assert.match(rejectModalSource, /aria-label="Close dialog"/);
+  assert.match(convertModalSource, /useModalFocusTrap/);
+  assert.match(convertModalSource, /aria-label="Close dialog"/);
 });

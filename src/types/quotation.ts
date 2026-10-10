@@ -1,5 +1,6 @@
 export type QuotationStatus =
   | "DRAFT"
+  | "SENT"
   | "PENDING_APPROVAL"
   | "APPROVED"
   | "REJECTED"
@@ -24,6 +25,16 @@ export interface QuotationItem extends QuotationItemInput {
 export interface QuotationLeadSummary {
   id?: string;
   customerName: string;
+  companyName?: string;
+  email?: string;
+  phone?: string;
+  status?: string;
+}
+
+export interface LeadOption {
+  id: string;
+  customerName: string;
+  companyName?: string;
   email?: string;
   phone?: string;
   status?: string;
@@ -42,6 +53,12 @@ export interface Quotation {
   updatedAt?: string;
   items: QuotationItem[];
   lead?: QuotationLeadSummary;
+}
+
+export interface CreateQuotationDto {
+  leadId: string;
+  notes?: string;
+  items: QuotationItemInput[];
 }
 
 export interface QuotationFormValues {
@@ -80,6 +97,14 @@ export interface ConvertToProjectResponse {
   quotation: Quotation;
   projectId: string;
   projectStatus: string;
+}
+
+export interface ListQuotationsParams {
+  status?: QuotationFilterTab | string;
+  leadId?: string;
+  search?: string;
+  page?: number;
+  limit?: number;
 }
 
 export interface QuotationListResponse {
