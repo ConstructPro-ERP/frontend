@@ -100,13 +100,12 @@ test("quotation permission helpers accept nullable authentication roles", () => 
   }
 });
 
+test("quotationsApi service encapsulates all Quotation HTTP calls using shared apiClient", () => {
+  const serviceSource = read("src/services/quotationsApi.ts");
 
-test("quotations dashboard client calls GET /quotations on mount and on filter change", () => {
-  const clientSource = read(
-    "src/components/dashboard/quotations/QuotationsDashboardClient.tsx",
-  );
-
+  // Verify that the shared quotation service contains the expected API endpoints.
   assert.match(serviceSource, /apiClient\.get<[\s\S]*?>\(\s*"\/quotations"/);
+
   assert.match(serviceSource, /`\/quotations\/\$\{id\}`/);
   assert.match(
     serviceSource,
@@ -241,10 +240,13 @@ test("ConvertToProjectModal submits convertQuotationToProject and handles 409 co
     "src/components/dashboard/quotations/modals/ConvertToProjectModal.tsx",
   );
 
+  // Allow multiline calls and optional trailing commas from Prettier.
   assert.match(
     modalSource,
-    /convertQuotationToProject\(quotation\.id,\s*payload\)/,
+    /convertQuotationToProject\(\s*quotation\.id,\s*payload,?\s*\)/,
   );
+
+  // Verify handling of quotations that have already been converted.
   assert.match(modalSource, /isAlreadyConvertedError/);
   assert.match(modalSource, /onAlreadyConverted/);
 });
