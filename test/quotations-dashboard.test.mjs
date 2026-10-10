@@ -79,6 +79,28 @@ test("quotation utilities support SALES_MANAGER, ADMIN, and MANAGER role guards"
   assert.match(utilsSource, /ADMIN/);
 });
 
+test("quotation permission helpers accept nullable authentication roles", () => {
+  const utilsSource = read(
+    "src/components/dashboard/quotations/quotationUtils.ts",
+  );
+
+  const permissionHelpers = [
+    "canCreateQuotation",
+    "canApproveQuotation",
+    "canRejectQuotation",
+  ];
+
+  // Ensure future changes preserve compatibility with nullable user roles.
+  for (const helper of permissionHelpers) {
+    const signature = new RegExp(
+      `export function ${helper}\\(\\s*role:\\s*string\\s*\\|\\s*null\\s*\\|\\s*undefined,?\\s*\\): boolean`,
+    );
+
+    assert.match(utilsSource, signature);
+  }
+});
+
+
 test("quotations dashboard client calls GET /quotations on mount and on filter change", () => {
   const clientSource = read(
     "src/components/dashboard/quotations/QuotationsDashboardClient.tsx",
