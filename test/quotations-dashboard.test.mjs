@@ -79,10 +79,33 @@ test("quotation utilities support SALES_MANAGER, ADMIN, and MANAGER role guards"
   assert.match(utilsSource, /ADMIN/);
 });
 
+test("quotation permission helpers accept nullable authentication roles", () => {
+  const utilsSource = read(
+    "src/components/dashboard/quotations/quotationUtils.ts",
+  );
+
+  const permissionHelpers = [
+    "canCreateQuotation",
+    "canApproveQuotation",
+    "canRejectQuotation",
+  ];
+
+  // Ensure future changes preserve compatibility with nullable user roles.
+  for (const helper of permissionHelpers) {
+    const signature = new RegExp(
+      `export function ${helper}\\(\\s*role:\\s*string\\s*\\|\\s*null\\s*\\|\\s*undefined,?\\s*\\): boolean`,
+    );
+
+    assert.match(utilsSource, signature);
+  }
+});
+
 test("quotationsApi service encapsulates all Quotation HTTP calls using shared apiClient", () => {
   const serviceSource = read("src/services/quotationsApi.ts");
 
+  // Verify that the shared quotation service contains the expected API endpoints.
   assert.match(serviceSource, /apiClient\.get<[\s\S]*?>\(\s*"\/quotations"/);
+
   assert.match(serviceSource, /`\/quotations\/\$\{id\}`/);
   assert.match(
     serviceSource,
@@ -217,10 +240,13 @@ test("ConvertToProjectModal submits convertQuotationToProject and handles 409 co
     "src/components/dashboard/quotations/modals/ConvertToProjectModal.tsx",
   );
 
+  // Allow multiline calls and optional trailing commas from Prettier.
   assert.match(
     modalSource,
-    /convertQuotationToProject\(quotation\.id,\s*payload\)/,
+    /convertQuotationToProject\(\s*quotation\.id,\s*payload,?\s*\)/,
   );
+
+  // Verify handling of quotations that have already been converted.
   assert.match(modalSource, /isAlreadyConvertedError/);
   assert.match(modalSource, /onAlreadyConverted/);
 });
