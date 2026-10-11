@@ -14,6 +14,8 @@ import {
 } from "lucide-react";
 import { convertQuotationToProject } from "@/services/projectConversionApi";
 import { ApiError } from "@/lib/ApiError";
+import { isUuid } from "@/lib/projectRules";
+import { getQuotationById } from "@/services/quotationsApi";
 import type { ConvertToProjectInput, Quotation } from "@/types/quotation";
 import {
   formatCurrency,
@@ -84,8 +86,12 @@ export default function ConvertToProjectModal({
         setValidationError("Start date is required.");
         return;
       }
-      if (budget <= 0 || Number.isNaN(budget)) {
-        setValidationError("Budget must be greater than zero.");
+      if (budget < 0 || !Number.isFinite(budget)) {
+        setValidationError("Budget must be zero or greater.");
+        return;
+      }
+      if (!isUuid(projectManagerId.trim())) {
+        setValidationError("A valid project manager UUID is required.");
         return;
       }
 
@@ -94,18 +100,19 @@ export default function ConvertToProjectModal({
       try {
         isoDate = new Date(startDate).toISOString();
       } catch {
-        isoDate = new Date().toISOString();
+        setValidationError("Enter a valid start date.");
+        return;
       }
 
       payload = {
         projectName: projectName.trim(),
         startDate: isoDate,
         budget: Number(budget),
-        projectManagerId: projectManagerId.trim() || undefined,
+        projectManagerId: projectManagerId.trim(),
       };
     } else {
-      if (!targetProjectId.trim()) {
-        setValidationError("Target Project ID is required.");
+      if (!isUuid(targetProjectId.trim())) {
+        setValidationError("A valid target project UUID is required.");
         return;
       }
       payload = {
@@ -132,8 +139,17 @@ export default function ConvertToProjectModal({
         isAlreadyConvertedError(err) ||
         (err instanceof ApiError && err.code === "ALREADY_CONVERTED")
       ) {
-        onAlreadyConverted({ ...quotation, status: "CONVERTED" });
-        onClose();
+        try {
+          const current = await getQuotationById(quotation.id);
+          if (!current.projectId)
+            throw new Error(
+              "Project link is not available yet. Refresh and try again.",
+            );
+          onAlreadyConverted(current);
+          onClose();
+        } catch (refreshError) {
+          setApiError(getQuotationErrorMessage(refreshError));
+        }
       } else {
         setApiError(getQuotationErrorMessage(err));
       }
@@ -291,7 +307,7 @@ export default function ConvertToProjectModal({
                   </label>
                   <input
                     type="number"
-                    min="1"
+                    min="0"
                     step="any"
                     value={budget}
                     disabled={isSubmitting}
@@ -307,14 +323,14 @@ export default function ConvertToProjectModal({
               <div>
                 <label className="mb-1 flex items-center gap-1 text-xs font-bold uppercase tracking-wider text-on-surface-variant">
                   <User size={13} />
-                  Project Manager ID (Optional)
+                  Project Manager ID (Required)
                 </label>
                 <input
                   type="text"
                   value={projectManagerId}
                   disabled={isSubmitting}
                   onChange={(e) => setProjectManagerId(e.target.value)}
-                  placeholder="e.g. user-uuid or project manager ID"
+                  placeholder="Active project manager UUID"
                   className="w-full rounded-lg border border-outline-variant bg-surface-container px-3 py-2 text-xs text-on-background outline-none focus:border-primary"
                 />
               </div>

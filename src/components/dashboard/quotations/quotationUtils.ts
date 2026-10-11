@@ -468,7 +468,7 @@ export function canCreateQuotation(role: string | null | undefined): boolean {
 }
 
 export function canApproveQuotation(role: string | null | undefined): boolean {
-  return role === "ADMIN" || role === "MANAGER" || role === "SALES_MANAGER";
+  return role === "ADMIN";
 }
 
 export function canRejectQuotation(role: string | null | undefined): boolean {
@@ -480,7 +480,10 @@ export function isAlreadyConvertedError(error: unknown) {
     return false;
   }
 
-  return error.code === "ALREADY_CONVERTED" || error.statusCode === 409;
+  return (
+    error.code === "ALREADY_CONVERTED" ||
+    error.code === "QUOTATION_ALREADY_CONVERTED"
+  );
 }
 
 export function getQuotationErrorMessage(error: unknown): string {

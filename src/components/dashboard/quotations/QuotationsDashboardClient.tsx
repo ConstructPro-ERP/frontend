@@ -613,6 +613,9 @@ export default function QuotationsDashboardClient() {
   );
   const [formErrors, setFormErrors] = useState<QuotationFormErrors>({});
   const [feedback, setFeedback] = useState<QuotationFeedback | null>(null);
+  const [convertedProjectId, setConvertedProjectId] = useState<string | null>(
+    null,
+  );
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [apiUnavailableMessage, setApiUnavailableMessage] = useState<
     string | null
@@ -659,6 +662,16 @@ export default function QuotationsDashboardClient() {
   const fetchQuotationsData = useCallback(
     async (tab: QuotationFilterTab, search: string = "") => {
       try {
+        const linkedId = new URLSearchParams(window.location.search).get(
+          "quotationId",
+        );
+        if (linkedId && tab === "ALL" && !search.trim()) {
+          const quotation = await getQuotationById(linkedId);
+          return {
+            kind: "ready" as const,
+            quotations: normalizeQuotations([quotation]),
+          };
+        }
         const res = await listQuotations({
           status: tab,
           search: search.trim() || undefined,
@@ -844,15 +857,20 @@ export default function QuotationsDashboardClient() {
 
   // Direct Approve handler: moves PENDING_APPROVAL -> APPROVED
   const handleApproveQuotation = async (quotation: Quotation) => {
+    if (!canApproveQuotation(user?.role)) return;
+    if (!quotation.projectId) {
+      setConvertingQuotation(quotation);
+      return;
+    }
     setApprovingId(quotation.id);
     setFeedback(null);
     try {
       const res = await approveQuotation(quotation.id);
       const updated = "quotation" in res ? res.quotation : (res as Quotation);
-      replaceQuotationInState({ ...updated, status: "APPROVED" });
+      replaceQuotationInState(updated);
       setFeedback({
         tone: "success",
-        message: `Quotation ${quotation.id} approved successfully. You can now convert it to a project.`,
+        message: `Quotation ${quotation.id} approved and linked to its project.`,
       });
     } catch (error) {
       setFeedback({
@@ -963,6 +981,14 @@ export default function QuotationsDashboardClient() {
         />
       ) : null}
       {feedback ? <QuotationFeedbackBanner feedback={feedback} /> : null}
+      {convertedProjectId && (
+        <Link
+          className="inline-flex items-center gap-2 text-sm font-semibold text-primary underline"
+          href={`/dashboard/projects/${convertedProjectId}`}
+        >
+          Open linked project <ExternalLink size={14} />
+        </Link>
+      )}
 
       {/* Main Grid: Quotations List + Create Quotation Form */}
       <section className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_380px]">
@@ -1193,13 +1219,15 @@ export default function QuotationsDashboardClient() {
           onClose={() => setConvertingQuotation(null)}
           onSuccess={({ quotation: updated, projectId, projectStatus }) => {
             replaceQuotationInState(updated);
+            setConvertedProjectId(projectId);
             setFeedback({
               tone: "success",
               message: `Project created successfully (ID: ${projectId}). Status: ${projectStatus ?? "ACTIVE"}`,
             });
           }}
           onAlreadyConverted={(q) => {
-            replaceQuotationInState({ ...q, status: "CONVERTED" });
+            replaceQuotationInState(q);
+            setConvertedProjectId(q.projectId);
             setFeedback({
               tone: "info",
               message:
