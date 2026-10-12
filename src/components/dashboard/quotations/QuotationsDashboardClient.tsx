@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { quotationActions, safePdfUrl } from "@/lib/quotationActions";
 import {
   Ban,
   Check,
@@ -28,6 +29,7 @@ import {
   getQuotationPdf,
   listQuotations,
   reviseQuotation,
+  submitQuotation,
 } from "@/services/quotationsApi";
 import LeadSelectDropdown from "@/components/dashboard/quotations/LeadSelectDropdown";
 import type {
@@ -44,17 +46,14 @@ import {
   canCreateQuotation,
   canRejectQuotation,
   createQuotationFormValues,
-  filterQuotationsBySearch,
   formatCurrency,
   formatDate,
   getQuotationErrorMessage,
   getQuotationStatusBadgeClasses,
   getQuotationStatusLabel,
-  isQuotationUnavailableError,
   normalizeQuotations,
   paginateQuotations,
   quotationFilterTabs,
-  quotationPreviewList,
   validateQuotationForm,
 } from "@/components/dashboard/quotations/quotationUtils";
 import EditQuotationModal from "@/components/dashboard/quotations/modals/EditQuotationModal";
@@ -63,7 +62,12 @@ import ConvertToProjectModal from "@/components/dashboard/quotations/modals/Conv
 
 type QuotationsState =
   | { kind: "loading" }
-  | { kind: "ready"; quotations: Quotation[] }
+  | {
+      kind: "ready";
+      quotations: Quotation[];
+      total?: number;
+      totalPages?: number;
+    }
   | { kind: "empty" }
   | { kind: "unavailable"; quotations: Quotation[]; message: string }
   | { kind: "error"; message: string };
@@ -214,6 +218,7 @@ function QuotationForm({
             <button
               type="button"
               onClick={onAddItem}
+              disabled={isSubmitting}
               aria-label="Add item to quotation"
               className="inline-flex items-center gap-1 rounded-lg border border-outline-variant bg-surface-container px-2.5 py-1 text-xs font-medium text-on-background transition hover:bg-surface-container-high"
             >
@@ -235,6 +240,7 @@ function QuotationForm({
                   <input
                     type="text"
                     value={item.itemName}
+                    disabled={isSubmitting}
                     aria-label={`Item ${index + 1} name`}
                     aria-invalid={Boolean(errors.items)}
                     aria-describedby={
@@ -249,8 +255,9 @@ function QuotationForm({
                   <input
                     type="number"
                     min="1"
-                    step="any"
+                    step="1"
                     value={item.quantity === 0 ? "" : item.quantity}
+                    disabled={isSubmitting}
                     aria-label={`Item ${index + 1} quantity`}
                     aria-invalid={Boolean(errors.items)}
                     aria-describedby={
@@ -265,8 +272,9 @@ function QuotationForm({
                   <input
                     type="number"
                     min="0"
-                    step="any"
+                    step="0.01"
                     value={item.unitPrice === 0 ? "" : item.unitPrice}
+                    disabled={isSubmitting}
                     aria-label={`Item ${index + 1} unit price`}
                     aria-invalid={Boolean(errors.items)}
                     aria-describedby={
@@ -281,7 +289,7 @@ function QuotationForm({
                   <button
                     type="button"
                     onClick={() => onRemoveItem(index)}
-                    disabled={values.items.length === 1}
+                    disabled={isSubmitting || values.items.length === 1}
                     aria-label={`Remove item ${index + 1}`}
                     className="rounded-lg border border-outline-variant bg-surface-container p-[9px] text-on-surface-muted transition hover:bg-surface-container-high disabled:cursor-not-allowed disabled:opacity-50"
                   >
@@ -315,6 +323,7 @@ function QuotationForm({
           <textarea
             id="create-quotation-notes"
             value={values.notes}
+            disabled={isSubmitting}
             aria-label="Optional notes for this quotation"
             onChange={(event) => onFieldChange("notes", event.target.value)}
             placeholder="Optional notes for this quotation..."
@@ -350,8 +359,12 @@ function QuotationCard({
   onRevise,
   onConvert,
   onDownloadPdf,
+  onSubmitDraft,
+  role,
 }: {
   quotation: Quotation;
+  role: string | null | undefined;
+  onSubmitDraft: (quotation: Quotation) => void;
   canApprove: boolean;
   canReject: boolean;
   isGeneratingPdf: boolean;
@@ -364,12 +377,12 @@ function QuotationCard({
   onConvert: (quotation: Quotation) => void;
   onDownloadPdf: (quotation: Quotation) => void;
 }) {
-  const isEditable =
-    quotation.status === "DRAFT" || quotation.status === "PENDING_APPROVAL";
-  const isConvertible =
-    quotation.status === "PENDING_APPROVAL" || quotation.status === "APPROVED";
-  const isRejectable = quotation.status === "PENDING_APPROVAL" && canReject;
-  const isRevisable = quotation.status === "REJECTED";
+  const actions = quotationActions(role, quotation.status);
+  const isEditable = actions.edit;
+  const isConvertible = actions.convert && canApprove;
+  const isRejectable = actions.reject && canReject;
+  const isRevisable = actions.revise;
+  const busy = isApproving || isRevising;
 
   return (
     <article className="overflow-hidden rounded-xl border border-outline-variant bg-surface-container-lowest shadow-level-1 transition hover:shadow-level-2">
@@ -486,6 +499,7 @@ function QuotationCard({
               <button
                 type="button"
                 onClick={() => onEdit(quotation)}
+                disabled={busy}
                 aria-label={`Edit quotation ${quotation.id}`}
                 className="inline-flex items-center gap-1 rounded-lg border border-outline-variant bg-surface-container px-2.5 py-1.5 text-xs font-semibold text-on-background transition hover:bg-surface-container-high"
               >
@@ -499,6 +513,7 @@ function QuotationCard({
               <button
                 type="button"
                 onClick={() => onReject(quotation)}
+                disabled={busy}
                 aria-label={`Reject quotation ${quotation.id}`}
                 className="inline-flex items-center gap-1 rounded-lg border border-error/20 bg-error-container px-2.5 py-1.5 text-xs font-semibold text-error transition hover:bg-error-hover/20"
               >
@@ -524,8 +539,19 @@ function QuotationCard({
               </button>
             ) : null}
 
+            {actions.submit ? (
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => onSubmitDraft(quotation)}
+                aria-label={`Submit quotation ${quotation.id} for approval`}
+                className="rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-on-primary disabled:opacity-60"
+              >
+                {busy ? "Submitting..." : "Submit for Approval"}
+              </button>
+            ) : null}
             {/* Direct Approve Action: Visible on PENDING_APPROVAL for Admin/Sales Manager */}
-            {canApprove && quotation.status === "PENDING_APPROVAL" ? (
+            {actions.approve ? (
               <button
                 type="button"
                 onClick={() => onApprove(quotation)}
@@ -543,10 +569,11 @@ function QuotationCard({
             ) : null}
 
             {/* Convert to Project Button: Visible on PENDING_APPROVAL and APPROVED for Admin/Sales Manager */}
-            {canApprove && isConvertible ? (
+            {isConvertible ? (
               <button
                 type="button"
                 onClick={() => onConvert(quotation)}
+                disabled={busy}
                 aria-label={`Convert quotation ${quotation.id} to project`}
                 className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-on-primary transition hover:bg-primary-hover shadow-xs"
               >
@@ -558,7 +585,7 @@ function QuotationCard({
             {/* Link to converted project if CONVERTED */}
             {quotation.status === "CONVERTED" && quotation.projectId ? (
               <Link
-                href={`/dashboard/projects/${quotation.projectId}`}
+                href={`/dashboard/projects?projectId=${encodeURIComponent(quotation.projectId)}`}
                 className="inline-flex items-center gap-1.5 rounded-lg border border-primary/30 bg-primary-soft px-3 py-1.5 text-xs font-semibold text-primary transition hover:bg-primary-container"
               >
                 <FolderKanban size={13} />
@@ -597,6 +624,8 @@ function QuotationCard({
 }
 
 export default function QuotationsDashboardClient() {
+  const creatingRef = useRef(false);
+  const pendingActions = useRef(new Set<string>());
   const user = useSelector((state: RootState) => state.auth.user);
 
   const [activeTab, setActiveTab] = useState<QuotationFilterTab>("ALL");
@@ -657,45 +686,28 @@ export default function QuotationsDashboardClient() {
 
   // Fetch real quotations on page load, search changes, or status filter tab changes asynchronously
   const fetchQuotationsData = useCallback(
-    async (tab: QuotationFilterTab, search: string = "") => {
+    async (tab: QuotationFilterTab, search: string = "", page: number = 1) => {
       try {
         const res = await listQuotations({
           status: tab,
+          page,
+          limit: pageSize,
           search: search.trim() || undefined,
         });
-        let items = normalizeQuotations(res);
-        if (search.trim()) {
-          items = filterQuotationsBySearch(items, search);
-        }
+        const items = normalizeQuotations(res);
         if (items.length === 0) {
           return { kind: "empty" as const };
         }
-        return { kind: "ready" as const, quotations: items };
+        return {
+          kind: "ready" as const,
+          quotations: items,
+          total: res.total,
+          totalPages: res.totalPages ?? 1,
+        };
       } catch (error) {
-        if (isQuotationUnavailableError(error)) {
-          let previewItems =
-            tab === "ALL"
-              ? quotationPreviewList
-              : quotationPreviewList.filter((q) => q.status === tab);
-
-          if (search.trim()) {
-            previewItems = filterQuotationsBySearch(previewItems, search);
-          }
-
-          if (previewItems.length === 0) {
-            return { kind: "empty" as const };
-          }
-
-          return {
-            kind: "unavailable" as const,
-            quotations: previewItems,
-            message:
-              "Quotation APIs are not available yet. Showing prototype preview data until backend endpoints are connected.",
-          };
-        }
         return {
           kind: "error" as const,
-          message: "Failed to load quotations from server.",
+          message: getQuotationErrorMessage(error),
         };
       }
     },
@@ -706,7 +718,11 @@ export default function QuotationsDashboardClient() {
     let active = true;
 
     async function load() {
-      const nextState = await fetchQuotationsData(activeTab, debouncedSearch);
+      const nextState = await fetchQuotationsData(
+        activeTab,
+        debouncedSearch,
+        currentPage,
+      );
       if (active) {
         setQuotationsState(nextState);
       }
@@ -717,11 +733,15 @@ export default function QuotationsDashboardClient() {
     return () => {
       active = false;
     };
-  }, [activeTab, debouncedSearch, fetchQuotationsData]);
+  }, [activeTab, debouncedSearch, currentPage, fetchQuotationsData]);
 
   const loadQuotations = async () => {
     setQuotationsState({ kind: "loading" });
-    const nextState = await fetchQuotationsData(activeTab, debouncedSearch);
+    const nextState = await fetchQuotationsData(
+      activeTab,
+      debouncedSearch,
+      currentPage,
+    );
     setQuotationsState(nextState);
   };
 
@@ -747,7 +767,15 @@ export default function QuotationsDashboardClient() {
     totalPages,
     startIndex,
     endIndex,
-  } = paginateQuotations(allQuotations, currentPage, pageSize);
+  } = quotationsState.kind === "ready"
+    ? {
+        items: allQuotations,
+        total: quotationsState.total ?? allQuotations.length,
+        totalPages: quotationsState.totalPages ?? 1,
+        startIndex: allQuotations.length ? (currentPage - 1) * pageSize + 1 : 0,
+        endIndex: (currentPage - 1) * pageSize + allQuotations.length,
+      }
+    : paginateQuotations(allQuotations, currentPage, pageSize);
 
   const handleFieldChange = (field: "leadId" | "notes", value: string) => {
     setFormValues((current) => ({ ...current, [field]: value }));
@@ -795,33 +823,63 @@ export default function QuotationsDashboardClient() {
 
   // PDF Download / View handler
   const handleDownloadPdf = async (quotation: Quotation) => {
-    if (quotation.pdfUrl) {
-      window.open(quotation.pdfUrl, "_blank", "noopener,noreferrer");
+    const key = `pdf:${quotation.id}`;
+    if (pendingActions.current.has(key)) return;
+    const tab = window.open("", "_blank");
+    if (!tab) {
+      setFeedback({
+        tone: "error",
+        message: "Allow pop-ups to open the quotation PDF, then try again.",
+      });
       return;
     }
-
+    tab.opener = null;
+    pendingActions.current.add(key);
     setPdfLoadingId(quotation.id);
     try {
-      const res = await getQuotationPdf(quotation.id);
-      const pdfUrl = res.pdfUrl;
-      if (pdfUrl) {
-        replaceQuotationInState({ ...quotation, pdfUrl });
-        window.open(pdfUrl, "_blank", "noopener,noreferrer");
-      } else {
-        throw new Error("No PDF URL returned");
-      }
+      const pdfUrl = safePdfUrl(
+        quotation.pdfUrl ?? (await getQuotationPdf(quotation.id)).pdfUrl,
+      );
+      replaceQuotationInState({ ...quotation, pdfUrl });
+      tab.location.href = pdfUrl;
     } catch {
+      tab.close();
       setFeedback({
         tone: "error",
         message: "Failed to generate quotation PDF. Please try again.",
       });
     } finally {
+      pendingActions.current.delete(key);
       setPdfLoadingId(null);
+    }
+  };
+
+  const handleSubmitDraft = async (quotation: Quotation) => {
+    if (
+      !quotationActions(user?.role, quotation.status).submit ||
+      pendingActions.current.has(quotation.id)
+    )
+      return;
+    pendingActions.current.add(quotation.id);
+    setApprovingId(quotation.id);
+    try {
+      replaceQuotationInState(await submitQuotation(quotation.id));
+    } catch (error) {
+      setFeedback({ tone: "error", message: getQuotationErrorMessage(error) });
+    } finally {
+      pendingActions.current.delete(quotation.id);
+      setApprovingId(null);
     }
   };
 
   // Revise handler: moves REJECTED -> DRAFT
   const handleReviseQuotation = async (quotation: Quotation) => {
+    if (
+      !quotationActions(user?.role, quotation.status).revise ||
+      pendingActions.current.has(quotation.id)
+    )
+      return;
+    pendingActions.current.add(quotation.id);
     setRevisingId(quotation.id);
     setFeedback(null);
     try {
@@ -838,18 +896,25 @@ export default function QuotationsDashboardClient() {
         message: getQuotationErrorMessage(error),
       });
     } finally {
+      pendingActions.current.delete(quotation.id);
       setRevisingId(null);
     }
   };
 
   // Direct Approve handler: moves PENDING_APPROVAL -> APPROVED
   const handleApproveQuotation = async (quotation: Quotation) => {
+    if (
+      !quotationActions(user?.role, quotation.status).approve ||
+      pendingActions.current.has(quotation.id)
+    )
+      return;
+    pendingActions.current.add(quotation.id);
     setApprovingId(quotation.id);
     setFeedback(null);
     try {
       const res = await approveQuotation(quotation.id);
-      const updated = "quotation" in res ? res.quotation : (res as Quotation);
-      replaceQuotationInState({ ...updated, status: "APPROVED" });
+      const updated = res;
+      replaceQuotationInState(updated);
       setFeedback({
         tone: "success",
         message: `Quotation ${quotation.id} approved successfully. You can now convert it to a project.`,
@@ -860,13 +925,14 @@ export default function QuotationsDashboardClient() {
         message: getQuotationErrorMessage(error),
       });
     } finally {
+      pendingActions.current.delete(quotation.id);
       setApprovingId(null);
     }
   };
 
   // Create Quotation form submission
   const handleSubmit = async () => {
-    if (!canCreateQuotation(user?.role)) return;
+    if (!canCreateQuotation(user?.role) || creatingRef.current) return;
     const validationErrors = validateQuotationForm(formValues);
 
     if (Object.keys(validationErrors).length > 0) {
@@ -878,6 +944,7 @@ export default function QuotationsDashboardClient() {
       return;
     }
 
+    creatingRef.current = true;
     setIsSubmitting(true);
     setFeedback(null);
     setApiUnavailableMessage(null);
@@ -925,21 +992,6 @@ export default function QuotationsDashboardClient() {
           tone: "error",
           message: "The selected lead could not be found.",
         });
-      } else if (isQuotationUnavailableError(error)) {
-        setQuotationsState({
-          kind: "unavailable",
-          quotations: quotationPreviewList,
-          message:
-            "Quotation APIs are not available yet. Showing prototype preview data until backend endpoints are connected.",
-        });
-        setApiUnavailableMessage(
-          "Quotation endpoint is not available yet. You can continue verifying the form and validation flow until backend support is connected.",
-        );
-        setFeedback({
-          tone: "info",
-          message:
-            "Quotation API is unavailable right now. Submission has been kept as a clear placeholder state.",
-        });
       } else {
         setFeedback({
           tone: "error",
@@ -950,6 +1002,7 @@ export default function QuotationsDashboardClient() {
         });
       }
     } finally {
+      creatingRef.current = false;
       setIsSubmitting(false);
     }
   };
@@ -977,6 +1030,7 @@ export default function QuotationsDashboardClient() {
                   key={tab.id}
                   type="button"
                   onClick={() => handleTabChange(tab.id)}
+                  aria-pressed={activeTab === tab.id}
                   className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
                     isActive
                       ? "bg-primary text-on-primary shadow-xs"
@@ -999,7 +1053,7 @@ export default function QuotationsDashboardClient() {
               type="text"
               value={searchTerm}
               onChange={(e) => handleSearchChange(e.target.value)}
-              placeholder="Search by customer name, lead ID, or quotation ID..."
+              placeholder="Search by customer name or notes..."
               aria-label="Search quotations"
               className="w-full rounded-xl border border-outline-variant bg-surface-container-lowest pl-10 pr-9 py-2.5 text-xs text-on-background outline-none transition placeholder:text-on-surface-muted focus:border-primary shadow-level-1"
             />
@@ -1059,6 +1113,8 @@ export default function QuotationsDashboardClient() {
                 <QuotationCard
                   key={quotation.id}
                   quotation={quotation}
+                  role={user?.role}
+                  onSubmitDraft={handleSubmitDraft}
                   canApprove={canApproveQuotation(user?.role)}
                   canReject={canRejectQuotation(user?.role)}
                   isGeneratingPdf={pdfLoadingId === quotation.id}
@@ -1198,8 +1254,17 @@ export default function QuotationsDashboardClient() {
               message: `Project created successfully (ID: ${projectId}). Status: ${projectStatus ?? "ACTIVE"}`,
             });
           }}
-          onAlreadyConverted={(q) => {
-            replaceQuotationInState({ ...q, status: "CONVERTED" });
+          onAlreadyConverted={async (q) => {
+            try {
+              replaceQuotationInState(await getQuotationById(q.id));
+            } catch {
+              setFeedback({
+                tone: "error",
+                message:
+                  "This quotation was already converted. Refresh to retrieve its project link.",
+              });
+              return;
+            }
             setFeedback({
               tone: "info",
               message:

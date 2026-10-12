@@ -1,3 +1,4 @@
+import { validateItems } from "@/lib/quotationMoney";
 import type { QuotationItemInput } from "@/types/quotation";
 import {
   calculateLineItemAmount,
@@ -22,24 +23,7 @@ export function calculateQuotationGrandTotal(
 }
 
 export function validateLineItems(items: QuotationItemInput[]): string | null {
-  if (items.length === 0) {
-    return "At least one item is required.";
-  }
-
-  for (let index = 0; index < items.length; index += 1) {
-    const item = items[index];
-    if (!item.itemName.trim()) {
-      return `Item ${index + 1}: item name is required.`;
-    }
-    if (!Number.isFinite(item.quantity) || item.quantity <= 0) {
-      return `Item ${index + 1}: quantity must be greater than zero.`;
-    }
-    if (!Number.isFinite(item.unitPrice) || item.unitPrice < 0) {
-      return `Item ${index + 1}: unit price must be zero or greater.`;
-    }
-  }
-
-  return null;
+  return validateItems(items);
 }
 
 export function normalizeLineItems(
@@ -47,7 +31,7 @@ export function normalizeLineItems(
 ): QuotationItemInput[] {
   return items.map((item) => ({
     itemName: item.itemName.trim(),
-    quantity: round2(Math.max(1, Number(item.quantity) || 1)),
+    quantity: Number(item.quantity),
     unitPrice: round2(Math.max(0, Number(item.unitPrice) || 0)),
   }));
 }

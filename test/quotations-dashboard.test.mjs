@@ -34,13 +34,13 @@ test("quotation types define full Person 2 schema and DTOs", () => {
   assert.match(typesSource, /ConvertToProjectResponse/);
 });
 
-test("quotation utilities implement floating-point round2 precision calculation sync", () => {
+test("quotation utilities implement decimal calculation helpers", () => {
   const utilsSource = read(
     "src/components/dashboard/quotations/quotationUtils.ts",
   );
 
   assert.match(utilsSource, /function round2\(n:\s*number\):\s*number/);
-  assert.match(utilsSource, /Number\.EPSILON/);
+  assert.match(utilsSource, /roundMoney/);
   assert.match(utilsSource, /calculateLineItemAmount/);
   assert.match(utilsSource, /calculateTotalAmount/);
 });
@@ -109,7 +109,7 @@ test("quotationsApi service encapsulates all Quotation HTTP calls using shared a
   assert.match(serviceSource, /`\/quotations\/\$\{id\}`/);
   assert.match(
     serviceSource,
-    /apiClient\.post<Quotation>\("\/quotations",\s*\{/,
+    /apiClient\.post<Quotation>\(\s*"\/quotations",\s*\{/,
   );
   assert.match(
     serviceSource,
@@ -117,7 +117,7 @@ test("quotationsApi service encapsulates all Quotation HTTP calls using shared a
   );
   assert.match(
     serviceSource,
-    /apiClient\.patch<[\s\S]*?>\(\s*`\/quotations\/\$\{id\}\/approve`/,
+    /apiClient\.patch<[\s\S]*?>\(\s*`\/quotations\/\$\{id\}\/direct-approve`/,
   );
   assert.match(
     serviceSource,
@@ -141,7 +141,7 @@ test("projectConversionApi encapsulates quotation to project conversion with typ
     /apiClient\.patch<[\s\S]*?>\(\s*`\/quotations\/\$\{quotationId\}\/approve`/,
   );
   assert.match(serviceSource, /convertQuotationToProject/);
-  assert.match(serviceSource, /projectStatus:\s*projResponse\.projectStatus/);
+  assert.match(serviceSource, /projectStatus:\s*data\.projectStatus/);
 });
 
 test("quotationItemsApi exposes line item calculation and validation helpers", () => {
@@ -153,13 +153,13 @@ test("quotationItemsApi exposes line item calculation and validation helpers", (
   assert.match(serviceSource, /normalizeLineItems/);
 });
 
-test("LeadSelectDropdown fetches leads with fallback and search capability", () => {
+test("LeadSelectDropdown fetches real leads with search capability", () => {
   const dropdownSource = read(
     "src/components/dashboard/quotations/LeadSelectDropdown.tsx",
   );
 
   assert.match(dropdownSource, /apiClient\.get<[^>]+>\("\/leads"\)/);
-  assert.match(dropdownSource, /fallbackLeads/);
+  assert.doesNotMatch(dropdownSource, /fallbackLeads/);
   assert.match(dropdownSource, /Select Qualified Lead/);
   assert.match(dropdownSource, /Search leads/);
 });
@@ -185,7 +185,7 @@ test("quotations dashboard client wires edit, reject, revise, direct approve, PD
 
   // PDF generation/download via service
   assert.match(clientSource, /getQuotationPdf\(quotation\.id\)/);
-  assert.match(clientSource, /window\.open\(quotation\.pdfUrl/);
+  assert.match(clientSource, /safePdfUrl/);
 
   // Revise action via service
   assert.match(clientSource, /reviseQuotation\(quotation\.id\)/);
@@ -199,10 +199,7 @@ test("quotations dashboard client wires edit, reject, revise, direct approve, PD
   assert.match(clientSource, /<ConvertToProjectModal/);
 
   // Converted link button
-  assert.match(
-    clientSource,
-    /\/dashboard\/projects\/\$\{quotation\.projectId\}/,
-  );
+  assert.match(clientSource, /\/dashboard\/projects\?projectId=/);
 });
 
 test("EditQuotationModal submits updateQuotation and enforces lock rules", () => {
