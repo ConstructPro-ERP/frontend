@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { AlertTriangle, Ban, Loader2, X } from "lucide-react";
 import { rejectQuotation } from "@/services/quotationsApi";
 import type { Quotation } from "@/types/quotation";
@@ -23,6 +23,7 @@ export default function RejectQuotationModal({
   const [reason, setReason] = useState("");
   const [touched, setTouched] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
+  const submittingRef = useRef(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const modalRef = useModalFocusTrap(isOpen, onClose, isSubmitting);
@@ -36,6 +37,7 @@ export default function RejectQuotationModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (submittingRef.current) return;
     setTouched(true);
     setApiError(null);
 
@@ -43,6 +45,7 @@ export default function RejectQuotationModal({
       return;
     }
 
+    submittingRef.current = true;
     setIsSubmitting(true);
     try {
       const updated = await rejectQuotation(quotation.id, {
@@ -53,6 +56,7 @@ export default function RejectQuotationModal({
     } catch (err) {
       setApiError(getQuotationErrorMessage(err));
     } finally {
+      submittingRef.current = false;
       setIsSubmitting(false);
     }
   };

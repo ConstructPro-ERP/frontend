@@ -41,6 +41,7 @@ export function useModalFocusTrap(
 
     // Delay slightly to let animations or children render
     const timer = setTimeout(() => {
+      if (container.contains(document.activeElement)) return;
       const focusable =
         container.querySelectorAll<HTMLElement>(focusableSelector);
       if (focusable.length > 0) {

@@ -1,3 +1,4 @@
+import { normalizeQuotationRecord } from "@/components/dashboard/quotations/quotationUtils";
 import apiClient from "@/lib/axios";
 import type {
   ConvertToProjectInput,
@@ -16,30 +17,43 @@ export async function convertQuotationToProject(
   const response = await apiClient.patch<ConvertToProjectResponse | Quotation>(
     `/quotations/${quotationId}/approve`,
     payload,
+    { timeout: 15000 },
   );
 
   const data = response.data;
 
-  // Handle nested response format
   if (
-    data &&
-    typeof data === "object" &&
-    "projectId" in data &&
-    typeof data.projectId === "string"
+    !data ||
+    typeof data !== "object" ||
+    !("quotation" in data) ||
+    !data.quotation ||
+    typeof data.projectId !== "string" ||
+    !data.projectId ||
+    typeof data.projectStatus !== "string" ||
+    !["PLANNING", "ACTIVE", "ON_HOLD", "COMPLETED", "CANCELLED"].includes(
+      data.projectStatus,
+    )
   ) {
-    const projResponse = data as ConvertToProjectResponse;
-    return {
-      quotation: projResponse.quotation ?? (data as unknown as Quotation),
-      projectId: projResponse.projectId,
-      projectStatus: projResponse.projectStatus ?? "ACTIVE",
-    };
+    throw new Error(
+      "The conversion response could not be verified. Refresh the quotation before retrying.",
+    );
   }
-
-  // Handle flat quotation return fallback
-  const quotation = data as Quotation;
+  const quotation = normalizeQuotationRecord(
+    data.quotation as unknown as Record<string, unknown>,
+    0,
+  );
+  if (
+    quotation.id !== quotationId ||
+    quotation.status !== "CONVERTED" ||
+    quotation.projectId !== data.projectId
+  ) {
+    throw new Error(
+      "The conversion response could not be verified. Refresh the quotation before retrying.",
+    );
+  }
   return {
-    quotation: { ...quotation, status: "CONVERTED" },
-    projectId: quotation.projectId ?? `PRJ-${quotation.id}`,
-    projectStatus: "ACTIVE",
+    quotation,
+    projectId: data.projectId,
+    projectStatus: data.projectStatus,
   };
 }
