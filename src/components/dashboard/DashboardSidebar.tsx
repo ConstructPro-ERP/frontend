@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   ChevronDown,
   CircleUserRound,
@@ -11,10 +11,12 @@ import {
   X,
 } from "lucide-react";
 import { useState } from "react";
-import { useSelector } from "react-redux";
-import type { RootState } from "@/store";
+import { useDispatch, useSelector } from "react-redux";
+import type { AppDispatch, RootState } from "@/store";
 import { dashboardNavItems } from "@/components/dashboard/dashboardConfig";
 import { canAccessDashboardPath } from "@/lib/dashboardAccess";
+import { logout } from "@/store/slices/authSlice";
+import { clearTokens } from "@/lib/token";
 
 type DashboardSidebarProps = {
   mobileOpen: boolean;
@@ -34,23 +36,38 @@ export default function DashboardSidebar({
   onClose,
 }: DashboardSidebarProps) {
   const pathname = usePathname();
+  const router = useRouter();
+  const dispatch = useDispatch<AppDispatch>();
   const sections = ["Main", "Finance", "Management"] as const;
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
-  const user = useSelector((state: RootState) => state.auth.user);
+  const { user, isLoading } = useSelector((state: RootState) => state.auth);
   const visibleItems = dashboardNavItems.filter((item) =>
     canAccessDashboardPath(user?.role, item.href),
   );
   const accountProfile = {
-    initials: user
-      ? `${user.firstName.charAt(0)}${user.lastName.charAt(0)}` || "U"
-      : "?",
-    name: user
-      ? `${user.firstName} ${user.lastName}`.trim() || user.email
-      : "Not signed in",
-    role:
-      user?.role && user.role !== "user"
+    initials: isLoading
+      ? "…"
+      : user
+        ? `${user.firstName.charAt(0)}${user.lastName.charAt(0)}` || "U"
+        : "?",
+    name: isLoading
+      ? "Loading account…"
+      : user
+        ? `${user.firstName} ${user.lastName}`.trim() || user.email
+        : "Not signed in",
+    role: isLoading
+      ? "Restoring session"
+      : user?.role && user.role !== "user"
         ? user.role.replaceAll("_", " ")
         : "No role assigned",
+  };
+
+  const handleSignOut = () => {
+    clearTokens();
+    dispatch(logout());
+    setAccountMenuOpen(false);
+    onClose();
+    router.push("/");
   };
 
   return (
@@ -66,7 +83,7 @@ export default function DashboardSidebar({
       />
 
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex w-[240px] flex-col border-r border-outline-variant bg-surface-container-lowest shadow-level-2 transition-transform duration-200 ease-out lg:static lg:z-auto lg:w-[240px] lg:translate-x-0 lg:shadow-none ${
+        className={`fixed inset-y-0 left-0 z-50 flex h-dvh max-h-dvh w-[240px] flex-col border-r border-outline-variant bg-surface-container-lowest shadow-level-2 transition-transform duration-200 ease-out lg:inset-y-0 lg:left-0 lg:z-50 lg:translate-x-0 lg:shadow-none ${
           mobileOpen ? "translate-x-0" : "-translate-x-full"
         }`}
         aria-label="Dashboard sidebar"
@@ -200,6 +217,7 @@ export default function DashboardSidebar({
                 <button
                   type="button"
                   className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-on-background transition hover:bg-surface-container"
+                  onClick={handleSignOut}
                 >
                   <LogOut size={16} className="text-on-surface-variant" />
                   Sign out

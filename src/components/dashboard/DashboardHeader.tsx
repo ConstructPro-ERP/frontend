@@ -9,8 +9,7 @@ import { dashboardPageConfigs } from "@/components/dashboard/dashboardConfig";
 
 type DashboardHeaderProps = {
   onOpenSidebar: () => void;
-  homeTheme?: string;
-  onToggleTheme?: () => void;
+  isHome?: boolean;
 };
 
 function subscribeClock(listener: () => void) {
@@ -41,8 +40,7 @@ function getPageConfig(pathname: string) {
 
 export default function DashboardHeader({
   onOpenSidebar,
-  homeTheme,
-  onToggleTheme,
+  isHome,
 }: DashboardHeaderProps) {
   const pathname = usePathname();
   const pageConfig = getPageConfig(pathname);
@@ -71,7 +69,7 @@ export default function DashboardHeader({
               {pageConfig.title}
             </h1>
             <p className="mt-0.5 text-xs text-on-surface-muted">
-              {homeTheme
+              {isHome
                 ? `${dateLabel}${user?.firstName ? `, ${user.firstName}` : ""}`
                 : pageConfig.description}
             </p>
@@ -85,10 +83,8 @@ export default function DashboardHeader({
               type="text"
               placeholder={pageConfig.searchPlaceholder ?? "Search anything..."}
               aria-label={pageConfig.searchPlaceholder ?? "Search anything"}
-              disabled={!!homeTheme}
-              title={
-                homeTheme ? "Global search is not available yet" : undefined
-              }
+              disabled={!!isHome}
+              title={isHome ? "Global search is not available yet" : undefined}
               className="w-full bg-transparent text-[13px] text-on-background outline-none placeholder:text-on-surface-muted"
             />
           </div>
@@ -96,29 +92,15 @@ export default function DashboardHeader({
           <button
             type="button"
             aria-label="Notifications"
-            disabled={!!homeTheme}
-            title={
-              homeTheme ? "Notifications are not available yet" : undefined
-            }
+            disabled={!!isHome}
+            title={isHome ? "Notifications are not available yet" : undefined}
             className="relative flex h-9 w-9 items-center justify-center rounded-lg border border-outline-variant bg-surface-container text-on-surface-variant transition hover:bg-surface-container-high hover:text-on-background"
           >
             <Bell size={16} />
-            {!homeTheme && (
+            {!isHome && (
               <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full border border-surface-container-lowest bg-red-500" />
             )}
           </button>
-          {homeTheme && (
-            <button
-              type="button"
-              className="home-theme-toggle"
-              role="switch"
-              aria-checked={homeTheme === "dark"}
-              aria-label="Dark theme"
-              onClick={onToggleTheme}
-            >
-              <span aria-hidden="true">{homeTheme === "dark" ? "☾" : "☀"}</span>
-            </button>
-          )}
         </div>
       </div>
     </header>

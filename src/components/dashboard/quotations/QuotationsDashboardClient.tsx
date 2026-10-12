@@ -1017,12 +1017,29 @@ export default function QuotationsDashboardClient() {
 
           {/* Cards or Empty/Loading State */}
           {quotationsState.kind === "loading" ? (
-            <div className="flex flex-col items-center justify-center rounded-xl border border-outline-variant bg-surface-container-lowest p-12 text-center shadow-level-1">
-              <Loader2 size={24} className="animate-spin text-primary" />
-              <p className="mt-3 text-sm font-medium text-on-surface-muted">
-                Loading quotations...
-              </p>
-            </div>
+            <>
+              <div className="space-y-3" aria-hidden="true">
+                {[1, 2, 3].map((item) => (
+                  <div
+                    key={item}
+                    className="rounded-xl border border-outline-variant bg-surface-container-lowest p-4"
+                  >
+                    <div className="mb-4 flex items-center justify-between gap-4">
+                      <div className="h-4 w-40 animate-pulse rounded bg-surface-container" />
+                      <div className="h-6 w-20 animate-pulse rounded-full bg-surface-container" />
+                    </div>
+                    <div className="grid gap-3 sm:grid-cols-3">
+                      {[1, 2, 3].map((line) => (
+                        <div
+                          key={line}
+                          className="h-10 animate-pulse rounded-lg bg-surface-container"
+                        />
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
           ) : quotationsState.kind === "error" ? (
             <QuotationStateCard
               title="Failed to Load Quotations"
