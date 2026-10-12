@@ -2,7 +2,7 @@
 import { createProject, updateProject } from "@/services/projectsApi";
 import type { Project, CreateProjectInput } from "@/types/project";
 import { validateProject } from "@/lib/projectRules";
-import { Editor, type Field } from "./ProjectUI";
+import { Editor, createProjectClass, type Field } from "./ProjectUI";
 import { useProjectManagers } from "./useProjectManagers";
 export default function ProjectForm({
   project,
@@ -59,6 +59,7 @@ export default function ProjectForm({
       }
       validate={(v) => validateProject(input(v), !project)}
       submitLabel={project ? "Save changes" : "Create project"}
+      submitClassName={project ? undefined : createProjectClass}
       onSave={async (v) => {
         const payload = input(v);
         const updated = project

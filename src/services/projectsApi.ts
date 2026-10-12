@@ -1,5 +1,3 @@
-// TODO: Add projects API methods using apiClient from "@/lib/axios".
-
 import apiClient from "@/lib/axios";
 import type {
   Project,

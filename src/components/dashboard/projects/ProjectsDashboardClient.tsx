@@ -20,7 +20,7 @@ import {
   Empty,
   Pager,
   buttonClass,
-  primaryClass,
+  createProjectClass,
   inputClass,
   panelClass,
   date,
@@ -111,7 +111,11 @@ function ProjectsList({ role }: { role: string | null }) {
             Refresh
           </button>
           {role === "ADMIN" && (
-            <button className={primaryClass} onClick={() => setCreating(true)}>
+            <button
+              type="button"
+              className={createProjectClass}
+              onClick={() => setCreating(true)}
+            >
               <Plus size={16} />
               Create project
             </button>

@@ -1,5 +1,3 @@
-// TODO: Define project types when implementing the feature.
-
 /**
  * Shared TypeScript contracts for the Project Management module.
  * Keep these aligned with the backend Project model and DTOs.

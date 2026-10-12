@@ -14,7 +14,9 @@ export const buttonClass =
   "inline-flex items-center justify-center gap-2 rounded-lg border border-outline-variant px-4 py-2 text-sm font-semibold transition hover:bg-surface-container disabled:cursor-not-allowed disabled:opacity-45";
 export const primaryClass =
   buttonClass +
-  " border-transparent bg-primary text-on-primary hover:bg-primary-hover";
+  " border-transparent bg-primary text-on-primary hover:bg-primary-hover ";
+export const createProjectClass =
+  "inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-transparent bg-primary px-4 py-2 text-sm font-semibold text-on-primary shadow-sm transition duration-200 enabled:hover:bg-primary-hover enabled:hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-safe:enabled:hover:-translate-y-0.5 motion-safe:enabled:active:translate-y-0 motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-45";
 export const inputClass =
   "w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-3 py-2.5 text-sm text-on-background outline-none focus:border-primary focus:ring-2 focus:ring-primary/20";
 export const panelClass =
@@ -34,13 +36,17 @@ export const money = (value?: number | string | null) =>
 export const date = (value?: string | null) =>
   !value
     ? "Not set"
-    : new Intl.DateTimeFormat("en-GB", {
-        day: "numeric",
-        month: "short",
-        year: "numeric",
-        timeZone: "UTC",
-      }).format(new Date(value));
+    : !Number.isFinite(Date.parse(value))
+      ? "Invalid date"
+      : new Intl.DateTimeFormat("en-GB", {
+          day: "numeric",
+          month: "short",
+          year: "numeric",
+          timeZone: "UTC",
+        }).format(new Date(value));
 export function errorMessage(error: unknown) {
+  if (error instanceof ApiError && error.code === "PROJECT_NOT_FOUND")
+    return error.message;
   if (error instanceof ApiError && [404, 501, 503].includes(error.statusCode))
     return "This feature is currently unavailable. Please try again later.";
   return error instanceof Error
@@ -214,6 +220,7 @@ export function Editor({
   validate,
   description,
   submitLabel = "Save changes",
+  submitClassName = primaryClass,
 }: {
   title: string;
   fields: Field[];
@@ -223,6 +230,7 @@ export function Editor({
   validate?: (values: Record<string, string>) => string | null;
   description?: string;
   submitLabel?: string;
+  submitClassName?: string;
 }) {
   const [values, setValues] = useState(initial);
   const [busy, setBusy] = useState(false);
@@ -328,7 +336,7 @@ export function Editor({
           >
             Cancel
           </button>
-          <button disabled={busy} className={primaryClass}>
+          <button disabled={busy} className={submitClassName}>
             {busy ? "Saving…" : submitLabel}
           </button>
         </div>
