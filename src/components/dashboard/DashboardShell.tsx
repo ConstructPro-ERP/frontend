@@ -7,10 +7,10 @@ import { useSelector } from "react-redux";
 import type { RootState } from "@/store";
 import { canAccessDashboardPath } from "@/lib/dashboardAccess";
 import { DM_Sans, DM_Mono } from "next/font/google";
-import { useHomeTheme } from "./homeTheme";
 import "./home-shell.css";
 import DashboardHeader from "@/components/dashboard/DashboardHeader";
 import DashboardSidebar from "@/components/dashboard/DashboardSidebar";
+import DashboardLoadingProgress from "@/components/dashboard/DashboardLoadingProgress";
 
 const dmSans = DM_Sans({
   subsets: ["latin"],
@@ -33,13 +33,11 @@ export default function DashboardShell({
   const pathname = usePathname();
   const { user, isLoading } = useSelector((state: RootState) => state.auth);
   const allowed = canAccessDashboardPath(user?.role, pathname);
-  const isHome = usePathname() === "/dashboard";
-  const { theme, toggleTheme } = useHomeTheme();
+  const isHome = pathname === "/dashboard";
 
   return (
     <div
-      className={`flex min-h-screen bg-surface-bg ${isHome ? `home-dashboard-shell ${dmSans.variable} ${dmMono.variable}` : ""}`}
-      data-home-theme={isHome ? theme : undefined}
+      className={`flex min-h-screen bg-surface-bg lg:pl-[240px] ${isHome ? `home-dashboard-shell ${dmSans.variable} ${dmMono.variable}` : ""}`}
     >
       <DashboardSidebar
         mobileOpen={mobileOpen}
@@ -56,8 +54,7 @@ export default function DashboardShell({
 
         <DashboardHeader
           onOpenSidebar={() => setMobileOpen(true)}
-          homeTheme={isHome ? theme : undefined}
-          onToggleTheme={toggleTheme}
+          isHome={isHome}
         />
 
         <main
@@ -66,7 +63,7 @@ export default function DashboardShell({
         >
           <div className="w-full">
             {isLoading ? (
-              <p role="status">Loading your account...</p>
+              <DashboardLoadingProgress label="Loading" />
             ) : allowed ? (
               children
             ) : (

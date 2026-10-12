@@ -5,7 +5,9 @@ import type { AuthState, User } from "@/types/auth";
 const initialState: AuthState = {
   user: null,
   isAuthenticated: false,
-  isLoading: false,
+  // Keep protected routes in a loading state until AuthProvider restores the
+  // session from storage (or confirms that no session exists).
+  isLoading: true,
   error: null,
 };
 
@@ -29,9 +31,13 @@ const authSlice = createSlice({
       state.isAuthenticated = false;
       state.error = action.payload;
     },
+    authInitializationComplete(state) {
+      state.isLoading = false;
+    },
     logout(state) {
       state.user = null;
       state.isAuthenticated = false;
+      state.isLoading = false;
       state.error = null;
     },
     clearError(state) {
@@ -40,7 +46,13 @@ const authSlice = createSlice({
   },
 });
 
-export const { loginStart, loginSuccess, loginFailure, logout, clearError } =
-  authSlice.actions;
+export const {
+  loginStart,
+  loginSuccess,
+  loginFailure,
+  authInitializationComplete,
+  logout,
+  clearError,
+} = authSlice.actions;
 
 export default authSlice.reducer;

@@ -10,7 +10,6 @@ import {
   House,
   Users,
   FileText,
-  RefreshCcw,
 } from "lucide-react";
 import { ApiError } from "@/lib/ApiError";
 import {
@@ -82,11 +81,12 @@ function State({
   retry: () => void;
 }) {
   return (
-    <div className={styles.state} role="status">
+    <div className={styles.state}>
       {loading ? (
-        <>
-          <RefreshCcw size={16} className="animate-spin" /> Loading…
-        </>
+        <div className="w-full space-y-2" aria-hidden="true">
+          <div className="h-3 w-2/5 animate-pulse rounded bg-slate-200" />
+          <div className="h-3 w-4/5 animate-pulse rounded bg-slate-100" />
+        </div>
       ) : (
         <>
           <p>{error}</p>
