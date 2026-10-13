@@ -61,6 +61,10 @@ export function validateTask(values: FormValues): string | null {
     return "Enter a valid due date.";
   if (values.milestoneId && !isUuid(values.milestoneId))
     return "Select a valid milestone.";
+  if (values.assignedToId && !isUuid(values.assignedToId))
+    return "Select a valid team member.";
+  if (values.status !== undefined && validateTaskStatus(values))
+    return "Select a valid task status.";
   return validateDescription(values.description);
 }
 

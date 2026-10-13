@@ -25,8 +25,9 @@ export interface TaskAssignee {
 export interface TaskInput {
   projectId: string;
   taskName: string;
-  description?: string;
+  description?: string | null;
   dueDate?: string | null;
   milestoneId?: string | null;
   assignedToId?: string | null;
+  status?: TaskStatus;
 }

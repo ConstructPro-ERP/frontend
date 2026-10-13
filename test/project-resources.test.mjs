@@ -72,6 +72,57 @@ function loader(api = {}, states) {
 const rules = loader()("src/lib/projectResourceRules.ts");
 const documentRules = loader()("src/lib/projectDocumentRules.ts");
 
+test("document categories use the shared backend category route", async () => {
+  const categories = [{ id: milestoneId, categoryName: "Drawings" }];
+  const api = loader({
+    get: async (url) => {
+      assert.equal(url, "/document-categories");
+      return { data: categories };
+    },
+  })("src/services/documentsApi.ts");
+  assert.deepEqual(await api.listDocumentCategories(), categories);
+});
+
+test("expense cards use the API total across all pages and calculate remaining budget", () => {
+  const format = (value) =>
+    new Intl.NumberFormat("en-LK", {
+      style: "currency",
+      currency: "LKR",
+    }).format(value);
+  for (const { budget, total, remaining } of [
+    { budget: 100000, total: "70500.00", remaining: 29500 },
+    { budget: 100000, total: "0.00", remaining: 100000 },
+    { budget: 50000, total: "70500.00", remaining: -20500 },
+    { budget: 0.3, total: "0.10", remaining: 0.2 },
+    { budget: null, total: "70500.00", remaining: null },
+  ]) {
+    const Expenses = loader({}, [
+      { total, byCategory: [{ category: null, amount: total }] },
+      { data: [], meta: { page: 1, total: 20, totalPages: 2 } },
+    ])("src/components/dashboard/projects/ExpensesSection.tsx").default;
+    const html = renderToStaticMarkup(
+      React.createElement(Expenses, {
+        projectId: "project",
+        budget,
+        canWrite: false,
+        canDelete: false,
+      }),
+    );
+    assert.ok(
+      html.includes(
+        `Total expenses</p><p class="mt-2 text-lg font-bold">${format(Number(total))}</p>`,
+      ),
+    );
+    assert.ok(
+      html.includes(
+        `Remaining budget</p><p class="mt-2 text-lg font-bold">${remaining === null ? "Not available" : format(remaining)}</p>`,
+      ),
+    );
+    assert.match(html, /Uncategorized/);
+    assert.doesNotMatch(html, /NaN/);
+  }
+});
+
 test("calendar validation rejects impossible dates and accepts leap days", () => {
   assert.equal(rules.isCalendarDate("2028-02-29"), true);
   for (const value of [

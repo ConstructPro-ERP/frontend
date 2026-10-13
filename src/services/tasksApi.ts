@@ -18,7 +18,7 @@ export const createTask = async (input: TaskInput) =>
   (await apiClient.post<Task>("/tasks", input)).data;
 export const updateTask = async (
   id: string,
-  input: Omit<TaskInput, "projectId" | "assignedToId">,
+  input: Omit<TaskInput, "projectId" | "assignedToId" | "status">,
 ) =>
   (await apiClient.patch<Task>(`/tasks/${encodeURIComponent(id)}`, input)).data;
 export const assignTask = async (id: string, assignedToId: string | null) =>

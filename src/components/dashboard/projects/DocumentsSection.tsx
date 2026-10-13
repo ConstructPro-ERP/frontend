@@ -63,10 +63,7 @@ export default function DocumentsSection({
       }),
     [projectId, page, filters],
   );
-  const loadCategories = useCallback(
-    () => listDocumentCategories(projectId),
-    [projectId],
-  );
+  const loadCategories = useCallback(() => listDocumentCategories(), []);
   const documents = useProjectData(load, revision);
   const categories = useProjectData(loadCategories, revision);
   const refresh = () => setRevision((value) => value + 1);

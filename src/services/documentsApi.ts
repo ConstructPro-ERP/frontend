@@ -9,11 +9,7 @@ import {
   validateDocumentFile,
   validateDocumentMetadata,
 } from "@/lib/projectDocumentRules";
-import {
-  listAllResources,
-  listResource,
-  type ResourceQuery,
-} from "./projectResources";
+import { listResource, type ResourceQuery } from "./projectResources";
 
 // Frontend contract; see docs/project-resources-api.md for missing backend work.
 const projectPath = (projectId: string) =>
@@ -21,13 +17,8 @@ const projectPath = (projectId: string) =>
 export const listDocuments = (projectId: string, query?: ResourceQuery) =>
   listResource<ProjectDocument>(`${projectPath(projectId)}/documents`, query);
 
-export const listDocumentCategories = (projectId: string) =>
-  listAllResources((query) =>
-    listResource<DocumentCategory>(
-      `${projectPath(projectId)}/document-categories`,
-      query,
-    ),
-  );
+export const listDocumentCategories = async () =>
+  (await listResource<DocumentCategory>("/document-categories")).data;
 
 export async function uploadDocument(
   projectId: string,

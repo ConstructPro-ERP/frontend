@@ -55,8 +55,8 @@ export default function TasksSection({
   }));
   const input = (v: Record<string, string>) => ({
     taskName: v.taskName.trim(),
-    description: v.description?.trim(),
-    dueDate: v.dueDate || null,
+    description: v.description?.trim() || null,
+    dueDate: v.dueDate ? `${v.dueDate}T00:00:00.000Z` : null,
     milestoneId: v.milestoneId?.trim() || null,
   });
   return (
@@ -111,14 +111,40 @@ export default function TasksSection({
             maxLength: 2000,
           },
         ]}
+        createFields={[
+          {
+            name: "assignedToId",
+            label: "Assigned to",
+            type: "select",
+            options: [{ value: "", label: "Unassigned" }, ...assigneeOptions],
+          },
+          {
+            name: "status",
+            label: "Status",
+            type: "select",
+            options: TASK_STATUSES.map((value) => ({
+              value,
+              label: label(value),
+            })),
+          },
+        ]}
         initial={(item) => ({
           taskName: item?.taskName ?? "",
           dueDate: item?.dueDate?.slice(0, 10) ?? "",
           milestoneId: item?.milestoneId ?? "",
           description: item?.description ?? "",
+          assignedToId: item?.assignedToId ?? "",
+          status: item?.status ?? "TODO",
         })}
         validate={validateTask}
-        create={(v) => createTask({ ...input(v), projectId })}
+        create={(v) =>
+          createTask({
+            ...input(v),
+            projectId,
+            assignedToId: v.assignedToId || null,
+            status: v.status as TaskStatus,
+          })
+        }
         update={(item, v) => updateTask(item.id, input(v))}
         remove={deleteTask}
         filters={[

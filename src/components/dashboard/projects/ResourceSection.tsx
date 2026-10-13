@@ -38,6 +38,7 @@ export default function ResourceSection<T extends { id: string }>({
   update,
   remove,
   fields,
+  createFields = [],
   initial,
   validate,
   columns,
@@ -59,6 +60,7 @@ export default function ResourceSection<T extends { id: string }>({
   update: (item: T, values: Record<string, string>) => Promise<unknown>;
   remove: (id: string) => Promise<unknown>;
   fields: Field[];
+  createFields?: Field[];
   initial: (item?: T) => Record<string, string>;
   validate?: (values: Record<string, string>) => string | null;
   columns: { label: string; render: (item: T) => ReactNode }[];
@@ -313,7 +315,9 @@ export default function ResourceSection<T extends { id: string }>({
               ? []
               : modal.kind === "action"
                 ? modal.action.fields
-                : fields
+                : modal.kind === "new"
+                  ? [...fields, ...createFields]
+                  : fields
           }
           initial={
             modal.kind === "action"

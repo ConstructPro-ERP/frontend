@@ -41,7 +41,7 @@ export default function ExpensesSection({
     amount: v.amount.trim(),
     category: v.category.trim(),
     description: v.description?.trim() ?? "",
-    date: v.date,
+    expenseDate: `${v.date}T00:00:00.000Z`,
   });
   return (
     <div className="space-y-5">
@@ -53,14 +53,20 @@ export default function ExpensesSection({
             summary.loading
               ? "Loading…"
               : summary.data
-                ? money(summary.data.totalAmount)
+                ? money(summary.data.total)
                 : "Not available",
           ],
           [
             "Remaining budget",
-            summary.data && budget != null
-              ? money(budget - Number(summary.data.totalAmount))
-              : "Not available",
+            summary.loading
+              ? "Loading…"
+              : summary.data && budget != null
+                ? money(
+                    (Math.round(budget * 100) -
+                      Math.round(Number(summary.data.total) * 100)) /
+                      100,
+                  )
+                : "Not available",
           ],
         ].map(([heading, value]) => (
           <div key={heading} className={panelClass + " p-4"}>
@@ -74,15 +80,15 @@ export default function ExpensesSection({
           Expense summary could not be loaded. {summary.error}
         </Notice>
       )}
-      {!!summary.data?.categories?.length && (
+      {!!summary.data?.byCategory?.length && (
         <div className="flex flex-wrap gap-3">
-          {summary.data.categories.map((category) => (
+          {summary.data.byCategory.map((category) => (
             <span
-              key={category.category}
+              key={category.category ?? "uncategorized"}
               className="rounded-lg bg-surface-container px-3 py-2 text-xs"
             >
-              {category.category}:{" "}
-              <strong>{money(category.totalAmount)}</strong>
+              {category.category ?? "Uncategorized"}:{" "}
+              <strong>{money(category.amount)}</strong>
             </span>
           ))}
         </div>
@@ -125,7 +131,7 @@ export default function ExpensesSection({
         initial={(item) => ({
           amount: item?.amount.toString() ?? "",
           category: item?.category ?? "",
-          date: (item?.date ?? item?.createdAt)?.slice(0, 10) ?? "",
+          date: item?.expenseDate?.slice(0, 10) ?? "",
           description: item?.description ?? "",
         })}
         validate={validateExpense}
@@ -156,7 +162,7 @@ export default function ExpensesSection({
           },
           {
             label: "Date",
-            render: (item) => date(item.date ?? item.createdAt),
+            render: (item) => date(item.expenseDate),
           },
           {
             label: "Recorded by",
