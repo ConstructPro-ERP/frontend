@@ -5,12 +5,13 @@ import { FolderKanban, Plus, RefreshCw, ArrowUpRight } from "lucide-react";
 import { useSelector } from "react-redux";
 import type { RootState } from "@/store";
 import { listProjects } from "@/services/projectsApi";
+import { listProjectManagers } from "@/services/projectManagersApi";
 import {
   PROJECT_STATUSES,
   type ProjectStatus,
   type ProjectSortField,
 } from "@/types/project";
-import { isUuid, projectPermissions } from "@/lib/projectRules";
+import { projectPermissions } from "@/lib/projectRules";
 import ProjectForm from "./ProjectForm";
 import { useProjectData } from "./useProjectData";
 import {
@@ -41,13 +42,38 @@ function ProjectsList({ role }: { role: string | null }) {
   const [status, setStatus] = useState<ProjectStatus | "ALL">("ALL");
   const [manager, setManager] = useState("");
   const [managerFilter, setManagerFilter] = useState("");
-  const [filterError, setFilterError] = useState("");
   const [sortBy, setSortBy] = useState<ProjectSortField>("createdAt");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [page, setPage] = useState(1);
   const [revision, setRevision] = useState(0);
   const [creating, setCreating] = useState(false);
   const [success, setSuccess] = useState("");
+  const loadManagers = useCallback(async () => {
+    if (role === "PROJECT_MANAGER") return [];
+    if (role === "ADMIN") return listProjectManagers();
+    // Other project readers can use names from accessible projects without
+    // requesting the admin-only user directory. Include every project page.
+    const managers = new Map<string, { id: string; fullName: string }>();
+    let page = 1;
+    let totalPages = 1;
+    do {
+      const projects = await listProjects({ page, limit: 100 });
+      for (const project of projects.data) {
+        if (project.projectManager) {
+          managers.set(project.projectManagerId, {
+            id: project.projectManagerId,
+            fullName: project.projectManager.fullName,
+          });
+        }
+      }
+      totalPages = projects.meta.totalPages;
+      page += 1;
+    } while (page <= totalPages);
+    return [...managers.values()].sort((a, b) =>
+      a.fullName.localeCompare(b.fullName),
+    );
+  }, [role]);
+  const managers = useProjectData(loadManagers, revision);
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearch(search.trim());
@@ -70,13 +96,7 @@ function ProjectsList({ role }: { role: string | null }) {
   );
   const { data: result, loading, error } = useProjectData(load, revision);
   const loadSummary = useCallback(async () => {
-    const statuses = [
-      undefined,
-      "ACTIVE",
-      "PLANNING",
-      "COMPLETED",
-      "ON_HOLD",
-    ] as const;
+    const statuses = [undefined, ...PROJECT_STATUSES];
     return Promise.all(
       statuses.map((status) =>
         listProjects({ status, limit: 1 }).then((result) => result.meta.total),
@@ -123,24 +143,22 @@ function ProjectsList({ role }: { role: string | null }) {
         </div>
       </header>
       {success && <Notice>{success}</Notice>}
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
-        {["Total projects", "Active", "Planning", "Completed", "On hold"].map(
-          (name, i) => (
-            <div key={name} className={panelClass + " p-5"}>
-              <p className="text-xs font-semibold text-on-surface-muted">
-                {name}
-              </p>
-              <p className="mt-3 text-3xl font-bold">
-                {summary.loading ? "…" : (summary.data?.[i] ?? "—")}
-              </p>
-              <p className="mt-2 text-xs text-on-surface-muted">
-                {role === "PROJECT_MANAGER"
-                  ? "Assigned to you"
-                  : "Across all projects"}
-              </p>
-            </div>
-          ),
-        )}
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
+        {["Total projects", ...PROJECT_STATUSES.map(label)].map((name, i) => (
+          <div key={name} className={panelClass + " p-5"}>
+            <p className="text-xs font-semibold text-on-surface-muted">
+              {name}
+            </p>
+            <p className="mt-3 text-3xl font-bold">
+              {summary.loading ? "…" : (summary.data?.[i] ?? "—")}
+            </p>
+            <p className="mt-2 text-xs text-on-surface-muted">
+              {role === "PROJECT_MANAGER"
+                ? "Assigned to you"
+                : "Across all projects"}
+            </p>
+          </div>
+        ))}
       </div>
       {summary.error && (
         <Notice error>
@@ -171,7 +189,9 @@ function ProjectsList({ role }: { role: string | null }) {
             >
               <option value="ALL">All statuses</option>
               {PROJECT_STATUSES.map((status) => (
-                <option key={status}>{status}</option>
+                <option key={status} value={status}>
+                  {label(status)}
+                </option>
               ))}
             </select>
           </label>
@@ -210,23 +230,29 @@ function ProjectsList({ role }: { role: string | null }) {
             className="mt-4 flex flex-wrap items-end gap-2"
             onSubmit={(e) => {
               e.preventDefault();
-              if (manager && !isUuid(manager.trim())) {
-                setFilterError("Enter a valid manager UUID.");
-                return;
-              }
-              setFilterError("");
-              setManagerFilter(manager.trim());
+              setManagerFilter(manager);
               setPage(1);
             }}
           >
             <label className="min-w-56 flex-1 text-xs font-semibold">
               Project manager
-              <input
+              <select
                 className={inputClass + " mt-2"}
-                placeholder="Filter by manager UUID"
+                disabled={managers.loading || !!managers.error}
                 value={manager}
                 onChange={(e) => setManager(e.target.value)}
-              />
+              >
+                <option value="">
+                  {managers.loading
+                    ? "Loading project managers and admins..."
+                    : "All project managers and admins"}
+                </option>
+                {managers.data?.map((user) => (
+                  <option key={user.id} value={user.id}>
+                    {user.fullName}
+                  </option>
+                ))}
+              </select>
             </label>
             <button className={buttonClass}>Apply filter</button>
             <button
@@ -235,7 +261,6 @@ function ProjectsList({ role }: { role: string | null }) {
               onClick={() => {
                 setManager("");
                 setManagerFilter("");
-                setFilterError("");
                 setStatus("ALL");
                 setSearch("");
                 setPage(1);
@@ -245,9 +270,10 @@ function ProjectsList({ role }: { role: string | null }) {
             </button>
           </form>
         )}
-        {filterError && (
+        {managers.error && (
           <p role="alert" className="mt-2 text-sm text-error">
-            {filterError}
+            Unable to load project managers and admins. {managers.error} Use
+            Refresh to try again.
           </p>
         )}
       </div>

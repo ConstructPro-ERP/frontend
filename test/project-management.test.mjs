@@ -316,20 +316,31 @@ test("expense creation preserves decimal strings and leaves recorded-by to the s
   })("src/services/expensesApi.ts");
   assert.equal((await api.createExpense("project", input)).amount, "123.45");
 });
-test("manager directory only offers active project managers", async () => {
+test("manager directory requests eligible managers and admins and preserves their IDs", async () => {
   const api = loader({
-    get: async () => ({
-      data: [
-        { id: "1", status: "ACTIVE", role: { roleName: "PROJECT_MANAGER" } },
-        { id: "2", status: "INACTIVE", role: { roleName: "PROJECT_MANAGER" } },
-        { id: "3", status: "ACTIVE", role: { roleName: "ADMIN" } },
-        { id: "4", status: "ACTIVE", role: null },
-      ],
-    }),
+    get: async (url) => {
+      assert.equal(url, "/users/project-managers");
+      return {
+        data: [
+          {
+            id: managerId,
+            fullName: "Project Manager",
+            email: "manager@example.com",
+            role: { roleName: "PROJECT_MANAGER" },
+          },
+          {
+            id: "0bf3b9dd-ce36-480a-8bc8-a5a28dde483c",
+            fullName: "Administrator",
+            email: "admin@example.com",
+            role: { roleName: "ADMIN" },
+          },
+        ],
+      };
+    },
   })("src/services/projectManagersApi.ts");
   assert.deepEqual(
     Array.from(await api.listProjectManagers(), (user) => user.id),
-    ["1"],
+    [managerId, "0bf3b9dd-ce36-480a-8bc8-a5a28dde483c"],
   );
 });
 test("conversion links use the actual returned project ID and preserve quotation status", async () => {

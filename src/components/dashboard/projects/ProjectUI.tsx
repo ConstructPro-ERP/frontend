@@ -10,11 +10,14 @@ import {
 import { X, FolderKanban } from "lucide-react";
 import { ApiError } from "@/lib/ApiError";
 
+const buttonBaseClass =
+  "inline-flex items-center justify-center gap-2 rounded-lg border px-4 py-2 text-sm font-semibold transition-colors duration-200 disabled:cursor-not-allowed disabled:opacity-45";
 export const buttonClass =
-  "inline-flex items-center justify-center gap-2 rounded-lg border border-outline-variant px-4 py-2 text-sm font-semibold transition hover:bg-surface-container disabled:cursor-not-allowed disabled:opacity-45";
+  buttonBaseClass +
+  " border-outline-variant enabled:hover:bg-surface-container";
 export const primaryClass =
-  buttonClass +
-  " border-transparent bg-primary text-on-primary hover:bg-primary-hover ";
+  buttonBaseClass +
+  " cursor-pointer border-transparent bg-primary text-on-primary enabled:hover:bg-primary-hover enabled:active:bg-primary-pressed focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary";
 export const createProjectClass =
   "inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-transparent bg-primary px-4 py-2 text-sm font-semibold text-on-primary shadow-sm transition duration-200 enabled:hover:bg-primary-hover enabled:hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-safe:enabled:hover:-translate-y-0.5 motion-safe:enabled:active:translate-y-0 motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-45";
 export const inputClass =
@@ -85,14 +88,14 @@ export function Badge({ status }: { status: string }) {
     </span>
   );
 }
-export function Progress({ value }: { value?: number | null }) {
+export function Progress({ value, ariaLabel = "Weighted project progress" }: { value?: number | null; ariaLabel?: string }) {
   if (value == null || !Number.isFinite(value))
     return <span className="text-xs text-on-surface-muted">Not available</span>;
   const percent = Math.max(0, Math.min(100, value));
   return (
     <div className="flex min-w-28 items-center gap-3">
       <progress
-        aria-label="Weighted project progress"
+        aria-label={ariaLabel}
         value={percent}
         max={100}
         className="h-2 w-24 accent-primary"
@@ -205,6 +208,8 @@ export interface Field {
   label: string;
   type?: "text" | "date" | "number" | "textarea" | "select";
   required?: boolean;
+  disabled?: boolean;
+  maxLength?: number;
   min?: number;
   max?: number;
   step?: string;
@@ -221,6 +226,7 @@ export function Editor({
   description,
   submitLabel = "Save changes",
   submitClassName = primaryClass,
+  submitDisabled = false,
 }: {
   title: string;
   fields: Field[];
@@ -231,6 +237,7 @@ export function Editor({
   description?: string;
   submitLabel?: string;
   submitClassName?: string;
+  submitDisabled?: boolean;
 }) {
   const [values, setValues] = useState(initial);
   const [busy, setBusy] = useState(false);
@@ -239,7 +246,7 @@ export function Editor({
   const id = useId();
   async function submit(event: FormEvent) {
     event.preventDefault();
-    if (saving.current) return;
+    if (saving.current || submitDisabled) return;
     const message = validate?.(values);
     if (message) {
       setError(message);
@@ -279,6 +286,7 @@ export function Editor({
                 <select
                   className={inputClass}
                   required={field.required}
+                  disabled={field.disabled}
                   value={values[field.name] ?? ""}
                   onChange={(e) =>
                     setValues({ ...values, [field.name]: e.target.value })
@@ -295,6 +303,9 @@ export function Editor({
                 <textarea
                   className={inputClass}
                   rows={3}
+                  maxLength={field.maxLength}
+                  disabled={field.disabled}
+                  aria-describedby={field.hint ? id + field.name : undefined}
                   value={values[field.name] ?? ""}
                   required={field.required}
                   onChange={(e) =>
@@ -305,6 +316,8 @@ export function Editor({
                 <input
                   className={inputClass}
                   type={field.type ?? "text"}
+                  maxLength={field.maxLength}
+                  disabled={field.disabled}
                   required={field.required}
                   min={field.min}
                   max={field.max}
@@ -336,7 +349,7 @@ export function Editor({
           >
             Cancel
           </button>
-          <button disabled={busy} className={submitClassName}>
+          <button disabled={busy || submitDisabled} className={submitClassName}>
             {busy ? "Saving…" : submitLabel}
           </button>
         </div>

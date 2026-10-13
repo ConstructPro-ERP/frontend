@@ -3,15 +3,16 @@
  * Keep these aligned with the backend Project model and DTOs.
  */
 
-export const PROJECT_STATUSES = [
-  "PLANNING",
-  "ACTIVE",
-  "ON_HOLD",
-  "COMPLETED",
-  "CANCELLED",
-] as const;
+export const ProjectStatus = {
+  PLANNING: "PLANNING",
+  ACTIVE: "ACTIVE",
+  ON_HOLD: "ON_HOLD",
+  COMPLETED: "COMPLETED",
+  CANCELLED: "CANCELLED",
+} as const;
 
-export type ProjectStatus = (typeof PROJECT_STATUSES)[number];
+export type ProjectStatus = (typeof ProjectStatus)[keyof typeof ProjectStatus];
+export const PROJECT_STATUSES = Object.values(ProjectStatus);
 
 export interface ProjectManagerSummary {
   id: string;

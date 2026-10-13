@@ -9,7 +9,10 @@ import {
 } from "@/services/expensesApi";
 import type { Expense, ExpenseInput } from "@/types/expense";
 import type { ResourceQuery } from "@/services/projectResources";
-import { isPositiveMoney } from "@/lib/projectRules";
+import {
+  validateExpense,
+  validateDateFilters,
+} from "@/lib/projectResourceRules";
 import ResourceSection from "./ResourceSection";
 import { Notice, date, money, panelClass } from "./ProjectUI";
 import { useProjectData } from "./useProjectData";
@@ -96,6 +99,8 @@ export default function ExpensesSection({
         canDelete={canDelete}
         load={load}
         onChanged={() => setRevision((v) => v + 1)}
+        onRefresh={() => setRevision((v) => v + 1)}
+        validateFilters={validateDateFilters}
         fields={[
           {
             name: "amount",
@@ -103,9 +108,19 @@ export default function ExpensesSection({
             required: true,
             hint: "Positive amount with up to two decimal places.",
           },
-          { name: "category", label: "Category", required: true },
+          {
+            name: "category",
+            label: "Category",
+            required: true,
+            maxLength: 200,
+          },
           { name: "date", label: "Expense date", type: "date", required: true },
-          { name: "description", label: "Description", type: "textarea" },
+          {
+            name: "description",
+            label: "Description",
+            type: "textarea",
+            maxLength: 2000,
+          },
         ]}
         initial={(item) => ({
           amount: item?.amount.toString() ?? "",
@@ -113,15 +128,7 @@ export default function ExpensesSection({
           date: (item?.date ?? item?.createdAt)?.slice(0, 10) ?? "",
           description: item?.description ?? "",
         })}
-        validate={(v) =>
-          !isPositiveMoney(v.amount?.trim() ?? "")
-            ? "Enter a positive amount with up to two decimal places."
-            : !v.category?.trim()
-              ? "Category is required."
-              : !v.date
-                ? "Expense date is required."
-                : null
-        }
+        validate={validateExpense}
         create={(v) => createExpense(projectId, input(v))}
         update={(item, v) => updateExpense(item.id, input(v))}
         remove={deleteExpense}
@@ -153,7 +160,7 @@ export default function ExpensesSection({
           },
           {
             label: "Recorded by",
-            render: (item) => item.recordedBy?.fullName ?? item.recordedById,
+            render: (item) => item.recordedBy?.fullName ?? "Not available",
           },
         ]}
       />

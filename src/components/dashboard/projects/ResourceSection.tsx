@@ -23,6 +23,10 @@ export interface ResourceAction<T> {
   validate?: (values: Record<string, string>) => string | null;
   save: (item: T, values: Record<string, string>) => Promise<unknown>;
 }
+type ResourceModal<T> =
+  | { kind: "new" }
+  | { kind: "edit" | "delete"; item: T }
+  | { kind: "action"; item: T; action: ResourceAction<T> };
 export default function ResourceSection<T extends { id: string }>({
   title,
   singular,
@@ -41,6 +45,9 @@ export default function ResourceSection<T extends { id: string }>({
   filters = [],
   onChanged,
   deleteDescription,
+  validateFilters,
+  onRefresh,
+  editorDisabled = false,
 }: {
   title: string;
   singular: string;
@@ -59,17 +66,17 @@ export default function ResourceSection<T extends { id: string }>({
   filters?: Field[];
   onChanged?: () => void;
   deleteDescription?: string;
+  validateFilters?: (values: Record<string, string>) => string | null;
+  onRefresh?: () => void;
+  editorDisabled?: boolean;
 }) {
   const [page, setPage] = useState(1);
   const [query, setQuery] = useState<ResourceQuery>({});
   const [filterValues, setFilterValues] = useState<Record<string, string>>({});
   const [revision, setRevision] = useState(0);
   const [success, setSuccess] = useState("");
-  const [modal, setModal] = useState<{
-    kind: "new" | "edit" | "delete" | "action";
-    item?: T;
-    action?: ResourceAction<T>;
-  } | null>(null);
+  const [filterError, setFilterError] = useState("");
+  const [modal, setModal] = useState<ResourceModal<T> | null>(null);
   const loader = useCallback(
     () => load({ ...query, page, limit: 10 }),
     [load, query, page],
@@ -79,6 +86,10 @@ export default function ResourceSection<T extends { id: string }>({
     setSuccess(message);
     setRevision((v) => v + 1);
     onChanged?.();
+  }
+  function refresh() {
+    setRevision((v) => v + 1);
+    onRefresh?.();
   }
   const filterId = title.toLowerCase();
   return (
@@ -93,13 +104,14 @@ export default function ResourceSection<T extends { id: string }>({
             className={buttonClass}
             aria-label={`Refresh ${title.toLowerCase()}`}
             disabled={loading}
-            onClick={() => setRevision((v) => v + 1)}
+            onClick={refresh}
           >
             <RefreshCw size={16} />
           </button>
           {canWrite && !error && !loading && (
             <button
               className={primaryClass}
+              disabled={editorDisabled}
               onClick={() => setModal({ kind: "new" })}
             >
               <Plus size={16} />
@@ -114,11 +126,14 @@ export default function ResourceSection<T extends { id: string }>({
           className="flex flex-wrap items-end gap-3"
           onSubmit={(e) => {
             e.preventDefault();
+            const error = validateFilters?.(filterValues);
+            setFilterError(error ?? "");
+            if (error) return;
             setQuery(
               Object.fromEntries(
                 Object.entries(filterValues).map(([key, value]) => [
                   key,
-                  value || undefined,
+                  value.trim() || undefined,
                 ]),
               ),
             );
@@ -136,6 +151,7 @@ export default function ResourceSection<T extends { id: string }>({
                 <select
                   id={filterId + field.name}
                   className={inputClass + " mt-2"}
+                  disabled={field.disabled}
                   value={filterValues[field.name] ?? ""}
                   onChange={(e) =>
                     setFilterValues({
@@ -172,6 +188,7 @@ export default function ResourceSection<T extends { id: string }>({
             type="button"
             onClick={() => {
               setFilterValues({});
+              setFilterError("");
               setQuery({});
               setPage(1);
             }}
@@ -180,6 +197,7 @@ export default function ResourceSection<T extends { id: string }>({
           </button>
         </form>
       )}
+      {filterError && <Notice error>{filterError}</Notice>}
       <div className={panelClass + " overflow-hidden"}>
         {loading ? (
           <p role="status" className="p-8">
@@ -188,10 +206,7 @@ export default function ResourceSection<T extends { id: string }>({
         ) : error ? (
           <div className="space-y-3 p-5">
             <Notice error>{error}</Notice>
-            <button
-              className={buttonClass}
-              onClick={() => setRevision((v) => v + 1)}
-            >
+            <button className={buttonClass} onClick={refresh}>
               Try again
             </button>
           </div>
@@ -207,6 +222,7 @@ export default function ResourceSection<T extends { id: string }>({
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[720px] text-left text-sm">
+              <caption className="sr-only">{title}</caption>
               <thead className="bg-surface-container text-xs text-on-surface-muted">
                 <tr>
                   {columns.map((column) => (
@@ -236,6 +252,8 @@ export default function ResourceSection<T extends { id: string }>({
                             <>
                               <button
                                 className={buttonClass}
+                                disabled={editorDisabled}
+                                aria-label={`Edit ${singular}`}
                                 onClick={() => setModal({ kind: "edit", item })}
                               >
                                 Edit
@@ -244,6 +262,7 @@ export default function ResourceSection<T extends { id: string }>({
                                 <button
                                   key={action.label}
                                   className={buttonClass}
+                                  disabled={editorDisabled}
                                   onClick={() =>
                                     setModal({ kind: "action", item, action })
                                   }
@@ -279,32 +298,33 @@ export default function ResourceSection<T extends { id: string }>({
           />
         )}
       </div>
-      {modal && (
+      {modal && (modal.kind === "delete" ? canDelete : canWrite) && (
         <Editor
+          submitDisabled={modal.kind !== "delete" && editorDisabled}
           title={
             modal.kind === "delete"
               ? `Delete ${singular}?`
               : modal.kind === "action"
-                ? modal.action!.title
+                ? modal.action.title
                 : `${modal.kind === "new" ? "Add" : "Edit"} ${singular}`
           }
           fields={
             modal.kind === "delete"
               ? []
               : modal.kind === "action"
-                ? modal.action!.fields
+                ? modal.action.fields
                 : fields
           }
           initial={
             modal.kind === "action"
-              ? modal.action!.initial(modal.item!)
-              : initial(modal.item)
+              ? modal.action.initial(modal.item)
+              : initial(modal.kind === "new" ? undefined : modal.item)
           }
           validate={
             modal.kind === "delete"
               ? undefined
               : modal.kind === "action"
-                ? modal.action!.validate
+                ? modal.action.validate
                 : validate
           }
           description={
@@ -319,12 +339,15 @@ export default function ResourceSection<T extends { id: string }>({
           onClose={() => setModal(null)}
           onSave={async (values) => {
             if (modal.kind === "delete") {
-              await remove(modal.item!.id);
+              await remove(modal.item.id);
               if (data?.data.length === 1 && page > 1) setPage(page - 1);
             } else if (modal.kind === "action")
-              await modal.action!.save(modal.item!, values);
-            else if (modal.kind === "new") await create(values);
-            else await update(modal.item!, values);
+              await modal.action.save(modal.item, values);
+            else if (modal.kind === "new") {
+              await create(values);
+              setPage(1);
+            }
+            else await update(modal.item, values);
             changed(
               `${singular.charAt(0).toUpperCase() + singular.slice(1)} ${modal.kind === "delete" ? "deleted" : "saved"} successfully.`,
             );

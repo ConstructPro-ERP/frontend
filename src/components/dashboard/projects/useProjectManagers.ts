@@ -10,27 +10,30 @@ export function useProjectManagers(enabled: boolean) {
     [enabled],
   );
   const result = useProjectData(load);
-  const field: Field = result.data?.length
-    ? {
-        name: "projectManagerId",
-        label: "Project manager",
-        required: true,
-        type: "select",
-        options: [
-          { value: "", label: "Select a project manager" },
-          ...result.data.map((user) => ({
-            value: user.id,
-            label: `${user.fullName} (${user.email})`,
-          })),
-        ],
-      }
-    : {
-        name: "projectManagerId",
-        label: "Project manager ID",
-        required: true,
-        hint: result.loading
-          ? "Loading managers. You may also enter an active manager's UUID."
-          : "Enter an active project manager's UUID. The directory is currently unavailable or has no active managers.",
-      };
+  const field: Field = {
+    name: "projectManagerId",
+    label: "Project manager / Admin",
+    required: true,
+    type: "select",
+    options: [
+      {
+        value: "",
+        label: result.loading
+          ? "Loading project managers and admins..."
+          : result.error
+            ? "Unable to load project managers and admins"
+            : !result.data?.length
+              ? "No active project managers or admins available"
+              : "Select a project manager or admin",
+      },
+      ...(result.data ?? []).map((user) => ({
+        value: user.id,
+        label: user.fullName,
+      })),
+    ],
+    hint: result.error
+      ? `${result.error} Close and reopen this dialog to try again.`
+      : undefined,
+  };
   return { ...result, field };
 }

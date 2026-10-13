@@ -14,8 +14,12 @@ import {
   type MilestoneStatus,
 } from "@/types/milestone";
 import type { ResourceQuery } from "@/services/projectResources";
+import {
+  validateMilestone,
+  validateMilestoneProgress,
+} from "@/lib/projectResourceRules";
 import ResourceSection from "./ResourceSection";
-import { Badge, date, label } from "./ProjectUI";
+import { Badge, Progress, date, label } from "./ProjectUI";
 export default function MilestonesSection({
   projectId,
   canManage,
@@ -46,7 +50,12 @@ export default function MilestonesSection({
       load={load}
       onChanged={onChanged}
       fields={[
-        { name: "milestoneName", label: "Milestone name", required: true },
+        {
+          name: "milestoneName",
+          label: "Milestone name",
+          required: true,
+          maxLength: 200,
+        },
         { name: "dueDate", label: "Due date", type: "date" },
         {
           name: "weight",
@@ -61,12 +70,18 @@ export default function MilestonesSection({
           name: "status",
           label: "Status",
           type: "select",
+          required: true,
           options: MILESTONE_STATUSES.map((value) => ({
             value,
             label: label(value),
           })),
         },
-        { name: "description", label: "Description", type: "textarea" },
+        {
+          name: "description",
+          label: "Description",
+          type: "textarea",
+          maxLength: 2000,
+        },
       ]}
       initial={(item) => ({
         milestoneName: item?.milestoneName ?? "",
@@ -75,15 +90,32 @@ export default function MilestonesSection({
         status: item?.status ?? "PENDING",
         description: item?.description ?? "",
       })}
-      validate={(v) =>
-        !v.milestoneName?.trim()
-          ? "Milestone name is required."
-          : !Number.isInteger(Number(v.weight)) ||
-              Number(v.weight) < 1 ||
-              Number(v.weight) > 10
-            ? "Weight must be an integer between 1 and 10."
-            : null
-      }
+      validate={validateMilestone}
+      filters={[
+        { name: "search", label: "Search milestones" },
+        {
+          name: "status",
+          label: "Status",
+          type: "select",
+          options: [
+            { value: "", label: "All statuses" },
+            ...MILESTONE_STATUSES.map((value) => ({
+              value,
+              label: label(value),
+            })),
+          ],
+        },
+        {
+          name: "sortBy",
+          label: "Sort by",
+          type: "select",
+          options: [
+            { value: "", label: "Created date" },
+            { value: "dueDate", label: "Due date" },
+            { value: "milestoneName", label: "Milestone name" },
+          ],
+        },
+      ]}
       create={(v) => createMilestone(projectId, input(v))}
       update={(item, v) => updateMilestone(item.id, input(v))}
       remove={deleteMilestone}
@@ -104,8 +136,7 @@ export default function MilestonesSection({
         { label: "Weight", render: (item) => item.weight ?? "Not available" },
         {
           label: "Progress",
-          render: (item) =>
-            item.progress == null ? "Not available" : item.progress + "%",
+          render: (item) => <Progress value={item.progress} ariaLabel={`${item.milestoneName} progress`} />,
         },
         { label: "Status", render: (item) => <Badge status={item.status} /> },
       ]}
@@ -125,12 +156,7 @@ export default function MilestonesSection({
             },
           ],
           initial: (item) => ({ progress: String(item.progress ?? 0) }),
-          validate: (v) =>
-            !Number.isFinite(Number(v.progress)) ||
-            Number(v.progress) < 0 ||
-            Number(v.progress) > 100
-              ? "Progress must be between 0 and 100."
-              : null,
+          validate: validateMilestoneProgress,
           save: (item, v) =>
             updateMilestoneProgress(item.id, Number(v.progress)),
         },

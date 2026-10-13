@@ -1,6 +1,17 @@
 import apiClient from "@/lib/axios";
-import type { Task, TaskInput, TaskStatus } from "@/types/task";
-import { listResource, type ResourceQuery } from "./projectResources";
+import type { Task, TaskInput, TaskStatus, TaskAssignee } from "@/types/task";
+import {
+  listResource,
+  listAllResources,
+  type ResourceQuery,
+} from "./projectResources";
+export const listTaskAssignees = (projectId: string) =>
+  listAllResources((query) =>
+    listResource<TaskAssignee>(
+      `/projects/${encodeURIComponent(projectId)}/task-assignees`,
+      query,
+    ),
+  );
 export const listTasks = (projectId: string, query?: ResourceQuery) =>
   listResource<Task>(`/projects/${encodeURIComponent(projectId)}/tasks`, query);
 export const createTask = async (input: TaskInput) =>

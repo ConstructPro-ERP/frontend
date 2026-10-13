@@ -12,9 +12,15 @@ export interface Task {
   description?: string | null;
   dueDate?: string | null;
   milestoneId?: string | null;
+  milestone?: { id: string; milestoneName: string } | null;
   assignedToId?: string | null;
   assignedTo?: { fullName: string } | null;
   status: TaskStatus;
+}
+export interface TaskAssignee {
+  id: string;
+  fullName: string;
+  email?: string;
 }
 export interface TaskInput {
   projectId: string;

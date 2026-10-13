@@ -317,7 +317,12 @@ function ProjectDetailsContent({
               canDelete={permissions.expenseDelete}
             />
           )}
-          {tab === "Documents" && <DocumentsSection />}
+          {tab === "Documents" && (
+            <DocumentsSection
+              projectId={projectId}
+              canManage={permissions.manage}
+            />
+          )}
           {modal === "edit" && permissions.manage && (
             <ProjectForm
               project={project}
