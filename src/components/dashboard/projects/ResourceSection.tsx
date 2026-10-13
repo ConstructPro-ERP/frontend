@@ -346,8 +346,7 @@ export default function ResourceSection<T extends { id: string }>({
             else if (modal.kind === "new") {
               await create(values);
               setPage(1);
-            }
-            else await update(modal.item, values);
+            } else await update(modal.item, values);
             changed(
               `${singular.charAt(0).toUpperCase() + singular.slice(1)} ${modal.kind === "delete" ? "deleted" : "saved"} successfully.`,
             );

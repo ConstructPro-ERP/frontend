@@ -136,7 +136,12 @@ export default function MilestonesSection({
         { label: "Weight", render: (item) => item.weight ?? "Not available" },
         {
           label: "Progress",
-          render: (item) => <Progress value={item.progress} ariaLabel={`${item.milestoneName} progress`} />,
+          render: (item) => (
+            <Progress
+              value={item.progress}
+              ariaLabel={`${item.milestoneName} progress`}
+            />
+          ),
         },
         { label: "Status", render: (item) => <Badge status={item.status} /> },
       ]}

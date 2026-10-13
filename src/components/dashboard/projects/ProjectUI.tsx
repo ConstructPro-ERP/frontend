@@ -88,7 +88,13 @@ export function Badge({ status }: { status: string }) {
     </span>
   );
 }
-export function Progress({ value, ariaLabel = "Weighted project progress" }: { value?: number | null; ariaLabel?: string }) {
+export function Progress({
+  value,
+  ariaLabel = "Weighted project progress",
+}: {
+  value?: number | null;
+  ariaLabel?: string;
+}) {
   if (value == null || !Number.isFinite(value))
     return <span className="text-xs text-on-surface-muted">Not available</span>;
   const percent = Math.max(0, Math.min(100, value));
