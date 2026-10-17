@@ -541,14 +541,19 @@ function UsersDirectory() {
                   </tr>
                 </thead>
                 <tbody>
-                  {[...new Set([
-                    ...standardRoleNames,
-                    ...roles.map((role) => role.roleName),
-                  ])].map((roleName) => (
+                  {[
+                    ...new Set([
+                      ...standardRoleNames,
+                      ...roles.map((role) => role.roleName),
+                    ]),
+                  ].map((roleName) => (
                     <tr key={roleName}>
                       <th
                         scope="row"
-                        title={roles.find((role) => role.roleName === roleName)?.description ?? undefined}
+                        title={
+                          roles.find((role) => role.roleName === roleName)
+                            ?.description ?? undefined
+                        }
                       >
                         {roleLabel(roleName)}
                       </th>
@@ -556,7 +561,9 @@ function UsersDirectory() {
                         const level = permissionLevel(roleName, index);
                         return (
                           <td key={module}>
-                            <span className={`${styles.permission} ${permissionClass(level)}`}>
+                            <span
+                              className={`${styles.permission} ${permissionClass(level)}`}
+                            >
                               {level}
                             </span>
                           </td>
