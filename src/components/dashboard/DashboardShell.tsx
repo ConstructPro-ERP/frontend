@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useSelector } from "react-redux";
 import type { RootState } from "@/store";
 import { canAccessDashboardPath } from "@/lib/dashboardAccess";
@@ -11,6 +11,7 @@ import "./home-shell.css";
 import DashboardHeader from "@/components/dashboard/DashboardHeader";
 import DashboardSidebar from "@/components/dashboard/DashboardSidebar";
 import DashboardLoadingProgress from "@/components/dashboard/DashboardLoadingProgress";
+import CalendarSettingsDialog from "@/components/dashboard/CalendarSettingsDialog";
 
 const dmSans = DM_Sans({
   subsets: ["latin"],
@@ -29,10 +30,14 @@ export default function DashboardShell({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const [mobileOpen, setMobileOpen] = useState(false);
   const pathname = usePathname();
+  const router = useRouter();
+  const isSettingsRoute = pathname === "/settings/integrations";
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(isSettingsRoute);
   const { user, isLoading } = useSelector((state: RootState) => state.auth);
-  const allowed = canAccessDashboardPath(user?.role, pathname);
+  const allowed =
+    isSettingsRoute || canAccessDashboardPath(user?.role, pathname);
   const isHome = pathname === "/dashboard";
 
   return (
@@ -42,6 +47,14 @@ export default function DashboardShell({
       <DashboardSidebar
         mobileOpen={mobileOpen}
         onClose={() => setMobileOpen(false)}
+        onOpenSettings={() => setSettingsOpen(true)}
+      />
+      <CalendarSettingsDialog
+        open={settingsOpen}
+        onClose={() => {
+          setSettingsOpen(false);
+          if (isSettingsRoute) router.replace("/dashboard");
+        }}
       />
 
       <div className="flex min-h-screen min-w-0 flex-1 flex-col lg:pl-0">
