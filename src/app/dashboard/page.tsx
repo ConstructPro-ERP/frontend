@@ -1,12 +1,11 @@
 import type { Metadata } from "next";
-import ProjectsDashboardClient from "@/components/dashboard/projects/ProjectsDashboardClient";
+import DashboardKpiClient from "@/components/dashboard/DashboardKpiClient";
 
 export const metadata: Metadata = {
-  title: "Projects | ConstructPro ERP",
-  description:
-    "Manage construction projects, progress, and project operations.",
+  title: "Dashboard | ConstructPro ERP",
+  description: "Operations dashboard overview for ConstructPro.",
 };
 
-export default function ProjectsPage() {
-  return <ProjectsDashboardClient />;
+export default function DashboardHomePage() {
+  return <DashboardKpiClient />;
 }
