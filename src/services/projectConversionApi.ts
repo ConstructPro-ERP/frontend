@@ -25,21 +25,21 @@ export async function convertQuotationToProject(
     data &&
     typeof data === "object" &&
     "projectId" in data &&
-    typeof data.projectId === "string"
+    typeof data.projectId === "string" &&
+    data.projectId.trim().length > 0
   ) {
     const projResponse = data as ConvertToProjectResponse;
     return {
-      quotation: projResponse.quotation ?? (data as unknown as Quotation),
+      quotation: {
+        ...(projResponse.quotation ?? (data as unknown as Quotation)),
+        projectId: projResponse.projectId,
+      },
       projectId: projResponse.projectId,
       projectStatus: projResponse.projectStatus ?? "ACTIVE",
     };
   }
 
-  // Handle flat quotation return fallback
-  const quotation = data as Quotation;
-  return {
-    quotation: { ...quotation, status: "CONVERTED" },
-    projectId: quotation.projectId ?? `PRJ-${quotation.id}`,
-    projectStatus: "ACTIVE",
-  };
+  throw new Error(
+    "The server did not return a project ID. Refresh the quotation before retrying conversion.",
+  );
 }
