@@ -84,7 +84,7 @@ export const dashboardPageConfigs: Record<string, DashboardPageConfig> = {
   },
   "/dashboard/users": {
     title: "User Management",
-    description: "Sunday, 12 April 2026 · Good morning, Admin",
+    description: "Manage user accounts, roles and access",
     breadcrumbs: [
       { label: "Dashboard", href: "/dashboard" },
       { label: "Users" },

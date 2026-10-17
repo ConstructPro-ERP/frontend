@@ -8,6 +8,7 @@ import type { RootState } from "@/store";
 import { canAccessDashboardPath } from "@/lib/dashboardAccess";
 import { DM_Sans, DM_Mono } from "next/font/google";
 import "./home-shell.css";
+import "./users/users-shell.css";
 import DashboardHeader from "@/components/dashboard/DashboardHeader";
 import DashboardSidebar from "@/components/dashboard/DashboardSidebar";
 import DashboardLoadingProgress from "@/components/dashboard/DashboardLoadingProgress";
@@ -39,10 +40,11 @@ export default function DashboardShell({
   const allowed =
     isSettingsRoute || canAccessDashboardPath(user?.role, pathname);
   const isHome = pathname === "/dashboard";
+  const isUsers = pathname === "/dashboard/users";
 
   return (
     <div
-      className={`flex min-h-screen bg-surface-bg lg:pl-[240px] ${isHome ? `home-dashboard-shell ${dmSans.variable} ${dmMono.variable}` : ""}`}
+      className={`flex min-h-screen bg-surface-bg lg:pl-[240px] ${isHome ? `home-dashboard-shell ${dmSans.variable} ${dmMono.variable}` : ""} ${isUsers ? `users-dashboard-shell ${dmSans.variable} ${dmMono.variable}` : ""}`}
     >
       <DashboardSidebar
         mobileOpen={mobileOpen}
