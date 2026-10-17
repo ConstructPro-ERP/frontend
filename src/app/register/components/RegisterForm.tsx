@@ -14,6 +14,7 @@ import apiClient from "@/lib/axios";
 import { useRouter } from "next/navigation";
 import { getRoles, type RoleOption } from "@/services/roles";
 import type { RegisterCredentials } from "@/types/auth";
+import { roleLabel } from "@/lib/userManagement";
 
 const registerSchema = z.object({
   email: z
@@ -187,7 +188,7 @@ export default function RegisterForm() {
                 value={role.id}
                 className="bg-surface-container-lowest"
               >
-                {role.roleName.replace(/_/g, " ")}
+                {roleLabel(role.roleName)}
               </option>
             ))}
           </select>

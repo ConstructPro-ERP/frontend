@@ -16,6 +16,7 @@ import {
 } from "@/services/roles";
 import { ApiError } from "@/lib/ApiError";
 import { loginSuccess } from "@/store/slices/authSlice";
+import { roleLabel } from "@/lib/userManagement";
 
 export default function RoleSelection() {
   const router = useRouter();
@@ -122,7 +123,7 @@ export default function RoleSelection() {
             <option value="">Select a role</option>
             {roles.map((role) => (
               <option key={role.id} value={role.id}>
-                {role.roleName.replaceAll("_", " ")}
+                {roleLabel(role.roleName)}
               </option>
             ))}
           </select>

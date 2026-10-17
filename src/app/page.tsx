@@ -2,6 +2,7 @@
 import FadeIn from "@/components/animations/FadeIn";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
+import BackendWarmup from "@/components/BackendWarmup";
 import {
   Eye,
   Network,
@@ -142,21 +143,21 @@ const roles = [
   },
   {
     icon: Landmark,
-    title: "Finance Officer",
+    title: "Accountant",
     badge: "Billing & Expenses",
     description:
       "Invoice generation, payment reconciliation, and budget monitoring.",
   },
   {
     icon: Headset,
-    title: "Sales Executive",
+    title: "Sales Manager",
     badge: "Leads & Quotes",
     description:
       "Lead nurturing, quotation drafting, and client communication.",
   },
   {
     icon: UserCheck,
-    title: "Client",
+    title: "Client Portal User",
     badge: "Read-Only",
     description:
       "View assigned project status, approve documents, and access invoices.",
@@ -175,6 +176,7 @@ const roles = [
 export default function HomePage() {
   return (
     <div className="flex flex-col min-h-screen">
+      <BackendWarmup />
       <Header />
       <main className="flex-1 pt-[72px]">
         {/* Hero */}

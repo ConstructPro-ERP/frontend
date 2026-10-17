@@ -21,6 +21,7 @@ import {
 } from "@/services/dashboardApi";
 import type { DashboardActivity } from "@/types/dashboard";
 import styles from "./HomeDashboard.module.css";
+import { warmBackendServices } from "@/services/backendWarmup";
 
 function useSection<T>(loader: () => Promise<T>) {
   const [state, setState] = useState<{
@@ -553,6 +554,10 @@ function Activity() {
 }
 
 export default function DashboardKpiClient() {
+  useEffect(() => {
+    warmBackendServices();
+  }, []);
+
   return (
     <div className={styles.dashboard} aria-live="polite">
       <Kpis />
