@@ -18,6 +18,7 @@ import {
   isUuid,
 } from "@/lib/projectRules";
 import ProjectForm from "./ProjectForm";
+import ProjectCalendarSection from "./ProjectCalendarSection";
 import MilestonesSection from "./MilestonesSection";
 import TasksSection from "./TasksSection";
 import ExpensesSection from "./ExpensesSection";
@@ -41,6 +42,7 @@ const tabs = [
   "Overview",
   "Milestones",
   "Tasks",
+  "Calendar",
   "Expenses",
   "Documents",
 ] as const;
@@ -306,6 +308,12 @@ function ProjectDetailsContent({
           {tab === "Tasks" && (
             <TasksSection
               projectId={projectId}
+              canManage={permissions.manage}
+            />
+          )}
+          {tab === "Calendar" && (
+            <ProjectCalendarSection
+              project={project}
               canManage={permissions.manage}
             />
           )}

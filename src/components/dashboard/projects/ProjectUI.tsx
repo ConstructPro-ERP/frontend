@@ -212,7 +212,7 @@ export function Modal({
 export interface Field {
   name: string;
   label: string;
-  type?: "text" | "date" | "number" | "textarea" | "select";
+  type?: "text" | "date" | "datetime-local" | "number" | "textarea" | "select";
   required?: boolean;
   disabled?: boolean;
   maxLength?: number;

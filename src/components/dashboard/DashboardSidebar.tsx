@@ -21,6 +21,7 @@ import { clearTokens } from "@/lib/token";
 type DashboardSidebarProps = {
   mobileOpen: boolean;
   onClose: () => void;
+  onOpenSettings: () => void;
 };
 
 function isNavItemActive(currentPath: string, href: string) {
@@ -34,6 +35,7 @@ function isNavItemActive(currentPath: string, href: string) {
 export default function DashboardSidebar({
   mobileOpen,
   onClose,
+  onOpenSettings,
 }: DashboardSidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
@@ -200,16 +202,11 @@ export default function DashboardSidebar({
                 <button
                   type="button"
                   className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-on-background transition hover:bg-surface-container"
-                >
-                  <CircleUserRound
-                    size={16}
-                    className="text-on-surface-variant"
-                  />
-                  Profile
-                </button>
-                <button
-                  type="button"
-                  className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-on-background transition hover:bg-surface-container"
+                  onClick={() => {
+                    setAccountMenuOpen(false);
+                    onClose();
+                    onOpenSettings();
+                  }}
                 >
                   <Settings size={16} className="text-on-surface-variant" />
                   Settings
