@@ -1,4 +1,3 @@
-
 import type { Metadata } from "next";
 import ProjectsDashboardClient from "@/components/dashboard/projects/ProjectsDashboardClient";
 
@@ -11,4 +10,3 @@ export const metadata: Metadata = {
 export default function ProjectsPage() {
   return <ProjectsDashboardClient />;
 }
-

@@ -1,4 +1,3 @@
-
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -42,9 +41,7 @@ function loadProjectsApi(get) {
 }
 
 test("projects page renders the real dashboard", () => {
-  const source = read(
-    "src/app/dashboard/projects/page.tsx",
-  );
+  const source = read("src/app/dashboard/projects/page.tsx");
 
   assert.match(source, /ProjectsDashboardClient/);
   assert.doesNotMatch(source, /DashboardPlaceholderPage/);
@@ -93,10 +90,7 @@ test("malformed project responses are rejected", async () => {
     },
   }));
 
-  await assert.rejects(
-    api.listProjects(),
-    /Unexpected projects API response/,
-  );
+  await assert.rejects(api.listProjects(), /Unexpected projects API response/);
 });
 
 test("dashboard supports search, filters and errors", () => {
