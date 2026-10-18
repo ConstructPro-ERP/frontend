@@ -6,11 +6,12 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "test": "node --test test/*.test.mjs",
+    "test": "node scripts/run-tests.mjs",
+    "test:coverage": "node scripts/run-tests.mjs --coverage",
+    "test:quotation-quality": "vitest run --config vitest.quotation.config.mts --coverage",
     "lint": "eslint",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "test:quotation-quality": "vitest run --config vitest.quotation.config.mts --coverage",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

@@ -783,11 +783,22 @@ export default function FinanceDashboardClient() {
     <div className="space-y-5">
       {feedback ? <FinanceFeedbackBanner feedback={feedback} /> : null}
       {isLoadingDetails ? (
-        <FinanceFeedbackBanner
-          feedback={{ tone: "info", message: "Loading invoice details..." }}
-        />
-      ) : null}
-      {invoiceDetails ? (
+        <section
+          className="space-y-3 rounded-xl border border-outline-variant bg-surface-container-lowest p-5"
+          aria-hidden="true"
+        >
+          <div className="h-5 w-40 animate-pulse rounded bg-surface-container" />
+          <div className="h-4 w-64 max-w-full animate-pulse rounded bg-surface-container" />
+          <div className="grid gap-3 pt-2 sm:grid-cols-2">
+            {[1, 2, 3, 4].map((item) => (
+              <div
+                key={item}
+                className="h-12 animate-pulse rounded-lg bg-surface-container"
+              />
+            ))}
+          </div>
+        </section>
+      ) : invoiceDetails ? (
         <section
           className="rounded-xl border border-outline-variant bg-surface-container-lowest p-5 shadow-level-1"
           aria-label="Invoice details"
@@ -849,32 +860,43 @@ export default function FinanceDashboardClient() {
         </section>
       ) : null}
 
-      <section className="grid gap-4 xl:grid-cols-4">
-        <FinanceSummaryCard
-          label="Total Invoiced"
-          value={formatCompactCurrency(summary.totalInvoiceValue)}
-          sublabel={`${invoices.length} invoice${invoices.length === 1 ? "" : "s"}`}
-          tone="success"
-        />
-        <FinanceSummaryCard
-          label="Collected"
-          value={formatCompactCurrency(summary.totalPaidAmount)}
-          sublabel={`${collectionRate.toFixed(1)}% collection rate`}
-          tone="success"
-        />
-        <FinanceSummaryCard
-          label="Outstanding"
-          value={formatCompactCurrency(summary.outstandingBalance)}
-          sublabel={`${overdueInvoiceCount} invoice${overdueInvoiceCount === 1 ? "" : "s"} overdue`}
-          tone="warning"
-        />
-        <FinanceSummaryCard
-          label="Overdue"
-          value={formatCompactCurrency(summary.overdueAmount)}
-          sublabel={`${paidInvoiceCount} invoice${paidInvoiceCount === 1 ? "" : "s"} fully paid`}
-          tone="default"
-        />
-      </section>
+      {financeState.kind === "loading" ? (
+        <section className="grid gap-4 xl:grid-cols-4" aria-hidden="true">
+          {[1, 2, 3, 4].map((item) => (
+            <div
+              key={item}
+              className="h-28 animate-pulse rounded-xl border border-outline-variant bg-surface-container-lowest"
+            />
+          ))}
+        </section>
+      ) : (
+        <section className="grid gap-4 xl:grid-cols-4">
+          <FinanceSummaryCard
+            label="Total Invoiced"
+            value={formatCompactCurrency(summary.totalInvoiceValue)}
+            sublabel={`${invoices.length} invoice${invoices.length === 1 ? "" : "s"}`}
+            tone="success"
+          />
+          <FinanceSummaryCard
+            label="Collected"
+            value={formatCompactCurrency(summary.totalPaidAmount)}
+            sublabel={`${collectionRate.toFixed(1)}% collection rate`}
+            tone="success"
+          />
+          <FinanceSummaryCard
+            label="Outstanding"
+            value={formatCompactCurrency(summary.outstandingBalance)}
+            sublabel={`${overdueInvoiceCount} invoice${overdueInvoiceCount === 1 ? "" : "s"} overdue`}
+            tone="warning"
+          />
+          <FinanceSummaryCard
+            label="Overdue"
+            value={formatCompactCurrency(summary.overdueAmount)}
+            sublabel={`${paidInvoiceCount} invoice${paidInvoiceCount === 1 ? "" : "s"} fully paid`}
+            tone="default"
+          />
+        </section>
+      )}
 
       <section className="flex flex-col gap-3 xl:flex-row xl:items-center">
         <div

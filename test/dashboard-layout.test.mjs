@@ -90,7 +90,7 @@ test("dashboard KPI integration has loading, empty, error, and zero handling", (
   const clientSource = read("src/components/dashboard/DashboardKpiClient.tsx");
   const serviceSource = read("src/services/dashboardApi.ts");
 
-  assert.match(clientSource, /Loading…/);
+  assert.match(clientSource, /animate-pulse/);
   assert.match(clientSource, /No active projects yet/);
   assert.match(clientSource, /No recent activity yet/);
   assert.match(clientSource, /No invoiced revenue in this period/);

@@ -994,12 +994,6 @@ export default function LeadsDashboardClient() {
   };
   return (
     <div className="space-y-4">
-      {loading ? (
-        <div className="flex items-center gap-2 rounded-lg border border-outline-variant bg-white px-4 py-3 text-xs text-on-surface-variant">
-          <RefreshCcw size={14} className="animate-spin" />
-          Loading leads from the backend...
-        </div>
-      ) : null}
       {feedback ? (
         <button
           type="button"
@@ -1009,32 +1003,46 @@ export default function LeadsDashboardClient() {
           {feedback} <span className="float-right">Dismiss</span>
         </button>
       ) : null}
-      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <MetricCard
-          icon={Users}
-          value={String(leads.length)}
-          label="Total Leads"
-          tone="bg-primary-soft text-primary"
-        />
-        <MetricCard
-          icon={Clock3}
-          value={String(followUp)}
-          label="Contacted / Qualified"
-          tone="bg-risk-medium-container text-amber-600"
-        />
-        <MetricCard
-          icon={Check}
-          value={String(converted)}
-          label="CONVERTED"
-          tone="bg-risk-low-container text-emerald-600"
-        />
-        <MetricCard
-          icon={UserRound}
-          value={String(leads.filter((lead) => lead.status === "NEW").length)}
-          label="New Leads"
-          tone="bg-violet-50 text-violet-600"
-        />
-      </section>
+      {loading ? (
+        <section
+          className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4"
+          aria-hidden="true"
+        >
+          {[1, 2, 3, 4].map((item) => (
+            <div
+              key={item}
+              className="h-24 animate-pulse rounded-xl border border-outline-variant bg-surface-container-lowest"
+            />
+          ))}
+        </section>
+      ) : (
+        <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <MetricCard
+            icon={Users}
+            value={String(leads.length)}
+            label="Total Leads"
+            tone="bg-primary-soft text-primary"
+          />
+          <MetricCard
+            icon={Clock3}
+            value={String(followUp)}
+            label="Contacted / Qualified"
+            tone="bg-risk-medium-container text-amber-600"
+          />
+          <MetricCard
+            icon={Check}
+            value={String(converted)}
+            label="CONVERTED"
+            tone="bg-risk-low-container text-emerald-600"
+          />
+          <MetricCard
+            icon={UserRound}
+            value={String(leads.filter((lead) => lead.status === "NEW").length)}
+            label="New Leads"
+            tone="bg-violet-50 text-violet-600"
+          />
+        </section>
+      )}
       <section className="flex flex-col gap-3 xl:flex-row xl:items-center">
         <div className="flex overflow-x-auto rounded-lg border border-outline-variant bg-white">
           {statuses.map((status) => (
@@ -1085,7 +1093,22 @@ export default function LeadsDashboardClient() {
               ({filtered.length})
             </span>
           </div>
-          {filtered.length ? (
+          {loading ? (
+            <div className="space-y-2 p-3" aria-hidden="true">
+              {[1, 2, 3, 4].map((item) => (
+                <div
+                  key={item}
+                  className="flex h-[66px] animate-pulse items-center gap-3 rounded-lg bg-surface-container px-3"
+                >
+                  <div className="size-10 rounded-full bg-slate-200" />
+                  <div className="flex-1 space-y-2">
+                    <div className="h-3 w-2/5 rounded bg-slate-200" />
+                    <div className="h-3 w-3/5 rounded bg-slate-100" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : filtered.length ? (
             filtered.map((lead, index) => (
               <button
                 type="button"
@@ -1125,7 +1148,21 @@ export default function LeadsDashboardClient() {
             </div>
           )}
         </div>
-        {selected ? (
+        {loading ? (
+          <div
+            className="space-y-3 rounded-xl border border-outline-variant bg-surface-container-lowest p-5"
+            aria-hidden="true"
+          >
+            <div className="h-5 w-40 animate-pulse rounded bg-surface-container" />
+            <div className="h-4 w-56 max-w-full animate-pulse rounded bg-surface-container" />
+            {[1, 2, 3].map((item) => (
+              <div
+                key={item}
+                className="h-12 animate-pulse rounded-lg bg-surface-container"
+              />
+            ))}
+          </div>
+        ) : selected ? (
           <DetailPanel
             lead={selected}
             onNoteCreated={(note) => {

@@ -47,12 +47,7 @@ export interface DashboardSummaryDto {
   sales: DashboardSalesKpisDto;
 }
 
-export type DashboardProjectStatus =
-  | "PLANNING"
-  | "ACTIVE"
-  | "ON_HOLD"
-  | "COMPLETED"
-  | "CANCELLED";
+export type DashboardProjectStatus = import("./project").ProjectStatus;
 
 export interface DashboardProject {
   projectId: string;

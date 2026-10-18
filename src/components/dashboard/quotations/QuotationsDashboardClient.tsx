@@ -585,7 +585,7 @@ function QuotationCard({
             {/* Link to converted project if CONVERTED */}
             {quotation.status === "CONVERTED" && quotation.projectId ? (
               <Link
-                href={`/dashboard/projects?projectId=${encodeURIComponent(quotation.projectId)}`}
+                href={`/dashboard/projects/${encodeURIComponent(quotation.projectId)}`}
                 className="inline-flex items-center gap-1.5 rounded-lg border border-primary/30 bg-primary-soft px-3 py-1.5 text-xs font-semibold text-primary transition hover:bg-primary-container"
               >
                 <FolderKanban size={13} />
@@ -642,6 +642,9 @@ export default function QuotationsDashboardClient() {
   );
   const [formErrors, setFormErrors] = useState<QuotationFormErrors>({});
   const [feedback, setFeedback] = useState<QuotationFeedback | null>(null);
+  const [convertedProjectId, setConvertedProjectId] = useState<string | null>(
+    null,
+  );
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [apiUnavailableMessage, setApiUnavailableMessage] = useState<
     string | null
@@ -688,6 +691,16 @@ export default function QuotationsDashboardClient() {
   const fetchQuotationsData = useCallback(
     async (tab: QuotationFilterTab, search: string = "", page: number = 1) => {
       try {
+        const linkedId = new URLSearchParams(window.location.search).get(
+          "quotationId",
+        );
+        if (linkedId && tab === "ALL" && !search.trim()) {
+          const quotation = await getQuotationById(linkedId);
+          return {
+            kind: "ready" as const,
+            quotations: normalizeQuotations([quotation]),
+          };
+        }
         const res = await listQuotations({
           status: tab,
           page,
@@ -906,15 +919,20 @@ export default function QuotationsDashboardClient() {
     if (
       !quotationActions(user?.role, quotation.status).approve ||
       pendingActions.current.has(quotation.id)
-    )
+    ) {
       return;
+    }
+
     pendingActions.current.add(quotation.id);
     setApprovingId(quotation.id);
     setFeedback(null);
+
     try {
-      const res = await approveQuotation(quotation.id);
-      const updated = res;
+      // Approval is separate from conversion to a project.
+      const updated = await approveQuotation(quotation.id);
+
       replaceQuotationInState(updated);
+
       setFeedback({
         tone: "success",
         message: `Quotation ${quotation.id} approved successfully. You can now convert it to a project.`,
@@ -1016,6 +1034,14 @@ export default function QuotationsDashboardClient() {
         />
       ) : null}
       {feedback ? <QuotationFeedbackBanner feedback={feedback} /> : null}
+      {convertedProjectId && (
+        <Link
+          className="inline-flex items-center gap-2 text-sm font-semibold text-primary underline"
+          href={`/dashboard/projects/${convertedProjectId}`}
+        >
+          Open linked project <ExternalLink size={14} />
+        </Link>
+      )}
 
       {/* Main Grid: Quotations List + Create Quotation Form */}
       <section className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_380px]">
@@ -1071,12 +1097,29 @@ export default function QuotationsDashboardClient() {
 
           {/* Cards or Empty/Loading State */}
           {quotationsState.kind === "loading" ? (
-            <div className="flex flex-col items-center justify-center rounded-xl border border-outline-variant bg-surface-container-lowest p-12 text-center shadow-level-1">
-              <Loader2 size={24} className="animate-spin text-primary" />
-              <p className="mt-3 text-sm font-medium text-on-surface-muted">
-                Loading quotations...
-              </p>
-            </div>
+            <>
+              <div className="space-y-3" aria-hidden="true">
+                {[1, 2, 3].map((item) => (
+                  <div
+                    key={item}
+                    className="rounded-xl border border-outline-variant bg-surface-container-lowest p-4"
+                  >
+                    <div className="mb-4 flex items-center justify-between gap-4">
+                      <div className="h-4 w-40 animate-pulse rounded bg-surface-container" />
+                      <div className="h-6 w-20 animate-pulse rounded-full bg-surface-container" />
+                    </div>
+                    <div className="grid gap-3 sm:grid-cols-3">
+                      {[1, 2, 3].map((line) => (
+                        <div
+                          key={line}
+                          className="h-10 animate-pulse rounded-lg bg-surface-container"
+                        />
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
           ) : quotationsState.kind === "error" ? (
             <QuotationStateCard
               title="Failed to Load Quotations"
@@ -1249,22 +1292,20 @@ export default function QuotationsDashboardClient() {
           onClose={() => setConvertingQuotation(null)}
           onSuccess={({ quotation: updated, projectId, projectStatus }) => {
             replaceQuotationInState(updated);
+            setConvertedProjectId(projectId);
             setFeedback({
               tone: "success",
               message: `Project created successfully (ID: ${projectId}). Status: ${projectStatus ?? "ACTIVE"}`,
             });
           }}
-          onAlreadyConverted={async (q) => {
-            try {
-              replaceQuotationInState(await getQuotationById(q.id));
-            } catch {
-              setFeedback({
-                tone: "error",
-                message:
-                  "This quotation was already converted. Refresh to retrieve its project link.",
-              });
-              return;
+          onAlreadyConverted={(q) => {
+            // The conversion modal has already fetched and verified this quotation.
+            replaceQuotationInState(q);
+
+            if (q.projectId) {
+              setConvertedProjectId(q.projectId);
             }
+
             setFeedback({
               tone: "info",
               message:

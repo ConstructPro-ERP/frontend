@@ -13,7 +13,8 @@ import {
   X,
 } from "lucide-react";
 import { convertQuotationToProject } from "@/services/projectConversionApi";
-import { ApiError } from "@/lib/ApiError";
+import { isUuid } from "@/lib/projectRules";
+import { getQuotationById } from "@/services/quotationsApi";
 import type { ConvertToProjectInput, Quotation } from "@/types/quotation";
 import {
   formatCurrency,
@@ -86,20 +87,19 @@ export default function ConvertToProjectModal({
         setValidationError("Start date is required.");
         return;
       }
+
       if (!Number.isFinite(budget) || budget < 0) {
         setValidationError("Budget must be zero or greater.");
         return;
       }
 
-      if (
-        !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
-          projectManagerId.trim(),
-        )
-      ) {
+      if (!isUuid(projectManagerId.trim())) {
         setValidationError("A valid project manager UUID is required.");
         return;
       }
+
       let isoDate: string;
+
       try {
         isoDate = new Date(startDate).toISOString();
       } catch {
@@ -114,14 +114,11 @@ export default function ConvertToProjectModal({
         projectManagerId: projectManagerId.trim(),
       };
     } else {
-      if (
-        !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
-          targetProjectId.trim(),
-        )
-      ) {
+      if (!isUuid(targetProjectId.trim())) {
         setValidationError("A valid target project UUID is required.");
         return;
       }
+
       payload = {
         targetProjectId: targetProjectId.trim(),
       };
@@ -143,12 +140,22 @@ export default function ConvertToProjectModal({
 
       onClose();
     } catch (err) {
-      if (
-        isAlreadyConvertedError(err) ||
-        (err instanceof ApiError && err.code === "ALREADY_CONVERTED")
-      ) {
-        onAlreadyConverted(quotation);
-        onClose();
+      if (isAlreadyConvertedError(err)) {
+        try {
+          // Re-read the persisted quotation instead of treating a 409 as success.
+          const current = await getQuotationById(quotation.id);
+
+          if (current.status !== "CONVERTED" || !current.projectId) {
+            throw new Error(
+              "Project link is not available yet. Refresh and try again.",
+            );
+          }
+
+          onAlreadyConverted(current);
+          onClose();
+        } catch (refreshError) {
+          setApiError(getQuotationErrorMessage(refreshError));
+        }
       } else {
         setApiError(getQuotationErrorMessage(err));
       }
@@ -334,7 +341,7 @@ export default function ConvertToProjectModal({
                   value={projectManagerId}
                   disabled={isSubmitting}
                   onChange={(e) => setProjectManagerId(e.target.value)}
-                  placeholder="e.g. user-uuid or project manager ID"
+                  placeholder="Active project manager UUID"
                   className="w-full rounded-lg border border-outline-variant bg-surface-container px-3 py-2 text-xs text-on-background outline-none focus:border-primary"
                 />
               </div>

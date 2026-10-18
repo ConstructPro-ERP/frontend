@@ -3,7 +3,11 @@ import { useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { useDispatch } from "react-redux";
 import type { AppDispatch } from "@/store";
-import { loginSuccess, logout } from "@/store/slices/authSlice";
+import {
+  authInitializationComplete,
+  loginSuccess,
+  logout,
+} from "@/store/slices/authSlice";
 import { getAccessToken, clearTokens } from "@/lib/token";
 import apiClient from "@/lib/axios";
 import { normalizeAuthUser } from "@/services/googleAuth";
@@ -24,7 +28,8 @@ export default function AuthProvider({
       const accessToken = getAccessToken();
 
       if (!accessToken) {
-        // No token in storage, just remain logged out
+        // No session exists; protected routes can now show their signed-out state.
+        dispatch(authInitializationComplete());
         return;
       }
 

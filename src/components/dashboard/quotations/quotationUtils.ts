@@ -453,12 +453,17 @@ export function canRejectQuotation(role: string | null | undefined): boolean {
   return role === "ADMIN" || role === "SALES_MANAGER";
 }
 
-export function isAlreadyConvertedError(error: unknown) {
+export function isAlreadyConvertedError(error: unknown): boolean {
   if (!(error instanceof ApiError)) {
     return false;
   }
 
-  return error.code === "ALREADY_CONVERTED";
+  // Recognize both conversion-specific backend error identifiers.
+  // An unrelated HTTP 409 must not be treated as a successful conversion.
+  return (
+    error.code === "ALREADY_CONVERTED" ||
+    error.code === "QUOTATION_ALREADY_CONVERTED"
+  );
 }
 
 export function getQuotationErrorMessage(error: unknown): string {
@@ -473,6 +478,7 @@ export function getQuotationErrorMessage(error: unknown): string {
       case "QUOTATION_REJECTED":
         return "Rejected quotations cannot be converted. Send for revision first.";
       case "ALREADY_CONVERTED":
+      case "QUOTATION_ALREADY_CONVERTED":
         return "This quotation has already been converted to a project.";
       case "VALIDATION_ERROR":
         return error.message || "Please provide valid quotation data.";

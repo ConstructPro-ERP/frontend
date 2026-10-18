@@ -22,13 +22,14 @@ export async function convertQuotationToProject(
 
   const data = response.data;
 
+  // Do not fabricate project linkage when the backend returns partial data.
   if (
     !data ||
     typeof data !== "object" ||
     !("quotation" in data) ||
     !data.quotation ||
     typeof data.projectId !== "string" ||
-    !data.projectId ||
+    !data.projectId.trim() ||
     typeof data.projectStatus !== "string" ||
     !["PLANNING", "ACTIVE", "ON_HOLD", "COMPLETED", "CANCELLED"].includes(
       data.projectStatus,
@@ -38,10 +39,12 @@ export async function convertQuotationToProject(
       "The conversion response could not be verified. Refresh the quotation before retrying.",
     );
   }
+
   const quotation = normalizeQuotationRecord(
     data.quotation as unknown as Record<string, unknown>,
     0,
   );
+
   if (
     quotation.id !== quotationId ||
     quotation.status !== "CONVERTED" ||
@@ -51,6 +54,7 @@ export async function convertQuotationToProject(
       "The conversion response could not be verified. Refresh the quotation before retrying.",
     );
   }
+
   return {
     quotation,
     projectId: data.projectId,

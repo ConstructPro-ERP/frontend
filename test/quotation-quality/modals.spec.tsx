@@ -3,18 +3,25 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { Quotation } from "@/types/quotation";
 import { ApiError } from "@/lib/ApiError";
+import { convertQuotationToProject } from "@/services/projectConversionApi";
+import {
+  updateQuotation,
+  rejectQuotation,
+  getQuotationById,
+} from "@/services/quotationsApi";
+import Convert from "@/components/dashboard/quotations/modals/ConvertToProjectModal";
+import Edit from "@/components/dashboard/quotations/modals/EditQuotationModal";
+import Reject from "@/components/dashboard/quotations/modals/RejectQuotationModal";
+
 vi.mock("@/services/projectConversionApi", () => ({
   convertQuotationToProject: vi.fn(),
 }));
 vi.mock("@/services/quotationsApi", () => ({
   updateQuotation: vi.fn(),
   rejectQuotation: vi.fn(),
+  getQuotationById: vi.fn(),
 }));
-import { convertQuotationToProject } from "@/services/projectConversionApi";
-import { updateQuotation, rejectQuotation } from "@/services/quotationsApi";
-import Convert from "@/components/dashboard/quotations/modals/ConvertToProjectModal";
-import Edit from "@/components/dashboard/quotations/modals/EditQuotationModal";
-import Reject from "@/components/dashboard/quotations/modals/RejectQuotationModal";
+
 const uuid = "550e8400-e29b-41d4-a716-446655440000";
 const q: Quotation = {
   id: "q",
@@ -36,12 +43,14 @@ beforeEach(() => vi.resetAllMocks());
 function submit() {
   fireEvent.submit(screen.getByRole("dialog").querySelector("form")!);
 }
+
 it("requires the new project manager UUID before conversion", async () => {
   render(<Convert quotation={q} isOpen {...callbacks} />);
   submit();
   await screen.findByText("A valid project manager UUID is required.");
   expect(convertQuotationToProject).not.toHaveBeenCalled();
 });
+
 it("validates target IDs and allows a valid existing project", async () => {
   vi.mocked(convertQuotationToProject).mockResolvedValue({
     quotation: { ...q, status: "CONVERTED", projectId: uuid },
@@ -64,6 +73,7 @@ it("validates target IDs and allows a valid existing project", async () => {
     targetProjectId: uuid,
   });
 });
+
 it("keeps unrelated conflicts visible instead of marking converted", async () => {
   vi.mocked(convertQuotationToProject).mockRejectedValue(
     new ApiError("Different project", 409, "QUOTATION_PROJECT_MISMATCH"),
@@ -78,21 +88,40 @@ it("keeps unrelated conflicts visible instead of marking converted", async () =>
   expect(callbacks.onAlreadyConverted).not.toHaveBeenCalled();
   expect(callbacks.onSuccess).not.toHaveBeenCalled();
 });
+
 it("requests authoritative refresh only for ALREADY_CONVERTED", async () => {
+  const convertedQuotation: Quotation = {
+    ...q,
+    status: "CONVERTED",
+    projectId: uuid,
+  };
+
   vi.mocked(convertQuotationToProject).mockRejectedValue(
     new ApiError("Already converted", 409, "ALREADY_CONVERTED"),
   );
+
+  vi.mocked(getQuotationById).mockResolvedValue(convertedQuotation);
+
   render(<Convert quotation={q} isOpen {...callbacks} />);
+
   await userEvent.type(
     screen.getByRole("textbox", { name: "Project manager ID" }),
     uuid,
   );
+
   submit();
-  await waitFor(() =>
-    expect(callbacks.onAlreadyConverted).toHaveBeenCalledWith(q),
-  );
+
+  await waitFor(() => {
+    expect(callbacks.onAlreadyConverted).toHaveBeenCalledWith(
+      convertedQuotation,
+    );
+  });
+
+  expect(getQuotationById).toHaveBeenCalledWith(q.id);
   expect(callbacks.onSuccess).not.toHaveBeenCalled();
+  expect(callbacks.onClose).toHaveBeenCalled();
 });
+
 it.each(["APPROVED", "CONVERTED"] as const)(
   "locks %s quotation editing",
   async (status) => {
@@ -108,6 +137,7 @@ it.each(["APPROVED", "CONVERTED"] as const)(
     ).toBe(true);
   },
 );
+
 it("validates edit amounts then saves only once", async () => {
   vi.mocked(updateQuotation).mockReturnValue(new Promise(() => {}));
   render(<Edit quotation={{ ...q, status: "DRAFT" }} isOpen {...callbacks} />);
@@ -126,6 +156,7 @@ it("validates edit amounts then saves only once", async () => {
   submit();
   expect(updateQuotation).toHaveBeenCalledTimes(1);
 });
+
 it("rejects only after a reason and prevents repeated submission", async () => {
   vi.mocked(rejectQuotation).mockReturnValue(new Promise(() => {}));
   render(
@@ -172,6 +203,7 @@ it("edits name, quantity, price and notes then reports save failure", async () =
   await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
   expect(callbacks.onClose).toHaveBeenCalled();
 });
+
 it("validates project fields and allows a zero budget", async () => {
   render(<Convert quotation={q} isOpen {...callbacks} />);
   await userEvent.clear(screen.getByRole("textbox", { name: "Project name" }));
@@ -213,6 +245,7 @@ it("validates project fields and allows a zero budget", async () => {
     expect.objectContaining({ budget: 0 }),
   );
 });
+
 it("surfaces reject failure and supports closing", async () => {
   vi.mocked(rejectQuotation).mockRejectedValue(new Error("Reject failed"));
   render(

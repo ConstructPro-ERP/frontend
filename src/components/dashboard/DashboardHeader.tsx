@@ -9,8 +9,7 @@ import { dashboardPageConfigs } from "@/components/dashboard/dashboardConfig";
 
 type DashboardHeaderProps = {
   onOpenSidebar: () => void;
-  homeTheme?: string;
-  onToggleTheme?: () => void;
+  isHome?: boolean;
 };
 
 function subscribeClock(listener: () => void) {
@@ -41,10 +40,10 @@ function getPageConfig(pathname: string) {
 
 export default function DashboardHeader({
   onOpenSidebar,
-  homeTheme,
-  onToggleTheme,
+  isHome,
 }: DashboardHeaderProps) {
   const pathname = usePathname();
+  const isUsers = pathname === "/dashboard/users";
   const pageConfig = getPageConfig(pathname);
   const user = useSelector((state: RootState) => state.auth.user);
   const dateLabel = useSyncExternalStore(
@@ -71,7 +70,7 @@ export default function DashboardHeader({
               {pageConfig.title}
             </h1>
             <p className="mt-0.5 text-xs text-on-surface-muted">
-              {homeTheme
+              {isHome
                 ? `${dateLabel}${user?.firstName ? `, ${user.firstName}` : ""}`
                 : pageConfig.description}
             </p>
@@ -79,46 +78,40 @@ export default function DashboardHeader({
         </div>
 
         <div className="flex items-center gap-2">
-          <div className="hidden h-9 w-[220px] items-center gap-2 rounded-lg border border-outline-variant bg-surface-container px-3 sm:flex">
-            <Search size={14} className="text-on-surface-muted" />
-            <input
-              type="text"
-              placeholder={pageConfig.searchPlaceholder ?? "Search anything..."}
-              aria-label={pageConfig.searchPlaceholder ?? "Search anything"}
-              disabled={!!homeTheme}
-              title={
-                homeTheme ? "Global search is not available yet" : undefined
-              }
-              className="w-full bg-transparent text-[13px] text-on-background outline-none placeholder:text-on-surface-muted"
-            />
-          </div>
+          {!isUsers && (
+            <div className="hidden h-9 w-[220px] items-center gap-2 rounded-lg border border-outline-variant bg-surface-container px-3 sm:flex">
+              <Search size={14} className="text-on-surface-muted" />
+              <input
+                type="text"
+                placeholder={
+                  pageConfig.searchPlaceholder ?? "Search anything..."
+                }
+                aria-label={pageConfig.searchPlaceholder ?? "Search anything"}
+                disabled={!!isHome}
+                title={
+                  isHome ? "Global search is not available yet" : undefined
+                }
+                className="w-full bg-transparent text-[13px] text-on-background outline-none placeholder:text-on-surface-muted"
+              />
+            </div>
+          )}
 
           <button
             type="button"
             aria-label="Notifications"
-            disabled={!!homeTheme}
+            disabled={!!isHome || isUsers}
             title={
-              homeTheme ? "Notifications are not available yet" : undefined
+              isHome || isUsers
+                ? "Notifications are not available yet"
+                : undefined
             }
             className="relative flex h-9 w-9 items-center justify-center rounded-lg border border-outline-variant bg-surface-container text-on-surface-variant transition hover:bg-surface-container-high hover:text-on-background"
           >
             <Bell size={16} />
-            {!homeTheme && (
+            {!isHome && !isUsers && (
               <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full border border-surface-container-lowest bg-red-500" />
             )}
           </button>
-          {homeTheme && (
-            <button
-              type="button"
-              className="home-theme-toggle"
-              role="switch"
-              aria-checked={homeTheme === "dark"}
-              aria-label="Dark theme"
-              onClick={onToggleTheme}
-            >
-              <span aria-hidden="true">{homeTheme === "dark" ? "☾" : "☀"}</span>
-            </button>
-          )}
         </div>
       </div>
     </header>
