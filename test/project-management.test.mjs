@@ -309,7 +309,7 @@ test("milestone progress and task status/assignment use separate endpoints", asy
   await tasks.assignTask("task", null);
   await tasks.updateTaskStatus("task", "BLOCKED");
   assert.deepEqual(JSON.parse(JSON.stringify(calls)), [
-    ["/milestones/milestone/progress", { progress: 65 }],
+    ["/milestones/milestone/progress", { progressPercentage: 65 }],
     ["/tasks/task/assign", { assignedToId: null }],
     ["/tasks/task/status", { status: "BLOCKED" }],
   ]);

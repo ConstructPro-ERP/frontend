@@ -84,24 +84,25 @@ conflicts. Missing feature routes currently display an unavailable message.
 
 ## Milestones
 
-| Method | Route                             | Input / result                               |
-| ------ | --------------------------------- | -------------------------------------------- |
-| GET    | `/projects/:projectId/milestones` | Paginated `Milestone` records                |
-| POST   | `/projects/:projectId/milestones` | `MilestoneInput`; returns saved record       |
-| PATCH  | `/milestones/:id`                 | `MilestoneInput`; returns saved record       |
-| PATCH  | `/milestones/:id/progress`        | `{ progress: number }`; returns saved record |
-| DELETE | `/milestones/:id`                 | Deletes an unused milestone                  |
+| Method | Route                             | Input / result                              |
+| ------ | --------------------------------- | ------------------------------------------- |
+| GET    | `/projects/:projectId/milestones` | Unpaginated `Milestone[]`                   |
+| POST   | `/projects/:projectId/milestones` | Milestone metadata; defaults to 0% Pending  |
+| PATCH  | `/milestones/:id`                 | Metadata only; no status changes            |
+| PATCH  | `/milestones/:id/progress`        | `{ progressPercentage, status? }`           |
+| DELETE | `/milestones/:id`                 | Deletes milestones without associated tasks |
 
-List filters: `search`, `status`, `sortBy` (`createdAt`, `dueDate`,
-`milestoneName`), `page`, `limit`. Default sort order must be documented by the
-backend. `MilestoneInput` contains `milestoneName`, `description`, `dueDate`
-(nullable), `weight` (integer 1–10), and `status` (`PENDING`, `IN_PROGRESS`,
-`COMPLETED`). Names are required and at most 200 characters; descriptions at most
-2,000. Progress accepts whole numbers 0–100. Saved records include `id`,
-`projectId`, and `progress`. Status and progress must be reconciled atomically by
-the server (completed implies 100%). Reject deletion when tasks still reference
-the milestone. Recalculate the project's weighted progress after mutations;
-the frontend refreshes `GET /projects/:id` afterward.
+The frontend performs milestone search, status filtering, sorting,
+and pagination locally using `milestoneList.ts`.
+
+Milestone weights are integers from 1 to 10. Progress is a
+percentage from 0 to 100.
+
+When status is omitted from the progress request, the backend
+derives Pending, In Progress, or Completed from the percentage.
+
+Project weighted progress is recalculated by the backend and
+refreshed in Project Details after successful mutations.
 
 ## Tasks
 

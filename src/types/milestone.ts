@@ -3,22 +3,35 @@ export const MILESTONE_STATUSES = [
   "IN_PROGRESS",
   "COMPLETED",
 ] as const;
+
 export type MilestoneStatus = (typeof MILESTONE_STATUSES)[number];
-// Extended fields follow the PMM contract; older services may omit them.
+
+/**
+ * Milestone contract returned by the Project Service.
+ * Progress is stored as progressPercentage, not progress.
+ */
 export interface Milestone {
   id: string;
   projectId: string;
   milestoneName: string;
   description?: string | null;
   dueDate?: string | null;
-  weight?: number;
-  progress?: number;
+  weight: number;
+  progressPercentage: number;
   status: MilestoneStatus;
+  isDelayed?: boolean;
+  createdAt?: string;
 }
+
+/** Metadata fields used when creating or editing milestones. */
 export interface MilestoneInput {
   milestoneName: string;
-  description?: string;
+  description?: string | null;
   dueDate?: string | null;
   weight: number;
-  status: MilestoneStatus;
+}
+
+export interface MilestoneProgressInput {
+  progressPercentage: number;
+  status?: MilestoneStatus;
 }
