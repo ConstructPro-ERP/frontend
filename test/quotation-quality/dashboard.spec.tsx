@@ -285,7 +285,7 @@ describe("Quotation dashboard interactions", () => {
       screen
         .getByRole("link", { name: /Converted to Project/ })
         .getAttribute("href"),
-    ).toBe(`/dashboard/projects?projectId=${uuid}`);
+    ).toBe(`/dashboard/projects/${uuid}`);
     expect(
       screen.queryByRole("button", { name: "Edit quotation q" }),
     ).toBeNull();

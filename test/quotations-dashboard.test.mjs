@@ -199,7 +199,10 @@ test("quotations dashboard client wires edit, reject, revise, direct approve, PD
   assert.match(clientSource, /<ConvertToProjectModal/);
 
   // Converted link button
-  assert.match(clientSource, /\/dashboard\/projects\?projectId=/);
+  assert.match(
+    clientSource,
+    /\/dashboard\/projects\/\$\{encodeURIComponent\(quotation\.projectId\)\}/,
+  );
 });
 
 test("EditQuotationModal submits updateQuotation and enforces lock rules", () => {
