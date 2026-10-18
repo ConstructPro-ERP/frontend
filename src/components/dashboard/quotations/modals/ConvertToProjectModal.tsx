@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import {
   AlertCircle,
   Calendar,
@@ -13,7 +13,6 @@ import {
   X,
 } from "lucide-react";
 import { convertQuotationToProject } from "@/services/projectConversionApi";
-import { ApiError } from "@/lib/ApiError";
 import { isUuid } from "@/lib/projectRules";
 import { getQuotationById } from "@/services/quotationsApi";
 import type { ConvertToProjectInput, Quotation } from "@/types/quotation";
@@ -62,6 +61,7 @@ export default function ConvertToProjectModal({
 
   const [validationError, setValidationError] = useState<string | null>(null);
   const [apiError, setApiError] = useState<string | null>(null);
+  const submittingRef = useRef(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const modalRef = useModalFocusTrap(isOpen, onClose, isSubmitting);
@@ -72,6 +72,7 @@ export default function ConvertToProjectModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (submittingRef.current) return;
     setValidationError(null);
     setApiError(null);
 
@@ -86,21 +87,23 @@ export default function ConvertToProjectModal({
         setValidationError("Start date is required.");
         return;
       }
-      if (budget < 0 || !Number.isFinite(budget)) {
+
+      if (!Number.isFinite(budget) || budget < 0) {
         setValidationError("Budget must be zero or greater.");
         return;
       }
+
       if (!isUuid(projectManagerId.trim())) {
         setValidationError("A valid project manager UUID is required.");
         return;
       }
 
-      // Convert date string to ISO
-      let isoDate = startDate;
+      let isoDate: string;
+
       try {
         isoDate = new Date(startDate).toISOString();
       } catch {
-        setValidationError("Enter a valid start date.");
+        setValidationError("A valid start date is required.");
         return;
       }
 
@@ -115,11 +118,13 @@ export default function ConvertToProjectModal({
         setValidationError("A valid target project UUID is required.");
         return;
       }
+
       payload = {
         targetProjectId: targetProjectId.trim(),
       };
     }
 
+    submittingRef.current = true;
     setIsSubmitting(true);
     try {
       const projResponse = await convertQuotationToProject(
@@ -135,16 +140,17 @@ export default function ConvertToProjectModal({
 
       onClose();
     } catch (err) {
-      if (
-        isAlreadyConvertedError(err) ||
-        (err instanceof ApiError && err.code === "ALREADY_CONVERTED")
-      ) {
+      if (isAlreadyConvertedError(err)) {
         try {
+          // Re-read the persisted quotation instead of treating a 409 as success.
           const current = await getQuotationById(quotation.id);
-          if (!current.projectId)
+
+          if (current.status !== "CONVERTED" || !current.projectId) {
             throw new Error(
               "Project link is not available yet. Refresh and try again.",
             );
+          }
+
           onAlreadyConverted(current);
           onClose();
         } catch (refreshError) {
@@ -154,6 +160,7 @@ export default function ConvertToProjectModal({
         setApiError(getQuotationErrorMessage(err));
       }
     } finally {
+      submittingRef.current = false;
       setIsSubmitting(false);
     }
   };
@@ -272,6 +279,7 @@ export default function ConvertToProjectModal({
                 </label>
                 <input
                   type="text"
+                  aria-label="Project name"
                   value={projectName}
                   disabled={isSubmitting}
                   onChange={(e) => {
@@ -291,6 +299,7 @@ export default function ConvertToProjectModal({
                   </label>
                   <input
                     type="date"
+                    aria-label="Start date"
                     value={startDate}
                     disabled={isSubmitting}
                     onChange={(e) => {
@@ -308,7 +317,8 @@ export default function ConvertToProjectModal({
                   <input
                     type="number"
                     min="0"
-                    step="any"
+                    step="0.01"
+                    aria-label="Initial budget"
                     value={budget}
                     disabled={isSubmitting}
                     onChange={(e) => {
@@ -327,6 +337,7 @@ export default function ConvertToProjectModal({
                 </label>
                 <input
                   type="text"
+                  aria-label="Project manager ID"
                   value={projectManagerId}
                   disabled={isSubmitting}
                   onChange={(e) => setProjectManagerId(e.target.value)}
@@ -352,6 +363,7 @@ export default function ConvertToProjectModal({
                 </label>
                 <input
                   type="text"
+                  aria-label="Target project ID"
                   value={targetProjectId}
                   disabled={isSubmitting}
                   onChange={(e) => {

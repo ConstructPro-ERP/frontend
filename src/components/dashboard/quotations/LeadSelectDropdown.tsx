@@ -12,31 +12,6 @@ interface LeadSelectDropdownProps {
   disabled?: boolean;
 }
 
-// Fallback qualified leads for offline/preview or when /leads endpoint is still being deployed
-const fallbackLeads: LeadOption[] = [
-  {
-    id: "lead-2026-108",
-    customerName: "Skyline Heights Development",
-    companyName: "Skyline Properties Ltd",
-    email: "contact@skylineheights.com",
-    status: "QUALIFIED",
-  },
-  {
-    id: "lead-2026-109",
-    customerName: "Apex Commercial Towers",
-    companyName: "Apex Holdings",
-    email: "procurement@apexholdings.org",
-    status: "QUALIFIED",
-  },
-  {
-    id: "lead-2026-110",
-    customerName: "Marina Bay Residences",
-    companyName: "Marina Infrastructure",
-    email: "info@marinabay.com",
-    status: "QUALIFIED",
-  },
-];
-
 export default function LeadSelectDropdown({
   value,
   onChange,
@@ -44,7 +19,7 @@ export default function LeadSelectDropdown({
   disabled = false,
 }: LeadSelectDropdownProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [leads, setLeads] = useState<LeadOption[]>(fallbackLeads);
+  const [leads, setLeads] = useState<LeadOption[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [manualMode, setManualMode] = useState(false);
@@ -74,15 +49,11 @@ export default function LeadSelectDropdown({
           }
         }
 
-        if (fetchedList.length > 0) {
-          setLeads(fetchedList);
-        } else {
-          setLeads(fallbackLeads);
-        }
+        setLeads(fetchedList);
       } catch {
-        // Graceful fallback to default qualified leads
+        // Do not submit synthetic demo IDs during service outages.
         if (isMounted) {
-          setLeads(fallbackLeads);
+          setLeads([]);
         }
       } finally {
         if (isMounted) {
@@ -127,7 +98,7 @@ export default function LeadSelectDropdown({
           type="text"
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          placeholder="e.g. lead-2026-108"
+          placeholder="Existing lead UUID"
           disabled={disabled}
           className={`w-full rounded-lg border px-3 py-[9px] text-[13px] text-on-background outline-none transition ${
             error

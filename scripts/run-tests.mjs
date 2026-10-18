@@ -77,25 +77,36 @@ export default apiClient;
 
 try {
   await buildModules();
+
   const tests = (await readdir(path.join(root, "test")))
     .filter((file) => file.endsWith(".test.mjs"))
     .map((file) => path.join("test", file));
-  const result = spawnSync(
-    process.execPath,
-    [
+
+  // Enable coverage only when explicitly requested.
+  const withCoverage = process.argv.includes("--coverage");
+
+  const testArgs = ["--test"];
+
+  if (withCoverage) {
+    testArgs.push(
       "--experimental-test-coverage",
-      "--test",
       "--test-coverage-include=.coverage-build/**/*.mjs",
       "--test-coverage-exclude=.coverage-build/axiosMock.mjs",
       "--test-coverage-exclude=.coverage-build/apiErrorMock.mjs",
       "--test-coverage-lines=90",
       "--test-coverage-branches=60",
       "--test-coverage-functions=95",
-      ...tests,
-    ],
-    { cwd: root, stdio: "inherit", env: process.env },
-  );
+    );
+  }
+
+  const result = spawnSync(process.execPath, [...testArgs, ...tests], {
+    cwd: root,
+    stdio: "inherit",
+    env: process.env,
+  });
+
   process.exitCode = result.status ?? 1;
 } finally {
+  // Clean up temporary modules generated for test execution.
   await rm(buildDirectory, { recursive: true, force: true });
 }
