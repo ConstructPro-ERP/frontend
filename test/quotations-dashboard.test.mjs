@@ -153,14 +153,15 @@ test("quotationItemsApi exposes line item calculation and validation helpers", (
   assert.match(serviceSource, /normalizeLineItems/);
 });
 
-test("LeadSelectDropdown fetches leads with fallback and search capability", () => {
+test("LeadSelectDropdown loads real leads and resolves selected leads", () => {
   const dropdownSource = read(
     "src/components/dashboard/quotations/LeadSelectDropdown.tsx",
   );
 
-  assert.match(dropdownSource, /apiClient\.get<[^>]+>\("\/leads"\)/);
-  assert.match(dropdownSource, /fallbackLeads/);
-  assert.match(dropdownSource, /Select Qualified Lead/);
+  assert.match(dropdownSource, /listLeads/);
+  assert.match(dropdownSource, /getLead\(value\)/);
+  assert.doesNotMatch(dropdownSource, /fallbackLeads/);
+  assert.match(dropdownSource, /Select Lead/);
   assert.match(dropdownSource, /Search leads/);
 });
 

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import { getLead } from "@/components/dashboard/leads/leadApi";
 import {
   Ban,
   Check,
@@ -155,6 +156,7 @@ function QuotationForm({
   errors,
   isSubmitting,
   unavailableMessage,
+  lockedLead = false,
   onFieldChange,
   onItemChange,
   onAddItem,
@@ -165,6 +167,7 @@ function QuotationForm({
   errors: QuotationFormErrors;
   isSubmitting: boolean;
   unavailableMessage?: string | null;
+  lockedLead?: boolean;
   onFieldChange: (field: "leadId" | "notes", value: string) => void;
   onItemChange: (
     index: number,
@@ -200,7 +203,7 @@ function QuotationForm({
           value={values.leadId}
           onChange={(leadId) => onFieldChange("leadId", leadId)}
           error={errors.leadId}
-          disabled={isSubmitting}
+          disabled={isSubmitting || lockedLead}
         />
 
         <div>
@@ -398,6 +401,14 @@ function QuotationCard({
         <QuotationStatusBadge status={quotation.status} />
       </div>
 
+      {quotation.lead ? (
+        <div className="px-5 pt-3 text-xs text-on-surface-muted">
+          <p>
+            {quotation.lead.email || "No email provided"} |{" "}
+            {quotation.lead.phone || "No phone provided"}
+          </p>
+        </div>
+      ) : null}
       {/* Line Items Table */}
       <div className="p-5">
         <div className="overflow-x-auto">
@@ -596,7 +607,11 @@ function QuotationCard({
   );
 }
 
-export default function QuotationsDashboardClient() {
+export default function QuotationsDashboardClient({
+  initialLeadId = "",
+}: {
+  initialLeadId?: string;
+}) {
   const user = useSelector((state: RootState) => state.auth.user);
 
   const [activeTab, setActiveTab] = useState<QuotationFilterTab>("ALL");
@@ -608,9 +623,10 @@ export default function QuotationsDashboardClient() {
   const [quotationsState, setQuotationsState] = useState<QuotationsState>({
     kind: "loading",
   });
-  const [formValues, setFormValues] = useState<QuotationFormValues>(
-    createQuotationFormValues(),
-  );
+  const [formValues, setFormValues] = useState<QuotationFormValues>({
+    ...createQuotationFormValues(),
+    leadId: initialLeadId,
+  });
   const [formErrors, setFormErrors] = useState<QuotationFormErrors>({});
   const [feedback, setFeedback] = useState<QuotationFeedback | null>(null);
   const [convertedProjectId, setConvertedProjectId] = useState<string | null>(
@@ -674,6 +690,7 @@ export default function QuotationsDashboardClient() {
         }
         const res = await listQuotations({
           status: tab,
+          leadId: initialLeadId || undefined,
           search: search.trim() || undefined,
         });
         let items = normalizeQuotations(res);
@@ -685,7 +702,7 @@ export default function QuotationsDashboardClient() {
         }
         return { kind: "ready" as const, quotations: items };
       } catch (error) {
-        if (isQuotationUnavailableError(error)) {
+        if (!initialLeadId && isQuotationUnavailableError(error)) {
           let previewItems =
             tab === "ALL"
               ? quotationPreviewList
@@ -712,7 +729,7 @@ export default function QuotationsDashboardClient() {
         };
       }
     },
-    [],
+    [initialLeadId],
   );
 
   useEffect(() => {
@@ -901,6 +918,7 @@ export default function QuotationsDashboardClient() {
     setApiUnavailableMessage(null);
 
     try {
+      await getLead(formValues.leadId.trim());
       let createdQuotation = await createQuotation({
         leadId: formValues.leadId.trim(),
         notes: formValues.notes.trim() || undefined,
@@ -926,7 +944,7 @@ export default function QuotationsDashboardClient() {
 
         return { kind: "ready", quotations: [createdQuotation, ...existing] };
       });
-      setFormValues(createQuotationFormValues());
+      setFormValues({ ...createQuotationFormValues(), leadId: initialLeadId });
       setFormErrors({});
       setFeedback({
         tone: "success",
@@ -943,7 +961,7 @@ export default function QuotationsDashboardClient() {
           tone: "error",
           message: "The selected lead could not be found.",
         });
-      } else if (isQuotationUnavailableError(error)) {
+      } else if (!initialLeadId && isQuotationUnavailableError(error)) {
         setQuotationsState({
           kind: "unavailable",
           quotations: quotationPreviewList,
@@ -1174,6 +1192,7 @@ export default function QuotationsDashboardClient() {
         <div>
           {canCreateQuotation(user?.role) ? (
             <QuotationForm
+              lockedLead={!!initialLeadId}
               values={formValues}
               errors={formErrors}
               isSubmitting={isSubmitting}

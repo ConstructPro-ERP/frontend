@@ -7,6 +7,12 @@ export const metadata: Metadata = {
     "Manage and track quotations, approvals, revisions, and project conversions in ConstructPro ERP.",
 };
 
-export default function QuotationsPage() {
-  return <QuotationsDashboardClient />;
+export default async function QuotationsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ leadId?: string }>;
+}) {
+  const params = await searchParams;
+  const leadId = typeof params.leadId === "string" ? params.leadId : "";
+  return <QuotationsDashboardClient key={leadId} initialLeadId={leadId} />;
 }

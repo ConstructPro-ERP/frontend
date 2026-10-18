@@ -464,7 +464,7 @@ export function isQuotationUnavailableError(error: unknown) {
 }
 
 export function canCreateQuotation(role: string | null | undefined): boolean {
-  return role === "ADMIN" || role === "MANAGER" || role === "SALES_MANAGER";
+  return role === "ADMIN" || role === "SALES_MANAGER";
 }
 
 export function canApproveQuotation(role: string | null | undefined): boolean {
