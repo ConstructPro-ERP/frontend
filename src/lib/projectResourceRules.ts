@@ -1,5 +1,4 @@
 import { isPositiveMoney, isUuid } from "./projectRules";
-import { MILESTONE_STATUSES } from "@/types/milestone";
 import { TASK_STATUSES } from "@/types/task";
 
 export type FormValues = Record<string, string>;
@@ -28,19 +27,24 @@ function validateDescription(value: string | undefined) {
 
 export function validateMilestone(values: FormValues): string | null {
   const nameError = validateName(values.milestoneName, "Milestone name");
+
   if (nameError) return nameError;
-  if (values.dueDate && !isCalendarDate(values.dueDate))
+
+  if (values.dueDate && !isCalendarDate(values.dueDate)) {
     return "Enter a valid due date.";
+  }
+
   const weight = Number(values.weight);
+
   if (
     !values.weight?.trim() ||
     !Number.isInteger(weight) ||
     weight < 1 ||
     weight > 10
-  )
+  ) {
     return "Weight must be an integer between 1 and 10.";
-  if (!MILESTONE_STATUSES.some((status) => status === values.status))
-    return "Select a valid milestone status.";
+  }
+
   return validateDescription(values.description);
 }
 
