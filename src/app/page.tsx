@@ -3,6 +3,7 @@ import FadeIn from "@/components/animations/FadeIn";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import BackendWarmup from "@/components/BackendWarmup";
+import Image from "next/image";
 import {
   Eye,
   Network,
@@ -217,25 +218,19 @@ export default function HomePage() {
         {/* Dashboard Preview */}
         <section className="max-w-[1600px] mx-auto px-6 py-16 flex justify-center">
           <FadeIn delay={0.15} className="w-full max-w-[1200px]">
-            <div className="w-full rounded-xl shadow-level-2 bg-surface-container-lowest overflow-hidden border border-outline-variant">
-              <div className="bg-surface-container h-8 flex items-center px-4 gap-2">
-                <span className="w-3 h-3 rounded-full bg-risk-high" />
-                <span className="w-3 h-3 rounded-full bg-risk-medium" />
-                <span className="w-3 h-3 rounded-full bg-risk-low" />
-              </div>
-              <div className="bg-surface-container-low h-64 md:h-96 flex items-center justify-center text-on-surface-variant">
-                <div className="text-center">
-                  <LayoutDashboard
-                    size={48}
-                    className="mx-auto mb-4 text-outline-variant"
-                  />
-                  <p className="text-sm font-medium">Dashboard Preview</p>
-                  <p className="text-xs text-outline mt-1">
-                    Screenshot coming soon
-                  </p>
-                </div>
-              </div>
-            </div>
+            <figure className="w-full overflow-hidden rounded-xl border border-outline-variant bg-surface-container-lowest shadow-level-2">
+              <Image
+                src="/images/dashboard-preview.webp"
+                alt="ConstructPro dashboard preview showing project, revenue, lead, payment, and recent activity summaries with sample data"
+                width={1672}
+                height={941}
+                sizes="(max-width: 1248px) calc(100vw - 48px), 1200px"
+                className="h-auto w-full"
+              />
+              <figcaption className="border-t border-outline-variant px-4 py-2 text-center text-xs text-on-surface-variant">
+                Illustrative dashboard using sample data
+              </figcaption>
+            </figure>
           </FadeIn>
         </section>
 

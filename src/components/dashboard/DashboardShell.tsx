@@ -13,6 +13,7 @@ import DashboardHeader from "@/components/dashboard/DashboardHeader";
 import DashboardSidebar from "@/components/dashboard/DashboardSidebar";
 import DashboardLoadingProgress from "@/components/dashboard/DashboardLoadingProgress";
 import CalendarSettingsDialog from "@/components/dashboard/CalendarSettingsDialog";
+import DashboardWorkspace from "./DashboardWorkspace";
 
 const dmSans = DM_Sans({
   subsets: ["latin"],
@@ -80,7 +81,12 @@ export default function DashboardShell({
             {isLoading ? (
               <DashboardLoadingProgress label="Loading" />
             ) : allowed ? (
-              children
+              <DashboardWorkspace
+                key={`${user?.id}:${user?.role}`}
+                pathname={pathname}
+              >
+                {children}
+              </DashboardWorkspace>
             ) : (
               <div className="rounded-xl border border-outline-variant bg-surface-container-lowest p-6">
                 <p role="status">

@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState, type RefObject } from "react";
+import { useCallback, useRef, useState, type RefObject } from "react";
+import { useDashboardQuery } from "@/hooks/useDashboardQuery";
 import { Check, Download, Eye, Plus, RefreshCcw } from "lucide-react";
 import apiClient from "@/lib/axios";
 import {
@@ -12,7 +13,6 @@ import {
 } from "@/services/financeApi";
 import type {
   FinanceInvoice,
-  FinanceInvoiceDetails,
   FinancePaymentFormErrors,
   FinancePaymentFormValues,
   FinanceSummary,
@@ -87,34 +87,26 @@ function normalizeFinanceSummaryFromAnalytics(
   );
 }
 
-async function loadFinanceData(): Promise<FinanceState> {
-  try {
-    const invoices = await listFinanceInvoices();
-    const summaryResponse = await apiClient
-      .get<unknown>("/analytics/dashboard/summary")
-      .catch(() => null);
-    const summary = summaryResponse
-      ? normalizeFinanceSummaryFromAnalytics(summaryResponse.data, invoices)
-      : normalizeSummary({}, invoices);
+async function loadFinanceData(): Promise<
+  Extract<FinanceState, { kind: "ready" | "empty" }>
+> {
+  const [invoices, summaryResponse] = await Promise.all([
+    listFinanceInvoices(),
+    apiClient.get<unknown>("/analytics/dashboard/summary").catch(() => null),
+  ]);
+  const summary = summaryResponse
+    ? normalizeFinanceSummaryFromAnalytics(summaryResponse.data, invoices)
+    : normalizeSummary({}, invoices);
 
-    if (invoices.length === 0 && summary.outstandingBalance === 0) {
-      return { kind: "empty" };
-    }
-
-    return {
-      kind: "ready",
-      invoices,
-      summary,
-    };
-  } catch (error) {
-    return {
-      kind: "error",
-      message: getFinanceErrorMessage(
-        error,
-        "Finance data could not be loaded right now.",
-      ),
-    };
+  if (invoices.length === 0 && summary.outstandingBalance === 0) {
+    return { kind: "empty" };
   }
+
+  return {
+    kind: "ready",
+    invoices,
+    summary,
+  };
 }
 
 function FinanceSummaryCard({
@@ -531,9 +523,18 @@ function FinancePaymentForm({
 }
 
 export default function FinanceDashboardClient() {
-  const [financeState, setFinanceState] = useState<FinanceState>({
-    kind: "loading",
-  });
+  const query = useDashboardQuery("finance:overview", loadFinanceData);
+  const financeState: FinanceState =
+    query.data ??
+    (query.error
+      ? {
+          kind: "error",
+          message: getFinanceErrorMessage(
+            query.error,
+            "Finance data could not be loaded right now.",
+          ),
+        }
+      : { kind: "loading" });
   const [activeFilter, setActiveFilter] =
     useState<(typeof financeFilterTabs)[number]["value"]>("ALL");
   const [paymentFormValues, setPaymentFormValues] =
@@ -544,33 +545,22 @@ export default function FinanceDashboardClient() {
   const [isSubmittingPayment, setIsSubmittingPayment] = useState(false);
   const [paymentApiUnavailableMessage, setPaymentApiUnavailableMessage] =
     useState<string | null>(null);
-  const [invoiceDetails, setInvoiceDetails] =
-    useState<FinanceInvoiceDetails | null>(null);
-  const [isLoadingDetails, setIsLoadingDetails] = useState(false);
+  const [detailsId, setDetailsId] = useState("");
+  const loadDetails = useCallback(
+    () => getFinanceInvoice(detailsId),
+    [detailsId],
+  );
+  const detailsQuery = useDashboardQuery(
+    `finance:invoice:${detailsId}`,
+    loadDetails,
+    Boolean(detailsId),
+  );
+  const invoiceDetails = detailsId ? detailsQuery.data : undefined;
+  const isLoadingDetails = detailsQuery.loading;
   const paymentPanelRef = useRef<HTMLElement | null>(null);
 
-  useEffect(() => {
-    let active = true;
-
-    const hydrateFinancePage = async () => {
-      setFinanceState({ kind: "loading" });
-      const nextState = await loadFinanceData();
-
-      if (active) {
-        setFinanceState(nextState);
-      }
-    };
-
-    hydrateFinancePage();
-
-    return () => {
-      active = false;
-    };
-  }, []);
-
-  const retryLoad = async () => {
-    setFinanceState({ kind: "loading" });
-    setFinanceState(await loadFinanceData());
+  const retryLoad = () => {
+    void query.refresh();
   };
 
   if (financeState.kind === "error") {
@@ -664,23 +654,8 @@ export default function FinanceDashboardClient() {
   };
 
   const handleViewInvoiceDetails = (invoice: FinanceInvoice) => {
-    void (async () => {
-      setIsLoadingDetails(true);
-      setFeedback(null);
-      try {
-        setInvoiceDetails(await getFinanceInvoice(invoice.id));
-      } catch (error) {
-        setFeedback({
-          tone: "error",
-          message: getFinanceErrorMessage(
-            error,
-            "Invoice details could not be loaded right now.",
-          ),
-        });
-      } finally {
-        setIsLoadingDetails(false);
-      }
-    })();
+    setDetailsId(invoice.id);
+    setFeedback(null);
   };
 
   const handleDownloadPdf = (invoice: FinanceInvoice) => {
@@ -748,7 +723,7 @@ export default function FinanceDashboardClient() {
 
     try {
       await recordFinancePayment(paymentFormValues);
-      setFinanceState(await loadFinanceData());
+      await query.refresh();
       setPaymentFormValues(createFinancePaymentFormValues());
       setPaymentFormErrors({});
       setFeedback({
@@ -781,6 +756,38 @@ export default function FinanceDashboardClient() {
 
   return (
     <div className="space-y-5">
+      {query.error ? (
+        <FinanceFeedbackBanner
+          feedback={{
+            tone: "error",
+            message: "Refresh failed. Showing previously loaded invoice data.",
+          }}
+        />
+      ) : null}
+      {query.error ? (
+        <button className="text-sm text-primary underline" onClick={retryLoad}>
+          Retry refresh
+        </button>
+      ) : null}
+      {detailsQuery.error && detailsId ? (
+        <FinanceFeedbackBanner
+          feedback={{
+            tone: "error",
+            message: getFinanceErrorMessage(
+              detailsQuery.error,
+              "Invoice details could not be refreshed.",
+            ),
+          }}
+        />
+      ) : null}
+      {detailsQuery.error && detailsId ? (
+        <button
+          className="text-sm text-primary underline"
+          onClick={() => void detailsQuery.refresh()}
+        >
+          Retry invoice details
+        </button>
+      ) : null}
       {feedback ? <FinanceFeedbackBanner feedback={feedback} /> : null}
       {isLoadingDetails ? (
         <section
@@ -814,7 +821,7 @@ export default function FinanceDashboardClient() {
             </div>
             <button
               type="button"
-              onClick={() => setInvoiceDetails(null)}
+              onClick={() => setDetailsId("")}
               className="rounded-lg border border-outline-variant px-3 py-1.5 text-xs font-semibold text-on-surface-variant"
             >
               Close

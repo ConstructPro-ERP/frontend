@@ -8,6 +8,7 @@
     "start": "next start",
     "test": "node scripts/run-tests.mjs",
     "test:coverage": "node scripts/run-tests.mjs --coverage",
+    "test:dashboard-cache": "vitest run --config vitest.dashboard.config.mts",
     "test:quotation-quality": "vitest run --config vitest.quotation.config.mts --coverage",
     "lint": "eslint",
     "format": "prettier --write .",

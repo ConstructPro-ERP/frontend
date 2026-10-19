@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useDashboardQuery } from "@/hooks/useDashboardQuery";
 import { useSelector } from "react-redux";
 import { Play, RefreshCcw, Radar } from "lucide-react";
 import type { RootState } from "@/store";
@@ -47,43 +48,34 @@ type AnalyticsFeedback = {
   message: string;
 };
 
-async function loadAnalyticsData(): Promise<AnalyticsState> {
-  try {
-    const [summary, trend, projectProgress, overdueInvoices] =
-      await Promise.all([
-        getAnalyticsSummary(),
-        getAnalyticsFinanceTrend(),
-        getAnalyticsProjectProgress(),
-        getAnalyticsOverdueInvoices(),
-      ]);
-    const riskItems = buildAnalyticsRiskItems(overdueInvoices);
-    const data = buildAnalyticsDashboardData(
-      summary,
-      trend,
-      projectProgress,
-      riskItems,
-    );
-    const projectOptions = normalizeAnalyticsAiProjectOptions(projectProgress);
+async function loadAnalyticsData(): Promise<
+  Extract<AnalyticsState, { kind: "ready" | "empty" }>
+> {
+  const [summary, trend, projectProgress, overdueInvoices] = await Promise.all([
+    getAnalyticsSummary(),
+    getAnalyticsFinanceTrend(),
+    getAnalyticsProjectProgress(),
+    getAnalyticsOverdueInvoices(),
+  ]);
+  const riskItems = buildAnalyticsRiskItems(overdueInvoices);
+  const data = buildAnalyticsDashboardData(
+    summary,
+    trend,
+    projectProgress,
+    riskItems,
+  );
+  const projectOptions = normalizeAnalyticsAiProjectOptions(projectProgress);
 
-    if (
-      summary.revenue.totalRevenue === 0 &&
-      summary.projects.totalProjects === 0 &&
-      summary.sales.totalLeads === 0 &&
-      summary.sales.totalQuotations === 0
-    ) {
-      return { kind: "empty" };
-    }
-
-    return { kind: "ready", data, projectOptions };
-  } catch (error) {
-    return {
-      kind: "error",
-      message:
-        error instanceof Error
-          ? error.message
-          : "Analytics data could not be loaded right now.",
-    };
+  if (
+    summary.revenue.totalRevenue === 0 &&
+    summary.projects.totalProjects === 0 &&
+    summary.sales.totalLeads === 0 &&
+    summary.sales.totalQuotations === 0
+  ) {
+    return { kind: "empty" };
   }
+
+  return { kind: "ready", data, projectOptions };
 }
 
 function AnalyticsStateCard({
@@ -721,37 +713,27 @@ function AiPredictionResultPanel({
 
 export default function AnalyticsDashboardClient() {
   const user = useSelector((state: RootState) => state.auth.user);
-  const [analyticsState, setAnalyticsState] = useState<AnalyticsState>({
-    kind: "loading",
-  });
+  const query = useDashboardQuery("analytics:overview", loadAnalyticsData);
+  const analyticsState: AnalyticsState =
+    query.data ??
+    (query.error
+      ? {
+          kind: "error",
+          message:
+            query.error instanceof Error
+              ? query.error.message
+              : "Analytics data could not be loaded right now.",
+        }
+      : { kind: "loading" });
+  const setAnalyticsState = query.setData;
   const [feedback, setFeedback] = useState<AnalyticsFeedback | null>(null);
   const [isRunningAnalysis, setIsRunningAnalysis] = useState(false);
   const [selectedProjectId, setSelectedProjectId] = useState("");
   const [prediction, setPrediction] =
     useState<AnalyticsAiRiskPredictionDto | null>(null);
 
-  useEffect(() => {
-    let active = true;
-
-    const hydrateAnalyticsPage = async () => {
-      setAnalyticsState({ kind: "loading" });
-      const nextState = await loadAnalyticsData();
-
-      if (active) {
-        setAnalyticsState(nextState);
-      }
-    };
-
-    hydrateAnalyticsPage();
-
-    return () => {
-      active = false;
-    };
-  }, []);
-
-  const retryLoad = async () => {
-    setAnalyticsState({ kind: "loading" });
-    setAnalyticsState(await loadAnalyticsData());
+  const retryLoad = () => {
+    void query.refresh();
   };
 
   const data = analyticsState.kind === "ready" ? analyticsState.data : null;
@@ -780,7 +762,7 @@ export default function AnalyticsDashboardClient() {
 
       if (aiRiskItem) {
         setAnalyticsState((currentState) => {
-          if (currentState.kind !== "ready") {
+          if (!currentState || currentState.kind !== "ready") {
             return currentState;
           }
 
@@ -841,7 +823,13 @@ export default function AnalyticsDashboardClient() {
     return (
       <AnalyticsStateCard
         title="No analytics data available"
-        message="Analytics data returned successfully, but there are no KPI or summary records to display yet."
+        message={
+          query.error
+            ? "Refresh failed. The last successful result contained no analytics records."
+            : "Analytics data returned successfully, but there are no KPI or summary records to display yet."
+        }
+        actionLabel={query.error ? "Retry refresh" : undefined}
+        onAction={query.error ? retryLoad : undefined}
       />
     );
   }
@@ -852,6 +840,19 @@ export default function AnalyticsDashboardClient() {
 
   return (
     <div className="space-y-5">
+      {query.error ? (
+        <FeedbackBanner
+          feedback={{
+            tone: "error",
+            message: "Refresh failed. Showing previously loaded analytics.",
+          }}
+        />
+      ) : null}
+      {query.error ? (
+        <button className="text-sm text-primary underline" onClick={retryLoad}>
+          Retry refresh
+        </button>
+      ) : null}
       {feedback ? <FeedbackBanner feedback={feedback} /> : null}
 
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
