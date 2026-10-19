@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { getLead } from "@/components/dashboard/leads/leadApi";
 import { quotationActions, safePdfUrl } from "@/lib/quotationActions";
 import {
   Ban,
@@ -40,7 +41,6 @@ import type {
   QuotationItemInput,
 } from "@/types/quotation";
 import {
-  calculateLineItemAmount,
   calculateTotalAmount,
   canApproveQuotation,
   canCreateQuotation,
@@ -69,7 +69,6 @@ type QuotationsState =
       totalPages?: number;
     }
   | { kind: "empty" }
-  | { kind: "unavailable"; quotations: Quotation[]; message: string }
   | { kind: "error"; message: string };
 
 type QuotationFeedback = {
@@ -158,7 +157,7 @@ function QuotationForm({
   values,
   errors,
   isSubmitting,
-  unavailableMessage,
+  lockedLead = false,
   onFieldChange,
   onItemChange,
   onAddItem,
@@ -168,7 +167,7 @@ function QuotationForm({
   values: QuotationFormValues;
   errors: QuotationFormErrors;
   isSubmitting: boolean;
-  unavailableMessage?: string | null;
+  lockedLead?: boolean;
   onFieldChange: (field: "leadId" | "notes", value: string) => void;
   onItemChange: (
     index: number,
@@ -195,16 +194,11 @@ function QuotationForm({
         </p>
       </div>
       <div className="space-y-[14px] p-5">
-        {unavailableMessage ? (
-          <div className="rounded-lg border border-primary/20 bg-primary-soft px-3 py-2 text-xs text-on-surface-variant">
-            {unavailableMessage}
-          </div>
-        ) : null}
         <LeadSelectDropdown
           value={values.leadId}
           onChange={(leadId) => onFieldChange("leadId", leadId)}
           error={errors.leadId}
-          disabled={isSubmitting}
+          disabled={isSubmitting || lockedLead}
         />
 
         <div>
@@ -231,7 +225,6 @@ function QuotationForm({
             aria-labelledby="quotation-form-items-label"
           >
             {values.items.map((item, index) => {
-              calculateLineItemAmount(item.quantity, item.unitPrice);
               return (
                 <div
                   key={index}
@@ -411,6 +404,14 @@ function QuotationCard({
         <QuotationStatusBadge status={quotation.status} />
       </div>
 
+      {quotation.lead ? (
+        <div className="px-5 pt-3 text-xs text-on-surface-muted">
+          <p>
+            {quotation.lead.email || "No email provided"} |{" "}
+            {quotation.lead.phone || "No phone provided"}
+          </p>
+        </div>
+      ) : null}
       {/* Line Items Table */}
       <div className="p-5">
         <div className="overflow-x-auto">
@@ -623,7 +624,11 @@ function QuotationCard({
   );
 }
 
-export default function QuotationsDashboardClient() {
+export default function QuotationsDashboardClient({
+  initialLeadId = "",
+}: {
+  initialLeadId?: string;
+}) {
   const creatingRef = useRef(false);
   const pendingActions = useRef(new Set<string>());
   const user = useSelector((state: RootState) => state.auth.user);
@@ -637,18 +642,16 @@ export default function QuotationsDashboardClient() {
   const [quotationsState, setQuotationsState] = useState<QuotationsState>({
     kind: "loading",
   });
-  const [formValues, setFormValues] = useState<QuotationFormValues>(
-    createQuotationFormValues(),
-  );
+  const [formValues, setFormValues] = useState<QuotationFormValues>({
+    ...createQuotationFormValues(),
+    leadId: initialLeadId,
+  });
   const [formErrors, setFormErrors] = useState<QuotationFormErrors>({});
   const [feedback, setFeedback] = useState<QuotationFeedback | null>(null);
   const [convertedProjectId, setConvertedProjectId] = useState<string | null>(
     null,
   );
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [apiUnavailableMessage, setApiUnavailableMessage] = useState<
-    string | null
-  >(null);
 
   // Active modal targets
   const [editingQuotation, setEditingQuotation] = useState<Quotation | null>(
@@ -674,7 +677,7 @@ export default function QuotationsDashboardClient() {
 
   const replaceQuotationInState = (updated: Quotation) => {
     setQuotationsState((current) => {
-      if (current.kind !== "ready" && current.kind !== "unavailable") {
+      if (current.kind !== "ready") {
         return { kind: "ready", quotations: [updated] };
       }
 
@@ -703,6 +706,7 @@ export default function QuotationsDashboardClient() {
         }
         const res = await listQuotations({
           status: tab,
+          leadId: initialLeadId || undefined,
           page,
           limit: pageSize,
           search: search.trim() || undefined,
@@ -718,13 +722,14 @@ export default function QuotationsDashboardClient() {
           totalPages: res.totalPages ?? 1,
         };
       } catch (error) {
+        // Report the real API failure rather than displaying prototype quotations.
         return {
           kind: "error" as const,
           message: getQuotationErrorMessage(error),
         };
       }
     },
-    [],
+    [initialLeadId],
   );
 
   useEffect(() => {
@@ -770,9 +775,7 @@ export default function QuotationsDashboardClient() {
   };
 
   const allQuotations =
-    quotationsState.kind === "ready" || quotationsState.kind === "unavailable"
-      ? quotationsState.quotations
-      : [];
+    quotationsState.kind === "ready" ? quotationsState.quotations : [];
 
   const {
     items: paginatedQuotations,
@@ -965,9 +968,9 @@ export default function QuotationsDashboardClient() {
     creatingRef.current = true;
     setIsSubmitting(true);
     setFeedback(null);
-    setApiUnavailableMessage(null);
 
     try {
+      await getLead(formValues.leadId.trim());
       let createdQuotation = await createQuotation({
         leadId: formValues.leadId.trim(),
         notes: formValues.notes.trim() || undefined,
@@ -986,14 +989,11 @@ export default function QuotationsDashboardClient() {
       }
 
       setQuotationsState((current) => {
-        const existing =
-          current.kind === "ready" || current.kind === "unavailable"
-            ? current.quotations
-            : [];
+        const existing = current.kind === "ready" ? current.quotations : [];
 
         return { kind: "ready", quotations: [createdQuotation, ...existing] };
       });
-      setFormValues(createQuotationFormValues());
+      setFormValues({ ...createQuotationFormValues(), leadId: initialLeadId });
       setFormErrors({});
       setFeedback({
         tone: "success",
@@ -1028,11 +1028,6 @@ export default function QuotationsDashboardClient() {
   return (
     <div className="space-y-5">
       {/* Feedback Banner */}
-      {quotationsState.kind === "unavailable" ? (
-        <QuotationFeedbackBanner
-          feedback={{ tone: "info", message: quotationsState.message }}
-        />
-      ) : null}
       {feedback ? <QuotationFeedbackBanner feedback={feedback} /> : null}
       {convertedProjectId && (
         <Link
@@ -1230,10 +1225,10 @@ export default function QuotationsDashboardClient() {
         <div>
           {canCreateQuotation(user?.role) ? (
             <QuotationForm
+              lockedLead={!!initialLeadId}
               values={formValues}
               errors={formErrors}
               isSubmitting={isSubmitting}
-              unavailableMessage={apiUnavailableMessage}
               onFieldChange={handleFieldChange}
               onItemChange={handleItemChange}
               onAddItem={handleAddItem}

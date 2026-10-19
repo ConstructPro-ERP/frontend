@@ -138,7 +138,9 @@ export async function listLeads(query: LeadListQuery = {}) {
   };
 }
 export async function getLead(id: string) {
-  const response = await apiClient.get<unknown>(`/leads/${id}`);
+  const response = await apiClient.get<unknown>(
+    `/leads/${encodeURIComponent(id)}`,
+  );
   return normalizeLead(response.data);
 }
 export async function createLead(payload: LeadMutationPayload) {

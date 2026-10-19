@@ -1,5 +1,6 @@
 "use client";
 
+import LeadQuotations from "./LeadQuotations";
 import { useSelector } from "react-redux";
 import type { RootState } from "@/store";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
@@ -693,6 +694,7 @@ function DetailPanel({
         </div>
       </div>
       <div className="divide-y divide-outline-variant">
+        <LeadQuotations key={lead.id} leadId={lead.id} />
         <section className="p-5">
           <h3 className="mb-3 text-[10px] font-bold uppercase tracking-[.08em] text-on-surface-muted">
             Contact information

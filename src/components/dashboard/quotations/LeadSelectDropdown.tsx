@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Check, ChevronDown, Loader2, Search } from "lucide-react";
-import apiClient from "@/lib/axios";
+import { getLead, listLeads } from "@/components/dashboard/leads/leadApi";
 import type { LeadOption } from "@/types/quotation";
 
 interface LeadSelectDropdownProps {
@@ -24,52 +24,83 @@ export default function LeadSelectDropdown({
   const [searchTerm, setSearchTerm] = useState("");
   const [manualMode, setManualMode] = useState(false);
 
+  const [loadError, setLoadError] = useState("");
+  const [selectionError, setSelectionError] = useState("");
+  const [attempt, setAttempt] = useState(0);
+  const [resolvedLead, setResolvedLead] = useState<LeadOption | null>(null);
+
+  // Load leads using the shared API helper. Ignore outdated responses when the
+  // search changes or the component unmounts.
   useEffect(() => {
-    let isMounted = true;
+    let active = true;
 
-    async function fetchLeads() {
+    const timer = setTimeout(async () => {
       setIsLoading(true);
+      setLoadError("");
+
       try {
-        const response = await apiClient.get<
-          LeadOption[] | { items: LeadOption[] } | { data: LeadOption[] }
-        >("/leads");
+        const result = await listLeads({ search: searchTerm, limit: 100 });
 
-        if (!isMounted) return;
-
-        const data = response.data;
-        let fetchedList: LeadOption[] = [];
-
-        if (Array.isArray(data)) {
-          fetchedList = data;
-        } else if (data && typeof data === "object") {
-          if ("items" in data && Array.isArray(data.items)) {
-            fetchedList = data.items;
-          } else if ("data" in data && Array.isArray(data.data)) {
-            fetchedList = data.data;
-          }
+        if (active) {
+          setLeads(
+            result.leads.map((lead) => ({
+              ...lead,
+              email: lead.email ?? undefined,
+              phone: lead.phone ?? undefined,
+            })),
+          );
         }
-
-        setLeads(fetchedList);
-      } catch {
-        // Do not submit synthetic demo IDs during service outages.
-        if (isMounted) {
+      } catch (error) {
+        if (active) {
+          // Do not submit synthetic demo IDs during service outages.
           setLeads([]);
+          setLoadError(
+            error instanceof Error ? error.message : "Unable to load leads.",
+          );
         }
       } finally {
-        if (isMounted) {
+        if (active) {
           setIsLoading(false);
         }
       }
-    }
-
-    fetchLeads();
+    }, 250);
 
     return () => {
-      isMounted = false;
+      active = false;
+      clearTimeout(timer);
     };
-  }, []);
+  }, [searchTerm, attempt]);
 
-  const selectedLead = leads.find((l) => l.id === value);
+  useEffect(() => {
+    let active = true;
+    if (value)
+      getLead(value)
+        .then((lead) => {
+          if (active) {
+            setSelectionError("");
+            setResolvedLead({
+              ...lead,
+              email: lead.email ?? undefined,
+              phone: lead.phone ?? undefined,
+            });
+          }
+        })
+        .catch((error) => {
+          if (active)
+            setSelectionError(
+              error instanceof Error
+                ? error.message
+                : "Selected lead could not be loaded.",
+            );
+        });
+    return () => {
+      active = false;
+    };
+  }, [value, attempt]);
+
+  const selectedLead =
+    leads.find((l) => l.id === value) ??
+    (resolvedLead?.id === value ? resolvedLead : null);
 
   const filteredLeads = leads.filter(
     (l) =>
@@ -88,6 +119,7 @@ export default function LeadSelectDropdown({
           </label>
           <button
             type="button"
+            disabled={disabled}
             onClick={() => setManualMode(false)}
             className="text-[11px] font-medium text-primary hover:underline"
           >
@@ -115,10 +147,11 @@ export default function LeadSelectDropdown({
     <div className="relative space-y-1.5">
       <div className="flex items-center justify-between">
         <label className="block text-[11.5px] font-semibold text-on-surface-variant">
-          Select Qualified Lead
+          Select Lead
         </label>
         <button
           type="button"
+          disabled={disabled}
           onClick={() => setManualMode(true)}
           className="text-[11px] font-medium text-on-surface-muted hover:text-primary transition"
         >
@@ -173,6 +206,14 @@ export default function LeadSelectDropdown({
 
       {error ? <p className="text-xs text-error">{error}</p> : null}
 
+      {loadError || selectionError ? (
+        <p role="alert" className="text-xs text-error">
+          {selectionError || loadError}{" "}
+          <button type="button" onClick={() => setAttempt((n) => n + 1)}>
+            Retry
+          </button>
+        </p>
+      ) : null}
       {/* Dropdown Menu */}
       {isOpen ? (
         <div className="absolute left-0 right-0 top-full z-30 mt-1 max-h-60 overflow-hidden rounded-xl border border-outline-variant bg-surface-container-lowest shadow-level-3">
@@ -202,6 +243,7 @@ export default function LeadSelectDropdown({
                 const isSelected = lead.id === value;
                 return (
                   <button
+                    disabled={disabled || isLoading}
                     key={lead.id}
                     type="button"
                     onClick={() => {
