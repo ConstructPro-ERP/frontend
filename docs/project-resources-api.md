@@ -2,17 +2,19 @@
 
 ## Delivery scope
 
-This change implements the frontend only, as requested. The interfaces below are
-**required contracts, not deployed backend capabilities**. The checked-in task
-service and task gateway files are empty, and there are no implemented project
-milestone, expense, or document controllers. The existing frontend adapters for
-milestones, tasks, and expenses already referenced these missing routes.
+This document describes the Project Details frontend resource integrations
+and their expected backend API contracts.
 
-No backend code, database migrations, storage provisioning, or shared Axios
-interceptors were changed. Until these routes are implemented, the tabs show
-their loading/error/retry states; they do not fabricate records or successful
-mutations. Browser end-to-end verification against real persistence is pending
-backend implementation.
+The Expenses interface integrates with the existing Project Service through
+the API Gateway. Expense creation, listing, updates, deletion, summaries,
+validation, and authorization are implemented in the backend.
+
+DDP-88 aligns the expense frontend with those implemented endpoints.
+Creator display depends on the backend enhancement tracked in
+ConstructPro-ERP/backend#134.
+
+No new frontend architecture, shared HTTP client, database migrations,
+or API endpoints are required for this integration.
 
 ## Frontend architecture
 
@@ -133,23 +135,94 @@ Task completion does not update milestone progress automatically.
 
 ## Expenses
 
-| Method | Route                                   | Input / result                                             |
-| ------ | --------------------------------------- | ---------------------------------------------------------- |
-| GET    | `/projects/:projectId/expenses`         | Paginated `Expense` records                                |
-| GET    | `/projects/:projectId/expenses/summary` | `{ totalAmount, categories: [{ category, totalAmount }] }` |
-| POST   | `/projects/:projectId/expenses`         | `{ amount, category, description, date }`                  |
-| PATCH  | `/expenses/:id`                         | Same editable fields                                       |
-| DELETE | `/expenses/:id`                         | Admin-only deletion                                        |
+Project expenses are managed through the existing Project Service and
+API Gateway.
 
-Amount is a positive decimal **string**, with at most two fractional digits. Preserve
-decimal precision server-side; do not rely on binary floating-point storage for
-money. Category is required, at most 200 characters; description at most 2,000.
-`date` is the expense date, distinct from `createdAt`. The backend derives
-`recordedById` from authentication and returns `recordedBy: { fullName }` for display.
-Filters: `category`, inclusive `startDate`, inclusive `endDate`, `page`, `limit`.
-The summary covers the whole project, independently of table filters. The frontend
-refreshes it after mutations and explicit Refresh. Budget remains the project's
-budget, rather than a quotation total.
+| Method | Route                                   | Input / result                  |
+| ------ | --------------------------------------- | ------------------------------- |
+| GET    | `/projects/:projectId/expenses`         | Paginated expense records       |
+| GET    | `/projects/:projectId/expenses/summary` | Project-wide totals by category |
+| GET    | `/expenses/:id`                         | Expense details                 |
+| POST   | `/projects/:projectId/expenses`         | Create an expense               |
+| PATCH  | `/expenses/:id`                         | Update expense fields           |
+| DELETE | `/expenses/:id`                         | Admin-only deletion             |
+
+### Request Validation
+
+Expense creation accepts:
+
+- `amount`: Required positive decimal string with up to 10 integer digits
+  and 2 fractional digits, matching Decimal(12,2).
+- `expenseDate`: Required valid ISO date-time string.
+- `category`: Optional string or `null`, maximum 100 characters.
+- `description`: Optional string or `null`, maximum 1,000 characters.
+
+Optional category and description values must not contain only whitespace.
+The frontend normalizes empty values to `null`.
+
+Expense dates must fall within the project's start and end dates when an
+end date exists. The backend enforces this constraint independently.
+
+The update endpoint accepts partial changes to these editable fields.
+
+### List Response and Filtering
+
+The expense list returns:
+
+`{ data: Expense[], meta: { page, limit, total, totalPages } }`
+
+Supported query parameters:
+
+- `category`
+- `fromDate` — inclusive start date
+- `toDate` — inclusive end date
+- `page` and `limit` — server-side pagination, with maximum limit 100
+- `sortBy` — `expenseDate`, `createdAt`, or `amount`
+- `sortOrder` — `asc` or `desc`
+
+The frontend preserves the server-provided pagination metadata.
+
+### Expense Creator
+
+The backend derives `recordedById` from the authenticated user.
+Clients must not submit or modify this value.
+
+With the creator-details backend enhancement, expense responses include:
+
+`recordedBy: { id: string, fullName: string }`
+
+The existing `recordedById` is retained for compatibility.
+
+The frontend displays `recordedBy.fullName` in the Recorded by column.
+The original creator remains unchanged after expense updates.
+
+### Expense Summary
+
+The summary endpoint returns:
+
+`{ total: string, byCategory: { category: string | null, amount: string }[] }`
+
+Both total and category amounts are decimal strings.
+
+Summary values cover the whole project independently of table pagination
+and filtering.
+
+After successful expense creation, updates, deletion, or explicit Refresh,
+the frontend reloads the expense list and project-wide summary.
+
+Remaining budget is calculated using the project's budget and the
+backend-provided total expense amount.
+
+### Authorization
+
+- Admin: Create, read, update, and delete expenses.
+- Accountant: Create, read, and update expenses; cannot delete.
+- Project Manager: Read-only access to assigned projects.
+- Unauthorized project access is rejected by the backend.
+- Expenses cannot be modified in completed or cancelled projects.
+
+Backend validation, authorization, and lifecycle errors are displayed
+through the existing frontend error-handling components.
 
 ## Documents
 

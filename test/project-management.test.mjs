@@ -315,21 +315,95 @@ test("milestone progress and task status/assignment use separate endpoints", asy
   ]);
 });
 
-test("expense creation preserves decimal strings and leaves recorded-by to the server", async () => {
+test("expense create and update requests preserve backend DTO fields", async () => {
   const input = {
     amount: "123.45",
-    category: "Materials",
-    date: "2026-10-11",
-    description: "Concrete",
+    category: null,
+    description: null,
+    expenseDate: "2026-10-11T00:00:00.000Z",
   };
+
+  const calls = [];
+
   const api = loader({
     post: async (url, value) => {
-      assert.equal(url, "/projects/project/expenses");
-      assert.equal(value, input);
+      calls.push(["POST", url, value]);
+      return { data: { id: "expense", ...value } };
+    },
+    patch: async (url, value) => {
+      calls.push(["PATCH", url, value]);
       return { data: { id: "expense", ...value } };
     },
   })("src/services/expensesApi.ts");
-  assert.equal((await api.createExpense("project", input)).amount, "123.45");
+
+  const created = await api.createExpense("project", input);
+  const updated = await api.updateExpense("expense", input);
+
+  assert.equal(created.amount, "123.45");
+  assert.equal(updated.amount, "123.45");
+
+  assert.deepEqual(JSON.parse(JSON.stringify(calls)), [
+    ["POST", "/projects/project/expenses", input],
+    ["PATCH", "/expenses/expense", input],
+  ]);
+
+  assert.equal(Object.hasOwn(input, "recordedById"), false);
+  assert.equal(Object.hasOwn(input, "recordedBy"), false);
+});
+
+test("expense API preserves filters, pagination and project-wide summary", async () => {
+  const query = {
+    category: "Materials",
+    fromDate: "2026-10-01",
+    toDate: "2026-10-31",
+    page: 2,
+    limit: 5,
+  };
+
+  const meta = {
+    page: 2,
+    limit: 5,
+    total: 12,
+    totalPages: 3,
+  };
+
+  const summary = {
+    total: "70500.00",
+    byCategory: [{ category: "Materials", amount: "70500.00" }],
+  };
+
+  const calls = [];
+
+  const api = loader({
+    get: async (url, config) => {
+      calls.push([url, config?.params ?? null]);
+
+      if (url.endsWith("/summary")) {
+        return { data: summary };
+      }
+
+      return {
+        data: [{ id: "expense-2", amount: "125.50" }],
+        meta,
+      };
+    },
+  })("src/services/expensesApi.ts");
+
+  const page = await api.listExpenses("project", query);
+  const totals = await api.getExpenseSummary("project");
+
+  assert.equal(page.data[0].amount, "125.50");
+  assert.equal(page.meta.page, 2);
+  assert.equal(page.meta.total, 12);
+  assert.equal(page.meta.totalPages, 3);
+
+  assert.equal(totals.total, "70500.00");
+  assert.equal(totals.byCategory[0].amount, "70500.00");
+
+  assert.deepEqual(JSON.parse(JSON.stringify(calls)), [
+    ["/projects/project/expenses", query],
+    ["/projects/project/expenses/summary", null],
+  ]);
 });
 
 test("manager directory requests eligible managers and admins and preserves their IDs", async () => {

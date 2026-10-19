@@ -1,7 +1,12 @@
-import { isPositiveMoney, isUuid } from "./projectRules";
+import { isUuid } from "./projectRules";
 import { TASK_STATUSES } from "@/types/task";
 
 export type FormValues = Record<string, string>;
+
+// Mirrors the backend's positive Decimal(12,2) expense amount constraint.
+// Keep this specific to expenses rather than altering shared money helpers.
+const EXPENSE_AMOUNT_PATTERN =
+  /^(?!0(?:\.0{1,2})?$)(?:0|[1-9]\d{0,9})(?:\.\d{1,2})?$/;
 
 export function isCalendarDate(value: string): boolean {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
@@ -79,20 +84,41 @@ export function validateTaskStatus(values: FormValues): string | null {
 }
 
 export function validateExpense(values: FormValues): string | null {
-  if (!isPositiveMoney(values.amount?.trim() ?? ""))
-    return "Enter a positive amount with up to two decimal places.";
-  const categoryError = validateName(values.category, "Category");
-  if (categoryError) return categoryError;
-  if (!isCalendarDate(values.date ?? "")) return "Enter a valid expense date.";
-  return validateDescription(values.description);
+  const amount = values.amount?.trim() ?? "";
+
+  if (!EXPENSE_AMOUNT_PATTERN.test(amount)) {
+    return "Enter a positive amount with up to 10 integer digits and 2 decimal places.";
+  }
+
+  const category = values.category?.trim() ?? "";
+
+  if (category.length > 100) {
+    return "Category must be 100 characters or fewer.";
+  }
+
+  const description = values.description?.trim() ?? "";
+
+  if (description.length > 1000) {
+    return "Description must be 1,000 characters or fewer.";
+  }
+
+  if (!isCalendarDate(values.date ?? "")) {
+    return "Enter a valid expense date.";
+  }
+
+  return null;
 }
 
 export function validateDateFilters(values: FormValues): string | null {
-  for (const field of ["startDate", "endDate"]) {
-    if (values[field] && !isCalendarDate(values[field]))
+  for (const field of ["fromDate", "toDate"]) {
+    if (values[field] && !isCalendarDate(values[field])) {
       return "Enter valid filter dates.";
+    }
   }
-  return values.startDate && values.endDate && values.startDate > values.endDate
-    ? "From date must be on or before To date."
-    : null;
+
+  if (values.fromDate && values.toDate && values.fromDate > values.toDate) {
+    return "From date must be on or before To date.";
+  }
+
+  return null;
 }

@@ -123,6 +123,53 @@ test("expense cards use the API total across all pages and calculate remaining b
   }
 });
 
+test("expenses display the backend-provided creator name", () => {
+  const Expenses = loader({}, [
+    {
+      total: "125.50",
+      byCategory: [{ category: "Materials", amount: "125.50" }],
+    },
+    {
+      data: [
+        {
+          id: "expense-1",
+          projectId: "project-1",
+          amount: "125.50",
+          category: "Materials",
+          description: "Foundation materials",
+          expenseDate: "2026-10-18T00:00:00.000Z",
+          recordedById: managerId,
+          recordedBy: {
+            id: managerId,
+            fullName: "Test Accountant",
+          },
+        },
+      ],
+      meta: {
+        page: 1,
+        limit: 10,
+        total: 1,
+        totalPages: 1,
+      },
+    },
+  ])("src/components/dashboard/projects/ExpensesSection.tsx").default;
+
+  const html = renderToStaticMarkup(
+    React.createElement(Expenses, {
+      projectId: "project-1",
+      budget: 1000,
+      canWrite: false,
+      canDelete: false,
+    }),
+  );
+
+  assert.match(html, /Recorded by/);
+  assert.match(html, /Test Accountant/);
+  assert.match(html, /Foundation materials/);
+  assert.doesNotMatch(html, /Not available/);
+  assert.doesNotMatch(html, /Edit expense/);
+});
+
 test("calendar validation rejects impossible dates and accepts leap days", () => {
   assert.equal(rules.isCalendarDate("2028-02-29"), true);
   for (const value of [
@@ -311,24 +358,55 @@ test("task form validates UUID selections, name, calendar date and status", () =
   assert.ok(rules.validateTaskStatus({ status: "ACTIVE" }));
 });
 
-test("expenses preserve decimal input and validate dates and category", () => {
-  const valid = { amount: "100.25", category: "Materials", date: "2026-10-13" };
+test("expenses follow backend amount, metadata and date constraints", () => {
+  const valid = {
+    amount: "100.25",
+    category: "Materials",
+    date: "2026-10-13",
+    description: "Concrete materials",
+  };
+
   assert.equal(rules.validateExpense(valid), null);
-  for (const amount of ["0", "-1", "1e3", "1.001", "Infinity", ""])
+  assert.equal(
+    rules.validateExpense({ ...valid, category: "", description: "" }),
+    null,
+  );
+
+  assert.equal(
+    rules.validateExpense({ ...valid, amount: "9999999999.99" }),
+    null,
+  );
+
+  for (const amount of [
+    "0",
+    "0.00",
+    "-1",
+    "1e3",
+    "1.001",
+    "10000000000",
+    "01.50",
+    "Infinity",
+    "",
+  ]) {
     assert.ok(rules.validateExpense({ ...valid, amount }));
-  assert.ok(rules.validateExpense({ ...valid, category: " " }));
+  }
+
+  assert.ok(rules.validateExpense({ ...valid, category: "x".repeat(101) }));
+  assert.ok(rules.validateExpense({ ...valid, description: "x".repeat(1001) }));
   assert.ok(rules.validateExpense({ ...valid, date: "2026-02-29" }));
+
   assert.equal(
     rules.validateDateFilters({
-      startDate: "2026-10-13",
-      endDate: "2026-10-13",
+      fromDate: "2026-10-13",
+      toDate: "2026-10-13",
     }),
     null,
   );
+
   assert.ok(
     rules.validateDateFilters({
-      startDate: "2026-10-14",
-      endDate: "2026-10-13",
+      fromDate: "2026-10-14",
+      toDate: "2026-10-13",
     }),
   );
 });

@@ -14,3 +14,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Fixed
 
 - Aligned milestone progress requests and responses with the backend API, separated metadata and progress updates, and corrected client-side milestone filtering, sorting, and pagination. (#63)
+- Aligned project expense forms with backend Decimal(12,2) validation,
+  optional category and description constraints, and inclusive date filters;
+  preserved creator display and project-wide expense summaries. (#65)
