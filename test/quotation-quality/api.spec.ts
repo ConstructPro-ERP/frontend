@@ -120,7 +120,7 @@ describe("Quotation shared-client API contracts", () => {
     expect(client.patch).toHaveBeenCalledWith(
       "/quotations/q/approve",
       { targetProjectId: "p" },
-      { timeout: 15000 },
+      { timeout: 15000, retryCount: 3 },
     );
   });
   it.each([

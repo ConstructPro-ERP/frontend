@@ -32,6 +32,12 @@ vi.mock("@/components/dashboard/quotations/LeadSelectDropdown", () => ({
     />
   ),
 }));
+vi.mock("@/components/dashboard/leads/leadApi", () => ({
+  getLead: vi.fn().mockResolvedValue({
+    id: "550e8400-e29b-41d4-a716-446655440000",
+    customerName: "Acme",
+  }),
+}));
 vi.mock("@/services/quotationsApi", () => ({
   listQuotations: vi.fn(),
   getQuotationById: vi.fn(),
@@ -259,10 +265,15 @@ describe("Quotation dashboard interactions", () => {
     });
     fireEvent.click(button);
     fireEvent.click(button);
-    expect(api.createQuotation).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(api.createQuotation).toHaveBeenCalledTimes(1));
   });
   it("converts to a real project and exposes its verified ID without fabricated routes", async () => {
     list("APPROVED");
+    vi.mocked(api.getQuotationById).mockResolvedValue({
+      ...base,
+      status: "CONVERTED",
+      projectId: uuid,
+    });
     vi.mocked(convertQuotationToProject).mockResolvedValue({
       quotation: { ...base, status: "CONVERTED", projectId: uuid },
       projectId: uuid,
@@ -281,6 +292,7 @@ describe("Quotation dashboard interactions", () => {
     fireEvent.submit(form);
     await screen.findByRole("link", { name: /Converted to Project/ });
     expect(convertQuotationToProject).toHaveBeenCalledTimes(1);
+    expect(api.getQuotationById).toHaveBeenCalledWith("q");
     expect(
       screen
         .getByRole("link", { name: /Converted to Project/ })
@@ -289,6 +301,35 @@ describe("Quotation dashboard interactions", () => {
     expect(
       screen.queryByRole("button", { name: "Edit quotation q" }),
     ).toBeNull();
+  });
+  it("keeps the verified project link when the post-conversion refresh fails", async () => {
+    list("APPROVED");
+    vi.mocked(convertQuotationToProject).mockResolvedValue({
+      quotation: { ...base, status: "CONVERTED", projectId: uuid },
+      projectId: uuid,
+      projectStatus: "ACTIVE",
+    });
+    vi.mocked(api.getQuotationById).mockRejectedValue(
+      new Error("Refresh unavailable"),
+    );
+    await mount();
+    await userEvent.click(
+      screen.getByRole("button", { name: "Convert quotation q to project" }),
+    );
+    await userEvent.type(
+      screen.getByRole("textbox", { name: "Project manager ID" }),
+      uuid,
+    );
+    fireEvent.submit(screen.getByRole("dialog").querySelector("form")!);
+    await screen.findByText(
+      /Conversion succeeded, but the quotation could not be refreshed: Refresh unavailable/,
+    );
+    expect(
+      screen
+        .getByRole("link", { name: /Converted to Project/ })
+        .getAttribute("href"),
+    ).toBe(`/dashboard/projects/${uuid}`);
+    expect(convertQuotationToProject).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -313,10 +354,17 @@ it("runs create, edit, reject, revise, submit, approve, and conversion through r
     status: "DRAFT",
   });
   vi.mocked(api.submitQuotation).mockResolvedValue(base);
-  vi.mocked(convertQuotationToProject).mockResolvedValue({
-    quotation: { ...base, status: "CONVERTED", projectId: uuid },
-    projectId: uuid,
-    projectStatus: "ACTIVE",
+  vi.mocked(convertQuotationToProject).mockImplementation(async () => {
+    vi.mocked(api.getQuotationById).mockResolvedValue({
+      ...base,
+      status: "CONVERTED",
+      projectId: uuid,
+    });
+    return {
+      quotation: { ...base, status: "CONVERTED", projectId: uuid },
+      projectId: uuid,
+      projectStatus: "ACTIVE",
+    };
   });
   render(<Dashboard />);
   await screen.findByText("No quotations created yet");
