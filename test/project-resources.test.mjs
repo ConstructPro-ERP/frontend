@@ -311,24 +311,55 @@ test("task form validates UUID selections, name, calendar date and status", () =
   assert.ok(rules.validateTaskStatus({ status: "ACTIVE" }));
 });
 
-test("expenses preserve decimal input and validate dates and category", () => {
-  const valid = { amount: "100.25", category: "Materials", date: "2026-10-13" };
+test("expenses follow backend amount, metadata and date constraints", () => {
+  const valid = {
+    amount: "100.25",
+    category: "Materials",
+    date: "2026-10-13",
+    description: "Concrete materials",
+  };
+
   assert.equal(rules.validateExpense(valid), null);
-  for (const amount of ["0", "-1", "1e3", "1.001", "Infinity", ""])
+  assert.equal(
+    rules.validateExpense({ ...valid, category: "", description: "" }),
+    null,
+  );
+
+  assert.equal(
+    rules.validateExpense({ ...valid, amount: "9999999999.99" }),
+    null,
+  );
+
+  for (const amount of [
+    "0",
+    "0.00",
+    "-1",
+    "1e3",
+    "1.001",
+    "10000000000",
+    "01.50",
+    "Infinity",
+    "",
+  ]) {
     assert.ok(rules.validateExpense({ ...valid, amount }));
-  assert.ok(rules.validateExpense({ ...valid, category: " " }));
+  }
+
+  assert.ok(rules.validateExpense({ ...valid, category: "x".repeat(101) }));
+  assert.ok(rules.validateExpense({ ...valid, description: "x".repeat(1001) }));
   assert.ok(rules.validateExpense({ ...valid, date: "2026-02-29" }));
+
   assert.equal(
     rules.validateDateFilters({
-      startDate: "2026-10-13",
-      endDate: "2026-10-13",
+      fromDate: "2026-10-13",
+      toDate: "2026-10-13",
     }),
     null,
   );
+
   assert.ok(
     rules.validateDateFilters({
-      startDate: "2026-10-14",
-      endDate: "2026-10-13",
+      fromDate: "2026-10-14",
+      toDate: "2026-10-13",
     }),
   );
 });
