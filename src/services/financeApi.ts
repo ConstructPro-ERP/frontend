@@ -1,5 +1,6 @@
 import apiClient from "@/lib/axios";
 import { ApiError } from "@/lib/ApiError";
+import { dashboardQueryCache } from "@/lib/dashboardQueryCache";
 import type {
   CreateFinancePaymentDto,
   FinanceApiInvoiceStatus,
@@ -90,6 +91,7 @@ export async function generateFinanceInvoicePdf(
     `/invoices/${invoiceId}/pdf`,
     { forceRegenerate: false },
   );
+  dashboardQueryCache.invalidate();
   return mapInvoice(response.data);
 }
 
@@ -100,6 +102,7 @@ export async function recordFinancePayment(
     "/payments",
     createPaymentRequest(values),
   );
+  dashboardQueryCache.invalidate();
   return response.data;
 }
 

@@ -12,6 +12,7 @@ import {
   FileText,
 } from "lucide-react";
 import { ApiError } from "@/lib/ApiError";
+import { useDashboardQuery } from "@/hooks/useDashboardQuery";
 import {
   getDashboardSummary,
   getDashboardProjects,
@@ -23,42 +24,41 @@ import type { DashboardActivity } from "@/types/dashboard";
 import styles from "./HomeDashboard.module.css";
 import { warmBackendServices } from "@/services/backendWarmup";
 
-function useSection<T>(loader: () => Promise<T>) {
-  const [state, setState] = useState<{
-    data?: T;
-    error?: string;
-    loading: boolean;
-  }>({ loading: true });
-  const [version, setVersion] = useState(0);
-  useEffect(() => {
-    let active = true;
-    loader()
-      .then((data) => {
-        if (active) setState({ data, loading: false });
-      })
-      .catch((error: unknown) => {
-        if (!active) return;
-        const message =
-          error instanceof ApiError && error.statusCode === 403
-            ? "Your role does not have access to this information."
-            : error instanceof ApiError && error.statusCode === 401
-              ? "Please sign in again to view this information."
-              : error instanceof Error
-                ? error.message
-                : "This information could not be loaded.";
-        setState({ error: message, loading: false });
-      });
-    return () => {
-      active = false;
-    };
-  }, [loader, version]);
+function useSection<T>(key: string, loader: () => Promise<T>) {
+  const query = useDashboardQuery(key, loader);
+  const error = query.error;
+  const message =
+    error instanceof ApiError && error.statusCode === 403
+      ? "Your role does not have access to this information."
+      : error instanceof ApiError && error.statusCode === 401
+        ? "Please sign in again to view this information."
+        : error instanceof Error
+          ? error.message
+          : error
+            ? "This information could not be loaded."
+            : undefined;
   return {
-    ...state,
-    retry: () => {
-      setState({ loading: true });
-      setVersion((value) => value + 1);
-    },
+    data: query.data,
+    loading: query.loading,
+    error: message,
+    retry: () => void query.refresh(),
   };
+}
+
+function RefreshNotice({
+  section,
+}: {
+  section: { data?: unknown; error?: string; retry: () => void };
+}) {
+  if (section.data === undefined || !section.error) return null;
+  return (
+    <p role="status" className={styles.state}>
+      Showing previously loaded data. {section.error}{" "}
+      <button className={styles.button} onClick={section.retry}>
+        Retry refresh
+      </button>
+    </p>
+  );
 }
 
 const compact = (value: number) =>
@@ -125,7 +125,7 @@ function Card({
 }
 
 function Kpis() {
-  const section = useSection(getDashboardSummary);
+  const section = useSection("home:summary", getDashboardSummary);
   if (!section.data) return <State {...section} />;
   const { revenue, projects, sales, invoices } = section.data;
   const cards = [
@@ -159,27 +159,30 @@ function Kpis() {
     },
   ];
   return (
-    <section className={styles.kpiGrid} aria-label="Business overview">
-      {cards.map(({ label, value, note, icon: Icon, tone }) => (
-        <article key={label} className={styles.kpiCard}>
-          <div className={styles.kpiTop}>
-            <span className={`${styles.icon} ${styles[tone]}`}>
-              <Icon size={20} />
-            </span>
-          </div>
-          <div>
-            <p className={styles.kpiValue}>{value}</p>
-            <h2 className={styles.kpiLabel}>{label}</h2>
-          </div>
-          <p className={styles.kpiSub}>{note}</p>
-        </article>
-      ))}
-    </section>
+    <>
+      <RefreshNotice section={section} />
+      <section className={styles.kpiGrid} aria-label="Business overview">
+        {cards.map(({ label, value, note, icon: Icon, tone }) => (
+          <article key={label} className={styles.kpiCard}>
+            <div className={styles.kpiTop}>
+              <span className={`${styles.icon} ${styles[tone]}`}>
+                <Icon size={20} />
+              </span>
+            </div>
+            <div>
+              <p className={styles.kpiValue}>{value}</p>
+              <h2 className={styles.kpiLabel}>{label}</h2>
+            </div>
+            <p className={styles.kpiSub}>{note}</p>
+          </article>
+        ))}
+      </section>
+    </>
   );
 }
 
 function Projects() {
-  const section = useSection(getDashboardProjects);
+  const section = useSection("home:projects", getDashboardProjects);
   return (
     <Card
       title="Active Projects"
@@ -190,6 +193,7 @@ function Projects() {
         </Link>
       }
     >
+      <RefreshNotice section={section} />
       {!section.data ? (
         <State {...section} />
       ) : !section.data.length ? (
@@ -277,7 +281,7 @@ function Projects() {
 }
 
 function Revenue() {
-  const section = useSection(getDashboardRevenue);
+  const section = useSection("home:revenue", getDashboardRevenue);
   const rows = section.data ?? [];
   const maximum = Math.max(1, ...rows.map((row) => row.revenue));
   const totals = rows.reduce(
@@ -293,6 +297,7 @@ function Revenue() {
     : "Last six months";
   return (
     <Card title="Revenue" subtitle={`${period} · LKR · current month to date`}>
+      <RefreshNotice section={section} />
       {!section.data ? (
         <State {...section} />
       ) : (
@@ -349,7 +354,7 @@ function Revenue() {
 }
 
 function ProjectStatus() {
-  const section = useSection(getDashboardStatusCounts);
+  const section = useSection("home:statuses", getDashboardStatusCounts);
   const total = section.data?.reduce((sum, item) => sum + item.count, 0) ?? 0;
   const segments =
     section.data?.map((item, index, items) => ({
@@ -365,6 +370,7 @@ function ProjectStatus() {
   return (
     <Card title="Project Status" subtitle="All projects">
       <div className={styles.donutWrap}>
+        <RefreshNotice section={section} />
         {!section.data ? (
           <State {...section} />
         ) : (
@@ -481,7 +487,7 @@ function Activity() {
   const [page, setPage] = useState(1);
   const [expanded, setExpanded] = useState(false);
   const loader = useCallback(() => getDashboardActivity(page), [page]);
-  const section = useSection(loader);
+  const section = useSection(`home:activity:${page}`, loader);
   const visible = section.data?.page === page ? section.data : undefined;
   const navigate = (next: number) => {
     setPage(next);
@@ -505,7 +511,8 @@ function Activity() {
       }
     >
       <div id="dashboard-activity">
-        {section.error ? (
+        <RefreshNotice section={section} />
+        {!visible && section.error ? (
           <State {...section} />
         ) : !visible ? (
           <State loading retry={section.retry} />
