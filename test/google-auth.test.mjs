@@ -72,8 +72,11 @@ test("callback verifies the new bearer token without refreshing the previous acc
       },
     };
   });
-  const result = await completeGoogleLogin("#token=new-token");
+  const result = await completeGoogleLogin(
+    "#token=new-token&refreshToken=new-refresh-token",
+  );
   assert.equal(result.accessToken, "new-token");
+  assert.equal(result.refreshToken, "new-refresh-token");
   assert.equal(result.user.firstName, "Jane");
   assert.equal(result.user.lastName, "Mary Doe");
   assert.equal(result.user.role, null);
@@ -83,16 +86,34 @@ test("callback verifies the new bearer token without refreshing the previous acc
 test("callback fails on invalid profiles and rejected backend responses", async () => {
   for (const response of [{ success: false }, { success: true, data: {} }]) {
     await assert.rejects(
-      google(async () => response).completeGoogleLogin("#token=invalid"),
+      google(async () => response).completeGoogleLogin(
+        "#token=invalid&refreshToken=refresh-token",
+      ),
     );
   }
   const failure = new Error("unauthorized");
   await assert.rejects(
     google(async () => {
       throw failure;
-    }).completeGoogleLogin("#token=expired"),
+    }).completeGoogleLogin("#token=expired&refreshToken=refresh-token"),
     failure,
   );
+});
+
+test("callback rejects missing, blank and duplicate refresh tokens before verifying", async () => {
+  let calls = 0;
+  const { completeGoogleLogin } = google(async () => {
+    calls++;
+  });
+  for (const hash of [
+    "#token=access",
+    "#token=access&refreshToken=",
+    "#token=access&refreshToken=%20",
+    "#token=access&refreshToken=a&refreshToken=b",
+  ]) {
+    await assert.rejects(completeGoogleLogin(hash), /refresh token/);
+  }
+  assert.equal(calls, 0);
 });
 
 test("profile normalization preserves names and roles without granting a default role", () => {
