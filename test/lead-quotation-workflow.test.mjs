@@ -1,21 +1,79 @@
+
 import test from "node:test";
-import assert from "node:assert/strict";
+import * as assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { dirname, resolve } from "node:path";
 import vm from "node:vm";
 import ts from "typescript";
 
 const read = (path) => readFileSync(path, "utf8");
+
+/**
+ * Load actual TypeScript modules while mocking only the API client.
+ * This keeps normalization and business logic inside the test.
+ */
 function load(path, client) {
-  const exports = {};
-  const code = ts.transpileModule(read(path), {
-    compilerOptions: {
-      module: ts.ModuleKind.CommonJS,
-      target: ts.ScriptTarget.ES2022,
-    },
-  }).outputText;
-  vm.runInNewContext(code, { exports, require: () => ({ default: client }) });
-  return exports;
+  const cache = new Map();
+
+  function loadModule(modulePath) {
+    const absolutePath = resolve(modulePath);
+
+    // Reuse previously loaded modules.
+    if (cache.has(absolutePath)) {
+      return cache.get(absolutePath);
+    }
+
+    const exports = {};
+    cache.set(absolutePath, exports);
+
+    const code = ts.transpileModule(read(absolutePath), {
+      fileName: absolutePath,
+      compilerOptions: {
+        module: ts.ModuleKind.CommonJS,
+        target: ts.ScriptTarget.ES2022,
+      },
+    }).outputText;
+
+    function requireModule(specifier) {
+      // Mock only HTTP requests.
+      if (specifier === "@/lib/axios") {
+        return { default: client };
+      }
+
+      // Resolve TypeScript path aliases.
+      if (specifier.startsWith("@/")) {
+        return loadModule(
+          resolve("src", specifier.slice(2)) + ".ts",
+        );
+      }
+
+      // Resolve relative TypeScript imports.
+      if (
+        specifier.startsWith("./") ||
+        specifier.startsWith("../")
+      ) {
+        return loadModule(
+          resolve(dirname(absolutePath), specifier) + ".ts",
+        );
+      }
+
+      throw new Error(
+        `Unexpected import "${specifier}" in ${absolutePath}`,
+      );
+    }
+
+    vm.runInNewContext(
+      code,
+      { exports, require: requireModule },
+      { filename: absolutePath },
+    );
+
+    return exports;
+  }
+
+  return loadModule(path);
 }
+
 
 test("lead-to-quotation API workflow preserves identity, filtering, details and pagination", async () => {
   const lead = {

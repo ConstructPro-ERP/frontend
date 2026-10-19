@@ -41,7 +41,6 @@ import type {
   QuotationItemInput,
 } from "@/types/quotation";
 import {
-  calculateLineItemAmount,
   calculateTotalAmount,
   canApproveQuotation,
   canCreateQuotation,
@@ -64,13 +63,12 @@ import ConvertToProjectModal from "@/components/dashboard/quotations/modals/Conv
 type QuotationsState =
   | { kind: "loading" }
   | {
-      kind: "ready";
-      quotations: Quotation[];
-      total?: number;
-      totalPages?: number;
-    }
+  kind: "ready";
+  quotations: Quotation[];
+  total?: number;
+  totalPages?: number;
+}
   | { kind: "empty" }
-  | { kind: "unavailable"; quotations: Quotation[]; message: string }
   | { kind: "error"; message: string };
 
 type QuotationFeedback = {
@@ -92,11 +90,11 @@ function QuotationStatusBadge({ status }: { status: Quotation["status"] }) {
 }
 
 function QuotationStateCard({
-  title,
-  message,
-  onRetry,
-  action,
-}: {
+                              title,
+                              message,
+                              onRetry,
+                              action,
+                            }: {
   title: string;
   message: string;
   onRetry?: () => void;
@@ -134,8 +132,8 @@ function QuotationStateCard({
 }
 
 function QuotationFeedbackBanner({
-  feedback,
-}: {
+                                   feedback,
+                                 }: {
   feedback: QuotationFeedback;
 }) {
   const toneClasses =
@@ -156,21 +154,19 @@ function QuotationFeedbackBanner({
 }
 
 function QuotationForm({
-  values,
-  errors,
-  isSubmitting,
-  unavailableMessage,
-  lockedLead = false,
-  onFieldChange,
-  onItemChange,
-  onAddItem,
-  onRemoveItem,
-  onSubmit,
-}: {
+                         values,
+                         errors,
+                         isSubmitting,
+                         lockedLead = false,
+                         onFieldChange,
+                         onItemChange,
+                         onAddItem,
+                         onRemoveItem,
+                         onSubmit,
+                       }: {
   values: QuotationFormValues;
   errors: QuotationFormErrors;
   isSubmitting: boolean;
-  unavailableMessage?: string | null;
   lockedLead?: boolean;
   onFieldChange: (field: "leadId" | "notes", value: string) => void;
   onItemChange: (
@@ -198,11 +194,6 @@ function QuotationForm({
         </p>
       </div>
       <div className="space-y-[14px] p-5">
-        {unavailableMessage ? (
-          <div className="rounded-lg border border-primary/20 bg-primary-soft px-3 py-2 text-xs text-on-surface-variant">
-            {unavailableMessage}
-          </div>
-        ) : null}
         <LeadSelectDropdown
           value={values.leadId}
           onChange={(leadId) => onFieldChange("leadId", leadId)}
@@ -234,7 +225,6 @@ function QuotationForm({
             aria-labelledby="quotation-form-items-label"
           >
             {values.items.map((item, index) => {
-              calculateLineItemAmount(item.quantity, item.unitPrice);
               return (
                 <div
                   key={index}
@@ -350,21 +340,21 @@ function QuotationForm({
 }
 
 function QuotationCard({
-  quotation,
-  canApprove,
-  canReject,
-  isGeneratingPdf,
-  isRevising,
-  isApproving,
-  onEdit,
-  onApprove,
-  onReject,
-  onRevise,
-  onConvert,
-  onDownloadPdf,
-  onSubmitDraft,
-  role,
-}: {
+                         quotation,
+                         canApprove,
+                         canReject,
+                         isGeneratingPdf,
+                         isRevising,
+                         isApproving,
+                         onEdit,
+                         onApprove,
+                         onReject,
+                         onRevise,
+                         onConvert,
+                         onDownloadPdf,
+                         onSubmitDraft,
+                         role,
+                       }: {
   quotation: Quotation;
   role: string | null | undefined;
   onSubmitDraft: (quotation: Quotation) => void;
@@ -427,50 +417,50 @@ function QuotationCard({
         <div className="overflow-x-auto">
           <table className="w-full border-collapse text-[12.5px]">
             <thead>
-              <tr className="border-b border-outline-variant">
-                <th
-                  scope="col"
-                  className="py-2 text-left font-semibold uppercase tracking-[0.06em] text-[11px] text-on-surface-muted"
-                >
-                  Item
-                </th>
-                <th
-                  scope="col"
-                  className="py-2 text-right font-semibold uppercase tracking-[0.06em] text-[11px] text-on-surface-muted"
-                >
-                  Qty
-                </th>
-                <th
-                  scope="col"
-                  className="py-2 text-right font-semibold uppercase tracking-[0.06em] text-[11px] text-on-surface-muted"
-                >
-                  Unit Price
-                </th>
-                <th
-                  scope="col"
-                  className="py-2 text-right font-semibold uppercase tracking-[0.06em] text-[11px] text-on-surface-muted"
-                >
-                  Amount
-                </th>
-              </tr>
+            <tr className="border-b border-outline-variant">
+              <th
+                scope="col"
+                className="py-2 text-left font-semibold uppercase tracking-[0.06em] text-[11px] text-on-surface-muted"
+              >
+                Item
+              </th>
+              <th
+                scope="col"
+                className="py-2 text-right font-semibold uppercase tracking-[0.06em] text-[11px] text-on-surface-muted"
+              >
+                Qty
+              </th>
+              <th
+                scope="col"
+                className="py-2 text-right font-semibold uppercase tracking-[0.06em] text-[11px] text-on-surface-muted"
+              >
+                Unit Price
+              </th>
+              <th
+                scope="col"
+                className="py-2 text-right font-semibold uppercase tracking-[0.06em] text-[11px] text-on-surface-muted"
+              >
+                Amount
+              </th>
+            </tr>
             </thead>
             <tbody>
-              {quotation.items.map((item) => (
-                <tr key={item.id} className="border-b border-outline-variant">
-                  <td className="py-[9px] text-on-background font-medium">
-                    {item.itemName}
-                  </td>
-                  <td className="py-[9px] text-right font-mono text-on-background">
-                    {item.quantity}
-                  </td>
-                  <td className="py-[9px] text-right font-mono text-on-background">
-                    {formatCurrency(item.unitPrice)}
-                  </td>
-                  <td className="py-[9px] text-right font-mono font-semibold text-on-background">
-                    {formatCurrency(item.amount)}
-                  </td>
-                </tr>
-              ))}
+            {quotation.items.map((item) => (
+              <tr key={item.id} className="border-b border-outline-variant">
+                <td className="py-[9px] text-on-background font-medium">
+                  {item.itemName}
+                </td>
+                <td className="py-[9px] text-right font-mono text-on-background">
+                  {item.quantity}
+                </td>
+                <td className="py-[9px] text-right font-mono text-on-background">
+                  {formatCurrency(item.unitPrice)}
+                </td>
+                <td className="py-[9px] text-right font-mono font-semibold text-on-background">
+                  {formatCurrency(item.amount)}
+                </td>
+              </tr>
+            ))}
             </tbody>
           </table>
         </div>
@@ -635,11 +625,10 @@ function QuotationCard({
 }
 
 export default function QuotationsDashboardClient({
-  initialLeadId = "",
-}: {
+                                                    initialLeadId = "",
+                                                  }: {
   initialLeadId?: string;
 }) {
-export default function QuotationsDashboardClient() {
   const creatingRef = useRef(false);
   const pendingActions = useRef(new Set<string>());
   const user = useSelector((state: RootState) => state.auth.user);
@@ -663,9 +652,6 @@ export default function QuotationsDashboardClient() {
     null,
   );
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [apiUnavailableMessage, setApiUnavailableMessage] = useState<
-    string | null
-  >(null);
 
   // Active modal targets
   const [editingQuotation, setEditingQuotation] = useState<Quotation | null>(
@@ -691,7 +677,7 @@ export default function QuotationsDashboardClient() {
 
   const replaceQuotationInState = (updated: Quotation) => {
     setQuotationsState((current) => {
-      if (current.kind !== "ready" && current.kind !== "unavailable") {
+      if (current.kind !== "ready") {
         return { kind: "ready", quotations: [updated] };
       }
 
@@ -736,27 +722,7 @@ export default function QuotationsDashboardClient() {
           totalPages: res.totalPages ?? 1,
         };
       } catch (error) {
-        if (!initialLeadId && isQuotationUnavailableError(error)) {
-          let previewItems =
-            tab === "ALL"
-              ? quotationPreviewList
-              : quotationPreviewList.filter((q) => q.status === tab);
-
-          if (search.trim()) {
-            previewItems = filterQuotationsBySearch(previewItems, search);
-          }
-
-          if (previewItems.length === 0) {
-            return { kind: "empty" as const };
-          }
-
-          return {
-            kind: "unavailable" as const,
-            quotations: previewItems,
-            message:
-              "Quotation APIs are not available yet. Showing prototype preview data until backend endpoints are connected.",
-          };
-        }
+        // Report the real API failure rather than displaying prototype quotations.
         return {
           kind: "error" as const,
           message: getQuotationErrorMessage(error),
@@ -809,9 +775,7 @@ export default function QuotationsDashboardClient() {
   };
 
   const allQuotations =
-    quotationsState.kind === "ready" || quotationsState.kind === "unavailable"
-      ? quotationsState.quotations
-      : [];
+    quotationsState.kind === "ready" ? quotationsState.quotations : [];
 
   const {
     items: paginatedQuotations,
@@ -821,12 +785,12 @@ export default function QuotationsDashboardClient() {
     endIndex,
   } = quotationsState.kind === "ready"
     ? {
-        items: allQuotations,
-        total: quotationsState.total ?? allQuotations.length,
-        totalPages: quotationsState.totalPages ?? 1,
-        startIndex: allQuotations.length ? (currentPage - 1) * pageSize + 1 : 0,
-        endIndex: (currentPage - 1) * pageSize + allQuotations.length,
-      }
+      items: allQuotations,
+      total: quotationsState.total ?? allQuotations.length,
+      totalPages: quotationsState.totalPages ?? 1,
+      startIndex: allQuotations.length ? (currentPage - 1) * pageSize + 1 : 0,
+      endIndex: (currentPage - 1) * pageSize + allQuotations.length,
+    }
     : paginateQuotations(allQuotations, currentPage, pageSize);
 
   const handleFieldChange = (field: "leadId" | "notes", value: string) => {
@@ -1004,7 +968,6 @@ export default function QuotationsDashboardClient() {
     creatingRef.current = true;
     setIsSubmitting(true);
     setFeedback(null);
-    setApiUnavailableMessage(null);
 
     try {
       await getLead(formValues.leadId.trim());
@@ -1026,10 +989,7 @@ export default function QuotationsDashboardClient() {
       }
 
       setQuotationsState((current) => {
-        const existing =
-          current.kind === "ready" || current.kind === "unavailable"
-            ? current.quotations
-            : [];
+        const existing = current.kind === "ready" ? current.quotations : [];
 
         return { kind: "ready", quotations: [createdQuotation, ...existing] };
       });
@@ -1050,21 +1010,6 @@ export default function QuotationsDashboardClient() {
           tone: "error",
           message: "The selected lead could not be found.",
         });
-      } else if (!initialLeadId && isQuotationUnavailableError(error)) {
-        setQuotationsState({
-          kind: "unavailable",
-          quotations: quotationPreviewList,
-          message:
-            "Quotation APIs are not available yet. Showing prototype preview data until backend endpoints are connected.",
-        });
-        setApiUnavailableMessage(
-          "Quotation endpoint is not available yet. You can continue verifying the form and validation flow until backend support is connected.",
-        );
-        setFeedback({
-          tone: "info",
-          message:
-            "Quotation API is unavailable right now. Submission has been kept as a clear placeholder state.",
-        });
       } else {
         setFeedback({
           tone: "error",
@@ -1083,11 +1028,6 @@ export default function QuotationsDashboardClient() {
   return (
     <div className="space-y-5">
       {/* Feedback Banner */}
-      {quotationsState.kind === "unavailable" ? (
-        <QuotationFeedbackBanner
-          feedback={{ tone: "info", message: quotationsState.message }}
-        />
-      ) : null}
       {feedback ? <QuotationFeedbackBanner feedback={feedback} /> : null}
       {convertedProjectId && (
         <Link
@@ -1289,7 +1229,6 @@ export default function QuotationsDashboardClient() {
               values={formValues}
               errors={formErrors}
               isSubmitting={isSubmitting}
-              unavailableMessage={apiUnavailableMessage}
               onFieldChange={handleFieldChange}
               onItemChange={handleItemChange}
               onAddItem={handleAddItem}
@@ -1373,3 +1312,4 @@ export default function QuotationsDashboardClient() {
     </div>
   );
 }
+

@@ -13,11 +13,11 @@ interface LeadSelectDropdownProps {
 }
 
 export default function LeadSelectDropdown({
-  value,
-  onChange,
-  error,
-  disabled = false,
-}: LeadSelectDropdownProps) {
+                                             value,
+                                             onChange,
+                                             error,
+                                             disabled = false,
+                                           }: LeadSelectDropdownProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [leads, setLeads] = useState<LeadOption[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -29,14 +29,19 @@ export default function LeadSelectDropdown({
   const [attempt, setAttempt] = useState(0);
   const [resolvedLead, setResolvedLead] = useState<LeadOption | null>(null);
 
+  // Load leads using the shared API helper. Ignore outdated responses when the
+  // search changes or the component unmounts.
   useEffect(() => {
     let active = true;
+
     const timer = setTimeout(async () => {
       setIsLoading(true);
       setLoadError("");
+
       try {
         const result = await listLeads({ search: searchTerm, limit: 100 });
-        if (active)
+
+        if (active) {
           setLeads(
             result.leads.map((lead) => ({
               ...lead,
@@ -44,40 +49,22 @@ export default function LeadSelectDropdown({
               phone: lead.phone ?? undefined,
             })),
           );
+        }
       } catch (error) {
-        if (active)
+        if (active) {
+          // Do not submit synthetic demo IDs during service outages.
+          setLeads([]);
           setLoadError(
             error instanceof Error ? error.message : "Unable to load leads.",
           );
-        const response = await apiClient.get<
-          LeadOption[] | { items: LeadOption[] } | { data: LeadOption[] }
-        >("/leads");
-
-        if (!isMounted) return;
-
-        const data = response.data;
-        let fetchedList: LeadOption[] = [];
-
-        if (Array.isArray(data)) {
-          fetchedList = data;
-        } else if (data && typeof data === "object") {
-          if ("items" in data && Array.isArray(data.items)) {
-            fetchedList = data.items;
-          } else if ("data" in data && Array.isArray(data.data)) {
-            fetchedList = data.data;
-          }
-        }
-
-        setLeads(fetchedList);
-      } catch {
-        // Do not submit synthetic demo IDs during service outages.
-        if (isMounted) {
-          setLeads([]);
         }
       } finally {
-        if (active) setIsLoading(false);
+        if (active) {
+          setIsLoading(false);
+        }
       }
     }, 250);
+
     return () => {
       active = false;
       clearTimeout(timer);
