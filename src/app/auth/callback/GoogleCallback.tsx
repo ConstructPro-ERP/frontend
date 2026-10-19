@@ -10,7 +10,7 @@ import {
   loginSuccess,
   loginFailure,
 } from "@/store/slices/authSlice";
-import { clearTokens, setAccessToken } from "@/lib/token";
+import { clearTokens, setAccessToken, setRefreshToken } from "@/lib/token";
 import { completeGoogleLogin } from "@/services/googleAuth";
 import { needsRoleSelection } from "@/services/roles";
 
@@ -34,11 +34,12 @@ export default function GoogleCallback() {
       request.current = completeGoogleLogin(hash);
     }
     request.current
-      .then(({ accessToken, user }) => {
+      .then(({ accessToken, refreshToken, user }) => {
         if (!active) return;
-        // This backend returns no Google refresh token. Discard any old account's token.
+        // Replace both credentials so a previous account's session cannot be reused.
         clearTokens();
         setAccessToken(accessToken);
+        setRefreshToken(refreshToken);
         dispatch(loginSuccess({ user }));
         router.replace(
           needsRoleSelection(user) ? "/auth/select-role" : "/modules",
