@@ -3,6 +3,7 @@ import {
   normalizeQuotations,
 } from "@/components/dashboard/quotations/quotationUtils";
 import apiClient from "@/lib/axios";
+import { dashboardQueryCache } from "@/lib/dashboardQueryCache";
 import type {
   CreateQuotationDto,
   ListQuotationsParams,
@@ -114,6 +115,7 @@ export async function createQuotation(
     },
     createRequestOptions,
   );
+  dashboardQueryCache.invalidate();
   return normalizeResponse(response.data);
 }
 
@@ -125,6 +127,7 @@ export async function updateQuotation(
   payload: UpdateQuotationInput,
 ): Promise<Quotation> {
   const response = await apiClient.put<Quotation>(`/quotations/${id}`, payload);
+  dashboardQueryCache.invalidate();
   return normalizeResponse(response.data);
 }
 
@@ -136,6 +139,7 @@ export async function approveQuotation(id: string): Promise<Quotation> {
     `/quotations/${id}/direct-approve`,
     {},
   );
+  dashboardQueryCache.invalidate();
   return normalizeResponse(response.data);
 }
 
@@ -150,6 +154,7 @@ export async function rejectQuotation(
     `/quotations/${id}/reject`,
     { reason: payload.reason.trim() },
   );
+  dashboardQueryCache.invalidate();
   return normalizeResponse(response.data);
 }
 
@@ -161,6 +166,7 @@ export async function reviseQuotation(id: string): Promise<Quotation> {
     `/quotations/${id}/revise`,
     {},
   );
+  dashboardQueryCache.invalidate();
   return normalizeResponse(response.data);
 }
 
@@ -183,5 +189,6 @@ export async function submitQuotation(id: string): Promise<Quotation> {
     `/quotations/${id}/submit`,
     {},
   );
+  dashboardQueryCache.invalidate();
   return normalizeResponse(response.data);
 }

@@ -10,9 +10,17 @@ export const metadata: Metadata = {
 export default async function QuotationsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ leadId?: string }>;
+  searchParams: Promise<{ leadId?: string; quotationId?: string }>;
 }) {
   const params = await searchParams;
   const leadId = typeof params.leadId === "string" ? params.leadId : "";
-  return <QuotationsDashboardClient key={leadId} initialLeadId={leadId} />;
+  const quotationId =
+    typeof params.quotationId === "string" ? params.quotationId : "";
+  return (
+    <QuotationsDashboardClient
+      key={`${leadId}:${quotationId}`}
+      initialLeadId={leadId}
+      initialQuotationId={quotationId}
+    />
+  );
 }

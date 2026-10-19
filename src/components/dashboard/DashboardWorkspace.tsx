@@ -1,6 +1,7 @@
 "use client";
 
-import { Activity, useState, type ReactNode } from "react";
+import { Activity, Suspense, useState, type ReactNode } from "react";
+import { useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
 
 const pages = {
@@ -13,6 +14,35 @@ const pages = {
   ),
   "/dashboard/users": dynamic(() => import("./users/UsersDashboardClient")),
 };
+
+const QuotationsPage = dynamic(
+  () => import("./quotations/QuotationsDashboardClient"),
+);
+
+function QuotationWorkspace({ pathname }: { pathname: string }) {
+  const params = useSearchParams();
+  const active = pathname === "/dashboard/quotations";
+  const leadId = params?.get("leadId") ?? "";
+  const quotationId = params?.get("quotationId") ?? "";
+  const key = JSON.stringify([leadId, quotationId]);
+  const [visited, setVisited] = useState<
+    { key: string; leadId: string; quotationId: string }[]
+  >([]);
+  if (active && !visited.some((entry) => entry.key === key)) {
+    setVisited([...visited, { key, leadId, quotationId }]);
+  }
+  return visited.map((entry) => (
+    <Activity
+      key={entry.key}
+      mode={active && entry.key === key ? "visible" : "hidden"}
+    >
+      <QuotationsPage
+        initialLeadId={entry.leadId}
+        initialQuotationId={entry.quotationId}
+      />
+    </Activity>
+  ));
+}
 
 export default function DashboardWorkspace({
   pathname,
@@ -36,7 +66,12 @@ export default function DashboardWorkspace({
           </Activity>
         );
       })}
-      {!targeted && children}
+      <Suspense
+        fallback={pathname === "/dashboard/quotations" ? children : null}
+      >
+        <QuotationWorkspace pathname={pathname} />
+      </Suspense>
+      {!targeted && pathname !== "/dashboard/quotations" && children}
     </>
   );
 }

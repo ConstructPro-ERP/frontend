@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useDashboardQuery } from "@/hooks/useDashboardQuery";
 import { getLead } from "@/components/dashboard/leads/leadApi";
 import { quotationActions, safePdfUrl } from "@/lib/quotationActions";
 import {
@@ -626,8 +627,10 @@ function QuotationCard({
 
 export default function QuotationsDashboardClient({
   initialLeadId = "",
+  initialQuotationId = "",
 }: {
   initialLeadId?: string;
+  initialQuotationId?: string;
 }) {
   const creatingRef = useRef(false);
   const pendingActions = useRef(new Set<string>());
@@ -639,9 +642,6 @@ export default function QuotationsDashboardClient({
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 5;
 
-  const [quotationsState, setQuotationsState] = useState<QuotationsState>({
-    kind: "loading",
-  });
   const [formValues, setFormValues] = useState<QuotationFormValues>({
     ...createQuotationFormValues(),
     leadId: initialLeadId,
@@ -675,98 +675,79 @@ export default function QuotationsDashboardClient({
     return () => clearTimeout(timer);
   }, [searchTerm]);
 
-  const replaceQuotationInState = (updated: Quotation) => {
-    setQuotationsState((current) => {
-      if (current.kind !== "ready") {
-        return { kind: "ready", quotations: [updated] };
+  const fetchQuotationsData =
+    useCallback(async (): Promise<QuotationsState> => {
+      if (
+        initialQuotationId &&
+        activeTab === "ALL" &&
+        !debouncedSearch.trim()
+      ) {
+        const quotation = await getQuotationById(initialQuotationId);
+        return { kind: "ready", quotations: normalizeQuotations([quotation]) };
       }
-
-      return {
-        ...current,
-        quotations: current.quotations.map((quotation) =>
-          quotation.id === updated.id ? updated : quotation,
-        ),
-      };
-    });
-  };
-
-  // Fetch real quotations on page load, search changes, or status filter tab changes asynchronously
-  const fetchQuotationsData = useCallback(
-    async (tab: QuotationFilterTab, search: string = "", page: number = 1) => {
-      try {
-        const linkedId = new URLSearchParams(window.location.search).get(
-          "quotationId",
-        );
-        if (linkedId && tab === "ALL" && !search.trim()) {
-          const quotation = await getQuotationById(linkedId);
-          return {
-            kind: "ready" as const,
-            quotations: normalizeQuotations([quotation]),
-          };
-        }
-        const res = await listQuotations({
-          status: tab,
-          leadId: initialLeadId || undefined,
-          page,
-          limit: pageSize,
-          search: search.trim() || undefined,
-        });
-        const items = normalizeQuotations(res);
-        if (items.length === 0) {
-          return { kind: "empty" as const };
-        }
-        return {
-          kind: "ready" as const,
-          quotations: items,
-          total: res.total,
-          totalPages: res.totalPages ?? 1,
-        };
-      } catch (error) {
-        // Report the real API failure rather than displaying prototype quotations.
-        return {
-          kind: "error" as const,
-          message: getQuotationErrorMessage(error),
-        };
-      }
-    },
-    [initialLeadId],
-  );
-
-  useEffect(() => {
-    let active = true;
-
-    async function load() {
-      const nextState = await fetchQuotationsData(
-        activeTab,
-        debouncedSearch,
-        currentPage,
-      );
-      if (active) {
-        setQuotationsState(nextState);
-      }
-    }
-
-    load();
-
-    return () => {
-      active = false;
-    };
-  }, [activeTab, debouncedSearch, currentPage, fetchQuotationsData]);
-
-  const loadQuotations = async () => {
-    setQuotationsState({ kind: "loading" });
-    const nextState = await fetchQuotationsData(
+      const res = await listQuotations({
+        status: activeTab,
+        leadId: initialLeadId || undefined,
+        page: currentPage,
+        limit: pageSize,
+        search: debouncedSearch.trim() || undefined,
+      });
+      const items = normalizeQuotations(res);
+      return items.length
+        ? {
+            kind: "ready",
+            quotations: items,
+            total: res.total,
+            totalPages: res.totalPages ?? 1,
+          }
+        : { kind: "empty" };
+    }, [
+      initialQuotationId,
+      initialLeadId,
       activeTab,
       debouncedSearch,
       currentPage,
-    );
-    setQuotationsState(nextState);
-  };
+    ]);
 
+  const query = useDashboardQuery<QuotationsState>(
+    JSON.stringify([
+      "quotations",
+      initialLeadId,
+      initialQuotationId,
+      activeTab,
+      debouncedSearch.trim(),
+      currentPage,
+    ]),
+    fetchQuotationsData,
+  );
+  const quotationsState: QuotationsState =
+    query.data ??
+    (query.error
+      ? { kind: "error", message: getQuotationErrorMessage(query.error) }
+      : { kind: "loading" });
+  const setQuotationsState = (
+    update: (current: QuotationsState) => QuotationsState,
+  ) => query.setData((current) => update(current ?? { kind: "loading" }));
+  const replaceQuotationInState = (updated: Quotation) => {
+    // Keep matching rows current while the invalidated list refreshes its counts and membership.
+    setQuotationsState((current) =>
+      current.kind === "ready"
+        ? {
+            ...current,
+            quotations: current.quotations.map((quotation) =>
+              quotation.id === updated.id ? updated : quotation,
+            ),
+          }
+        : current,
+    );
+    void query.refresh();
+  };
+  const loadQuotations = () => {
+    void query.refresh();
+  };
   const handleTabChange = (tabId: QuotationFilterTab) => {
     setActiveTab(tabId);
     setCurrentPage(1);
-    setQuotationsState({ kind: "loading" });
   };
 
   const handleSearchChange = (value: string) => {
@@ -993,6 +974,7 @@ export default function QuotationsDashboardClient({
 
         return { kind: "ready", quotations: [createdQuotation, ...existing] };
       });
+      void query.refresh();
       setFormValues({ ...createQuotationFormValues(), leadId: initialLeadId });
       setFormErrors({});
       setFeedback({
@@ -1027,6 +1009,14 @@ export default function QuotationsDashboardClient({
 
   return (
     <div className="space-y-5">
+      {query.error && query.data ? (
+        <div role="status" className="text-sm text-error">
+          {getQuotationErrorMessage(query.error)}{" "}
+          <button type="button" onClick={loadQuotations}>
+            Retry refresh
+          </button>
+        </div>
+      ) : null}
       {/* Feedback Banner */}
       {feedback ? <QuotationFeedbackBanner feedback={feedback} /> : null}
       {convertedProjectId && (
