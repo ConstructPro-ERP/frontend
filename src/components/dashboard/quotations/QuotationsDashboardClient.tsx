@@ -1275,13 +1275,28 @@ export default function QuotationsDashboardClient({
           quotation={convertingQuotation}
           isOpen={Boolean(convertingQuotation)}
           onClose={() => setConvertingQuotation(null)}
-          onSuccess={({ quotation: updated, projectId, projectStatus }) => {
+          onSuccess={async ({
+            quotation: updated,
+            projectId,
+            projectStatus,
+          }) => {
             replaceQuotationInState(updated);
             setConvertedProjectId(projectId);
             setFeedback({
               tone: "success",
-              message: `Project created successfully (ID: ${projectId}). Status: ${projectStatus ?? "ACTIVE"}`,
+              message: `Quotation converted successfully. Project: ${projectId}. Status: ${projectStatus ?? "ACTIVE"}`,
             });
+            try {
+              const refreshed = await getQuotationById(updated.id);
+              replaceQuotationInState(refreshed);
+              if (refreshed.projectId)
+                setConvertedProjectId(refreshed.projectId);
+            } catch (error) {
+              setFeedback({
+                tone: "info",
+                message: `Conversion succeeded, but the quotation could not be refreshed: ${getQuotationErrorMessage(error)}`,
+              });
+            }
           }}
           onAlreadyConverted={(q) => {
             // The conversion modal has already fetched and verified this quotation.

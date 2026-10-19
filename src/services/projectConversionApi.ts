@@ -15,10 +15,12 @@ export async function convertQuotationToProject(
   quotationId: string,
   payload: ConvertToProjectInput,
 ): Promise<ConvertToProjectResponse> {
+  // Conversion creates or links a project; do not replay an ambiguous network/5xx failure.
+  const requestOptions = { timeout: 15000, retryCount: 3 };
   const response = await apiClient.patch<ConvertToProjectResponse | Quotation>(
     `/quotations/${quotationId}/approve`,
     payload,
-    { timeout: 15000 },
+    requestOptions,
   );
 
   dashboardQueryCache.invalidate();
