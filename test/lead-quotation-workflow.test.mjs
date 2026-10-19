@@ -1,4 +1,3 @@
-
 import test from "node:test";
 import * as assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -42,24 +41,15 @@ function load(path, client) {
 
       // Resolve TypeScript path aliases.
       if (specifier.startsWith("@/")) {
-        return loadModule(
-          resolve("src", specifier.slice(2)) + ".ts",
-        );
+        return loadModule(resolve("src", specifier.slice(2)) + ".ts");
       }
 
       // Resolve relative TypeScript imports.
-      if (
-        specifier.startsWith("./") ||
-        specifier.startsWith("../")
-      ) {
-        return loadModule(
-          resolve(dirname(absolutePath), specifier) + ".ts",
-        );
+      if (specifier.startsWith("./") || specifier.startsWith("../")) {
+        return loadModule(resolve(dirname(absolutePath), specifier) + ".ts");
       }
 
-      throw new Error(
-        `Unexpected import "${specifier}" in ${absolutePath}`,
-      );
+      throw new Error(`Unexpected import "${specifier}" in ${absolutePath}`);
     }
 
     vm.runInNewContext(
@@ -73,7 +63,6 @@ function load(path, client) {
 
   return loadModule(path);
 }
-
 
 test("lead-to-quotation API workflow preserves identity, filtering, details and pagination", async () => {
   const lead = {

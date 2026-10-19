@@ -63,11 +63,11 @@ import ConvertToProjectModal from "@/components/dashboard/quotations/modals/Conv
 type QuotationsState =
   | { kind: "loading" }
   | {
-  kind: "ready";
-  quotations: Quotation[];
-  total?: number;
-  totalPages?: number;
-}
+      kind: "ready";
+      quotations: Quotation[];
+      total?: number;
+      totalPages?: number;
+    }
   | { kind: "empty" }
   | { kind: "error"; message: string };
 
@@ -90,11 +90,11 @@ function QuotationStatusBadge({ status }: { status: Quotation["status"] }) {
 }
 
 function QuotationStateCard({
-                              title,
-                              message,
-                              onRetry,
-                              action,
-                            }: {
+  title,
+  message,
+  onRetry,
+  action,
+}: {
   title: string;
   message: string;
   onRetry?: () => void;
@@ -132,8 +132,8 @@ function QuotationStateCard({
 }
 
 function QuotationFeedbackBanner({
-                                   feedback,
-                                 }: {
+  feedback,
+}: {
   feedback: QuotationFeedback;
 }) {
   const toneClasses =
@@ -154,16 +154,16 @@ function QuotationFeedbackBanner({
 }
 
 function QuotationForm({
-                         values,
-                         errors,
-                         isSubmitting,
-                         lockedLead = false,
-                         onFieldChange,
-                         onItemChange,
-                         onAddItem,
-                         onRemoveItem,
-                         onSubmit,
-                       }: {
+  values,
+  errors,
+  isSubmitting,
+  lockedLead = false,
+  onFieldChange,
+  onItemChange,
+  onAddItem,
+  onRemoveItem,
+  onSubmit,
+}: {
   values: QuotationFormValues;
   errors: QuotationFormErrors;
   isSubmitting: boolean;
@@ -340,21 +340,21 @@ function QuotationForm({
 }
 
 function QuotationCard({
-                         quotation,
-                         canApprove,
-                         canReject,
-                         isGeneratingPdf,
-                         isRevising,
-                         isApproving,
-                         onEdit,
-                         onApprove,
-                         onReject,
-                         onRevise,
-                         onConvert,
-                         onDownloadPdf,
-                         onSubmitDraft,
-                         role,
-                       }: {
+  quotation,
+  canApprove,
+  canReject,
+  isGeneratingPdf,
+  isRevising,
+  isApproving,
+  onEdit,
+  onApprove,
+  onReject,
+  onRevise,
+  onConvert,
+  onDownloadPdf,
+  onSubmitDraft,
+  role,
+}: {
   quotation: Quotation;
   role: string | null | undefined;
   onSubmitDraft: (quotation: Quotation) => void;
@@ -417,50 +417,50 @@ function QuotationCard({
         <div className="overflow-x-auto">
           <table className="w-full border-collapse text-[12.5px]">
             <thead>
-            <tr className="border-b border-outline-variant">
-              <th
-                scope="col"
-                className="py-2 text-left font-semibold uppercase tracking-[0.06em] text-[11px] text-on-surface-muted"
-              >
-                Item
-              </th>
-              <th
-                scope="col"
-                className="py-2 text-right font-semibold uppercase tracking-[0.06em] text-[11px] text-on-surface-muted"
-              >
-                Qty
-              </th>
-              <th
-                scope="col"
-                className="py-2 text-right font-semibold uppercase tracking-[0.06em] text-[11px] text-on-surface-muted"
-              >
-                Unit Price
-              </th>
-              <th
-                scope="col"
-                className="py-2 text-right font-semibold uppercase tracking-[0.06em] text-[11px] text-on-surface-muted"
-              >
-                Amount
-              </th>
-            </tr>
+              <tr className="border-b border-outline-variant">
+                <th
+                  scope="col"
+                  className="py-2 text-left font-semibold uppercase tracking-[0.06em] text-[11px] text-on-surface-muted"
+                >
+                  Item
+                </th>
+                <th
+                  scope="col"
+                  className="py-2 text-right font-semibold uppercase tracking-[0.06em] text-[11px] text-on-surface-muted"
+                >
+                  Qty
+                </th>
+                <th
+                  scope="col"
+                  className="py-2 text-right font-semibold uppercase tracking-[0.06em] text-[11px] text-on-surface-muted"
+                >
+                  Unit Price
+                </th>
+                <th
+                  scope="col"
+                  className="py-2 text-right font-semibold uppercase tracking-[0.06em] text-[11px] text-on-surface-muted"
+                >
+                  Amount
+                </th>
+              </tr>
             </thead>
             <tbody>
-            {quotation.items.map((item) => (
-              <tr key={item.id} className="border-b border-outline-variant">
-                <td className="py-[9px] text-on-background font-medium">
-                  {item.itemName}
-                </td>
-                <td className="py-[9px] text-right font-mono text-on-background">
-                  {item.quantity}
-                </td>
-                <td className="py-[9px] text-right font-mono text-on-background">
-                  {formatCurrency(item.unitPrice)}
-                </td>
-                <td className="py-[9px] text-right font-mono font-semibold text-on-background">
-                  {formatCurrency(item.amount)}
-                </td>
-              </tr>
-            ))}
+              {quotation.items.map((item) => (
+                <tr key={item.id} className="border-b border-outline-variant">
+                  <td className="py-[9px] text-on-background font-medium">
+                    {item.itemName}
+                  </td>
+                  <td className="py-[9px] text-right font-mono text-on-background">
+                    {item.quantity}
+                  </td>
+                  <td className="py-[9px] text-right font-mono text-on-background">
+                    {formatCurrency(item.unitPrice)}
+                  </td>
+                  <td className="py-[9px] text-right font-mono font-semibold text-on-background">
+                    {formatCurrency(item.amount)}
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
@@ -625,8 +625,8 @@ function QuotationCard({
 }
 
 export default function QuotationsDashboardClient({
-                                                    initialLeadId = "",
-                                                  }: {
+  initialLeadId = "",
+}: {
   initialLeadId?: string;
 }) {
   const creatingRef = useRef(false);
@@ -785,12 +785,12 @@ export default function QuotationsDashboardClient({
     endIndex,
   } = quotationsState.kind === "ready"
     ? {
-      items: allQuotations,
-      total: quotationsState.total ?? allQuotations.length,
-      totalPages: quotationsState.totalPages ?? 1,
-      startIndex: allQuotations.length ? (currentPage - 1) * pageSize + 1 : 0,
-      endIndex: (currentPage - 1) * pageSize + allQuotations.length,
-    }
+        items: allQuotations,
+        total: quotationsState.total ?? allQuotations.length,
+        totalPages: quotationsState.totalPages ?? 1,
+        startIndex: allQuotations.length ? (currentPage - 1) * pageSize + 1 : 0,
+        endIndex: (currentPage - 1) * pageSize + allQuotations.length,
+      }
     : paginateQuotations(allQuotations, currentPage, pageSize);
 
   const handleFieldChange = (field: "leadId" | "notes", value: string) => {
@@ -1312,4 +1312,3 @@ export default function QuotationsDashboardClient({
     </div>
   );
 }
-

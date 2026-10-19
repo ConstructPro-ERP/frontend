@@ -13,11 +13,11 @@ interface LeadSelectDropdownProps {
 }
 
 export default function LeadSelectDropdown({
-                                             value,
-                                             onChange,
-                                             error,
-                                             disabled = false,
-                                           }: LeadSelectDropdownProps) {
+  value,
+  onChange,
+  error,
+  disabled = false,
+}: LeadSelectDropdownProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [leads, setLeads] = useState<LeadOption[]>([]);
   const [isLoading, setIsLoading] = useState(false);
