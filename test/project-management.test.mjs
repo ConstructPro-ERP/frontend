@@ -58,6 +58,7 @@ const activeProject = {
   status: "ACTIVE",
   projectManagerId: managerId,
 };
+
 test("only administrators can create projects or assign managers", () => {
   for (const role of [
     "PROJECT_MANAGER",
@@ -80,6 +81,7 @@ test("only administrators can create projects or assign managers", () => {
     true,
   );
 });
+
 test("project managers can only read and modify assigned projects", () => {
   const own = rules.projectPermissions(
     "PROJECT_MANAGER",
@@ -97,6 +99,7 @@ test("project managers can only read and modify assigned projects", () => {
   assert.equal(other.read, false);
   assert.equal(other.manage, false);
 });
+
 test("accountants can edit expenses but cannot delete or manage projects", () => {
   const permissions = rules.projectPermissions(
     "ACCOUNTANT",
@@ -108,6 +111,7 @@ test("accountants can edit expenses but cannot delete or manage projects", () =>
   assert.equal(permissions.expenseDelete, false);
   assert.equal(permissions.manage, false);
 });
+
 test("completed and cancelled projects disable all mutation actions", () => {
   for (const status of ["COMPLETED", "CANCELLED"]) {
     for (const role of ["ADMIN", "PROJECT_MANAGER", "ACCOUNTANT"]) {
@@ -126,6 +130,7 @@ test("completed and cancelled projects disable all mutation actions", () => {
     }
   }
 });
+
 test("only administrators can request deletion of planning projects", () => {
   assert.equal(
     rules.projectPermissions("ADMIN", "", {
@@ -146,6 +151,7 @@ test("only administrators can request deletion of planning projects", () => {
     false,
   );
 });
+
 test("lifecycle options match backend transitions without reopening terminal projects", () => {
   assert.deepEqual(JSON.parse(JSON.stringify(rules.projectTransitions)), {
     PLANNING: ["ACTIVE", "CANCELLED"],
@@ -161,8 +167,10 @@ const valid = {
   budget: 0,
   projectManagerId: managerId,
 };
+
 test("project validation accepts zero budget and optional end date", () =>
   assert.equal(rules.validateProject(valid), null));
+
 test("project validation rejects blank names, invalid dates, budgets and managers", () => {
   for (const override of [
     { projectName: " " },
@@ -183,6 +191,7 @@ test("project validation rejects blank names, invalid dates, budgets and manager
     null,
   );
 });
+
 test("expense decimal validation rejects signs, exponents, fractions over two places and zero", () => {
   for (const value of ["1", "0.01", "12500.99"])
     assert.equal(rules.isPositiveMoney(value), true);
@@ -198,6 +207,7 @@ test("expense decimal validation rejects signs, exponents, fractions over two pl
   ])
     assert.equal(rules.isPositiveMoney(value), false);
 });
+
 test("project mutations use the dedicated API routes and backend payloads", async () => {
   const calls = [];
   const api = loader(
@@ -224,6 +234,7 @@ test("project mutations use the dedicated API routes and backend payloads", asyn
     ["del", "/projects/project", null],
   ]);
 });
+
 test("permission, conflict and network errors are preserved by project mutations", async () => {
   for (const message of [
     "Forbidden",
@@ -242,6 +253,7 @@ test("permission, conflict and network errors are preserved by project mutations
     );
   }
 });
+
 test("task listing forwards server filters, sorting and pagination", async () => {
   const query = {
     status: "BLOCKED",
@@ -265,6 +277,7 @@ test("task listing forwards server filters, sorting and pagination", async () =>
   })("src/services/tasksApi.ts");
   assert.equal(await tasks.listTasks("project", query), result);
 });
+
 test("resource listing supports flattened envelopes and rejects malformed data", async () => {
   const load = loader({
     get: async () => ({
@@ -279,6 +292,7 @@ test("resource listing supports flattened envelopes and rejects malformed data",
   );
   await assert.rejects(bad.listTasks("project"), /Unexpected response/);
 });
+
 test("milestone progress and task status/assignment use separate endpoints", async () => {
   const calls = [];
   const load = loader({
@@ -295,11 +309,12 @@ test("milestone progress and task status/assignment use separate endpoints", asy
   await tasks.assignTask("task", null);
   await tasks.updateTaskStatus("task", "BLOCKED");
   assert.deepEqual(JSON.parse(JSON.stringify(calls)), [
-    ["/milestones/milestone/progress", { progress: 65 }],
+    ["/milestones/milestone/progress", { progressPercentage: 65 }],
     ["/tasks/task/assign", { assignedToId: null }],
     ["/tasks/task/status", { status: "BLOCKED" }],
   ]);
 });
+
 test("expense creation preserves decimal strings and leaves recorded-by to the server", async () => {
   const input = {
     amount: "123.45",
@@ -316,6 +331,7 @@ test("expense creation preserves decimal strings and leaves recorded-by to the s
   })("src/services/expensesApi.ts");
   assert.equal((await api.createExpense("project", input)).amount, "123.45");
 });
+
 test("manager directory requests eligible managers and admins and preserves their IDs", async () => {
   const api = loader({
     get: async (url) => {
@@ -343,29 +359,34 @@ test("manager directory requests eligible managers and admins and preserves thei
     [managerId, "0bf3b9dd-ce36-480a-8bc8-a5a28dde483c"],
   );
 });
-test("conversion links use the actual returned project ID and preserve quotation status", async () => {
-  for (const data of [
-    {
-      quotation: { id: "quotation", status: "APPROVED" },
+
+test("conversion links only verified converted quotations", async () => {
+  const data = {
+    quotation: {
+      id: "quotation",
+      status: "CONVERTED",
       projectId: managerId,
-      projectStatus: "PLANNING",
+      totalAmount: "100.00",
+      items: [],
     },
-    { id: "quotation", status: "CONVERTED", projectId: managerId },
-  ]) {
-    const api = loader({ patch: async () => ({ data }) })(
-      "src/services/projectConversionApi.ts",
-    );
-    const result = await api.convertQuotationToProject("quotation", {
-      targetProjectId: managerId,
-    });
-    assert.equal(result.projectId, managerId);
-    assert.equal(result.quotation.projectId, managerId);
-    assert.equal(
-      result.quotation.status,
-      data.quotation?.status ?? data.status,
-    );
-  }
+    projectId: managerId,
+    projectStatus: "PLANNING",
+  };
+
+  const api = loader({
+    patch: async () => ({ data }),
+  })("src/services/projectConversionApi.ts");
+
+  const result = await api.convertQuotationToProject("quotation", {
+    targetProjectId: managerId,
+  });
+
+  assert.equal(result.projectId, managerId);
+  assert.equal(result.quotation.projectId, managerId);
+  assert.equal(result.quotation.status, "CONVERTED");
+  assert.equal(result.projectStatus, "PLANNING");
 });
+
 test("conversion never invents a missing project ID", async () => {
   for (const data of [
     { id: "quotation" },
@@ -378,29 +399,31 @@ test("conversion never invents a missing project ID", async () => {
     );
     await assert.rejects(
       api.convertQuotationToProject("quotation", {}),
-      /did not return a project ID/,
+      /could not be verified/,
     );
   }
 });
+
 test("approval permissions and already-converted detection match the backend", () => {
   const load = loader();
   const utils = load("src/components/dashboard/quotations/quotationUtils.ts");
+
   assert.equal(utils.canApproveQuotation("ADMIN"), true);
-  for (const role of [
-    "MANAGER",
-    "SALES_MANAGER",
-    "PROJECT_MANAGER",
-    "ACCOUNTANT",
-    null,
-  ])
+  assert.equal(utils.canApproveQuotation("SALES_MANAGER"), true);
+
+  for (const role of ["MANAGER", "PROJECT_MANAGER", "ACCOUNTANT", null]) {
     assert.equal(utils.canApproveQuotation(role), false);
+  }
+
   const { ApiError } = load("src/lib/ApiError.ts");
+
   assert.equal(
     utils.isAlreadyConvertedError(
       new ApiError("Conflict", 409, "OTHER_CONFLICT"),
     ),
     false,
   );
+
   assert.equal(
     utils.isAlreadyConvertedError(
       new ApiError("Already converted", 409, "ALREADY_CONVERTED"),
@@ -408,6 +431,7 @@ test("approval permissions and already-converted detection match the backend", (
     true,
   );
 });
+
 test("progress displays unavailable for absent data and clamps displayed percentages", () => {
   const { Progress } = loader()(
     "src/components/dashboard/projects/ProjectUI.tsx",
@@ -423,6 +447,7 @@ test("progress displays unavailable for absent data and clamps displayed percent
   assert.match(html, /value="100"/);
   assert.match(html, /100.0%/);
 });
+
 test("shared editor renders accessible required fields and named dialog", () => {
   const { Editor } = loader()(
     "src/components/dashboard/projects/ProjectUI.tsx",

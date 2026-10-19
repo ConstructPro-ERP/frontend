@@ -1,10 +1,10 @@
 export type QuotationStatus =
   | "DRAFT"
-  | "SENT"
   | "PENDING_APPROVAL"
   | "APPROVED"
   | "REJECTED"
-  | "CONVERTED";
+  | "CONVERTED"
+  | "UNKNOWN";
 
 export type QuotationFilterTab = "ALL" | QuotationStatus;
 

@@ -9,28 +9,25 @@ import type {
   QuotationStatus,
 } from "@/types/quotation";
 
-/**
- * Floating-point calculation helpers synchronized with backend round2 precision
- */
+import {
+  roundMoney,
+  lineAmount,
+  totalAmount,
+  validateItems,
+} from "@/lib/quotationMoney";
 export function round2(n: number): number {
-  return Math.round((n + Number.EPSILON) * 100) / 100;
+  return roundMoney(n);
 }
-
 export function calculateLineItemAmount(
   quantity: number,
   unitPrice: number,
 ): number {
-  return round2(quantity * unitPrice);
+  return lineAmount(quantity, unitPrice);
 }
-
 export function calculateTotalAmount(
   items: Array<{ quantity: number; unitPrice: number }>,
 ): number {
-  const total = items.reduce(
-    (sum, item) => sum + round2(item.quantity * item.unitPrice),
-    0,
-  );
-  return round2(total);
+  return totalAmount(items);
 }
 
 export function createQuotationFormValues(): QuotationFormValues {
@@ -50,28 +47,8 @@ export function validateQuotationForm(
     errors.leadId = "Lead ID is required.";
   }
 
-  if (values.items.length === 0) {
-    errors.items = "At least one item is required.";
-  } else {
-    for (let index = 0; index < values.items.length; index += 1) {
-      const item = values.items[index];
-
-      if (!item.itemName.trim()) {
-        errors.items = `Item ${index + 1}: item name is required.`;
-        break;
-      }
-
-      if (!Number.isFinite(item.quantity) || item.quantity <= 0) {
-        errors.items = `Item ${index + 1}: quantity must be greater than zero.`;
-        break;
-      }
-
-      if (!Number.isFinite(item.unitPrice) || item.unitPrice < 0) {
-        errors.items = `Item ${index + 1}: unit price must be zero or greater.`;
-        break;
-      }
-    }
-  }
+  const itemError = validateItems(values.items);
+  if (itemError) errors.items = itemError;
 
   return errors;
 }
@@ -82,7 +59,6 @@ export const quotationFilterTabs: Array<{
 }> = [
   { id: "ALL", label: "All Quotations" },
   { id: "DRAFT", label: "Draft" },
-  { id: "SENT", label: "Sent" },
   { id: "PENDING_APPROVAL", label: "Pending Approval" },
   { id: "APPROVED", label: "Approved" },
   { id: "REJECTED", label: "Rejected" },
@@ -180,10 +156,12 @@ export const quotationPreviewList: Quotation[] = [
 ];
 
 export function formatCurrency(value: number) {
+  if (!Number.isFinite(value)) return "—";
   return new Intl.NumberFormat("en-LK", {
     style: "currency",
     currency: "LKR",
-    maximumFractionDigits: 0,
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
   }).format(value);
 }
 
@@ -211,8 +189,8 @@ export function getQuotationStatusBadgeClasses(status: QuotationStatus) {
       return "bg-error-container text-error";
     case "PENDING_APPROVAL":
       return "bg-risk-medium-container text-risk-medium";
-    case "SENT":
-      return "border border-secondary/30 bg-secondary-container text-secondary";
+    case "UNKNOWN":
+      return "bg-surface-container text-on-surface-muted";
     case "DRAFT":
     default:
       return "bg-surface-container text-on-surface-muted";
@@ -229,8 +207,8 @@ export function getQuotationStatusLabel(status: QuotationStatus) {
       return "Rejected";
     case "CONVERTED":
       return "Converted";
-    case "SENT":
-      return "Sent";
+    case "UNKNOWN":
+      return "Unknown status";
     case "DRAFT":
     default:
       return "Draft";
@@ -283,7 +261,7 @@ function readNumber(
     if (typeof value === "string" && value.trim().length > 0) {
       const parsed = Number(value);
 
-      if (!Number.isNaN(parsed)) {
+      if (Number.isFinite(parsed)) {
         return parsed;
       }
     }
@@ -309,7 +287,7 @@ export function normalizeQuotationStatus(value: unknown): QuotationStatus {
     return normalized;
   }
 
-  return "DRAFT";
+  return "UNKNOWN";
 }
 
 function normalizeQuotationItemRecord(
@@ -468,18 +446,20 @@ export function canCreateQuotation(role: string | null | undefined): boolean {
 }
 
 export function canApproveQuotation(role: string | null | undefined): boolean {
-  return role === "ADMIN";
+  return role === "ADMIN" || role === "SALES_MANAGER";
 }
 
 export function canRejectQuotation(role: string | null | undefined): boolean {
-  return role === "ADMIN" || role === "MANAGER" || role === "SALES_MANAGER";
+  return role === "ADMIN" || role === "SALES_MANAGER";
 }
 
-export function isAlreadyConvertedError(error: unknown) {
+export function isAlreadyConvertedError(error: unknown): boolean {
   if (!(error instanceof ApiError)) {
     return false;
   }
 
+  // Recognize both conversion-specific backend error identifiers.
+  // An unrelated HTTP 409 must not be treated as a successful conversion.
   return (
     error.code === "ALREADY_CONVERTED" ||
     error.code === "QUOTATION_ALREADY_CONVERTED"
@@ -488,6 +468,8 @@ export function isAlreadyConvertedError(error: unknown) {
 
 export function getQuotationErrorMessage(error: unknown): string {
   if (error instanceof ApiError) {
+    if (error.statusCode >= 500 || error.code === "NETWORK_ERROR")
+      return "Quotation service is unavailable. Refresh the quotation before retrying.";
     switch (error.code) {
       case "INVALID_STATUS_TRANSITION":
         return "This quotation cannot transition to the requested status.";
@@ -496,6 +478,7 @@ export function getQuotationErrorMessage(error: unknown): string {
       case "QUOTATION_REJECTED":
         return "Rejected quotations cannot be converted. Send for revision first.";
       case "ALREADY_CONVERTED":
+      case "QUOTATION_ALREADY_CONVERTED":
         return "This quotation has already been converted to a project.";
       case "VALIDATION_ERROR":
         return error.message || "Please provide valid quotation data.";

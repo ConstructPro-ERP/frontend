@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { AlertCircle, Check, Loader2, Plus, Trash2, X } from "lucide-react";
 import { updateQuotation } from "@/services/quotationsApi";
 import type {
@@ -13,6 +13,7 @@ import {
   calculateTotalAmount,
   formatCurrency,
   getQuotationErrorMessage,
+  validateQuotationForm,
 } from "@/components/dashboard/quotations/quotationUtils";
 import { useModalFocusTrap } from "@/components/dashboard/quotations/useModalFocusTrap";
 
@@ -44,6 +45,7 @@ export default function EditQuotationModal({
   );
   const [validationError, setValidationError] = useState<string | null>(null);
   const [apiError, setApiError] = useState<string | null>(null);
+  const submittingRef = useRef(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const modalRef = useModalFocusTrap(isOpen, onClose, isSubmitting);
@@ -89,6 +91,7 @@ export default function EditQuotationModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (submittingRef.current) return;
     setValidationError(null);
     setApiError(null);
 
@@ -97,31 +100,17 @@ export default function EditQuotationModal({
       return;
     }
 
-    if (items.length === 0) {
-      setValidationError("At least one line item is required.");
+    const errors = validateQuotationForm({
+      leadId: quotation.leadId,
+      notes,
+      items,
+    });
+    if (errors.items) {
+      setValidationError(errors.items);
       return;
     }
 
-    for (let i = 0; i < items.length; i += 1) {
-      const it = items[i];
-      if (!it.itemName.trim()) {
-        setValidationError(`Item #${i + 1}: Name cannot be empty.`);
-        return;
-      }
-      if (!Number.isFinite(it.quantity) || it.quantity <= 0) {
-        setValidationError(
-          `Item #${i + 1}: Quantity must be greater than zero.`,
-        );
-        return;
-      }
-      if (!Number.isFinite(it.unitPrice) || it.unitPrice < 0) {
-        setValidationError(
-          `Item #${i + 1}: Unit price must be zero or a positive number.`,
-        );
-        return;
-      }
-    }
-
+    submittingRef.current = true;
     setIsSubmitting(true);
     const payload: UpdateQuotationInput = {
       notes: notes.trim() || undefined,
@@ -139,6 +128,7 @@ export default function EditQuotationModal({
     } catch (err) {
       setApiError(getQuotationErrorMessage(err));
     } finally {
+      submittingRef.current = false;
       setIsSubmitting(false);
     }
   };
@@ -272,7 +262,7 @@ export default function EditQuotationModal({
                     <input
                       type="number"
                       min="1"
-                      step="any"
+                      step="1"
                       value={item.quantity === 0 ? "" : item.quantity}
                       disabled={isLocked || isSubmitting}
                       aria-label={`Item ${idx + 1} quantity`}
@@ -285,7 +275,7 @@ export default function EditQuotationModal({
                     <input
                       type="number"
                       min="0"
-                      step="any"
+                      step="0.01"
                       value={item.unitPrice === 0 ? "" : item.unitPrice}
                       disabled={isLocked || isSubmitting}
                       aria-label={`Item ${idx + 1} unit price`}

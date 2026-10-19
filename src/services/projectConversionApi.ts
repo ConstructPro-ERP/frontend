@@ -1,3 +1,4 @@
+import { normalizeQuotationRecord } from "@/components/dashboard/quotations/quotationUtils";
 import apiClient from "@/lib/axios";
 import type {
   ConvertToProjectInput,
@@ -16,30 +17,47 @@ export async function convertQuotationToProject(
   const response = await apiClient.patch<ConvertToProjectResponse | Quotation>(
     `/quotations/${quotationId}/approve`,
     payload,
+    { timeout: 15000 },
   );
 
   const data = response.data;
 
-  // Handle nested response format
+  // Do not fabricate project linkage when the backend returns partial data.
   if (
-    data &&
-    typeof data === "object" &&
-    "projectId" in data &&
-    typeof data.projectId === "string" &&
-    data.projectId.trim().length > 0
+    !data ||
+    typeof data !== "object" ||
+    !("quotation" in data) ||
+    !data.quotation ||
+    typeof data.projectId !== "string" ||
+    !data.projectId.trim() ||
+    typeof data.projectStatus !== "string" ||
+    !["PLANNING", "ACTIVE", "ON_HOLD", "COMPLETED", "CANCELLED"].includes(
+      data.projectStatus,
+    )
   ) {
-    const projResponse = data as ConvertToProjectResponse;
-    return {
-      quotation: {
-        ...(projResponse.quotation ?? (data as unknown as Quotation)),
-        projectId: projResponse.projectId,
-      },
-      projectId: projResponse.projectId,
-      projectStatus: projResponse.projectStatus ?? "ACTIVE",
-    };
+    throw new Error(
+      "The conversion response could not be verified. Refresh the quotation before retrying.",
+    );
   }
 
-  throw new Error(
-    "The server did not return a project ID. Refresh the quotation before retrying conversion.",
+  const quotation = normalizeQuotationRecord(
+    data.quotation as unknown as Record<string, unknown>,
+    0,
   );
+
+  if (
+    quotation.id !== quotationId ||
+    quotation.status !== "CONVERTED" ||
+    quotation.projectId !== data.projectId
+  ) {
+    throw new Error(
+      "The conversion response could not be verified. Refresh the quotation before retrying.",
+    );
+  }
+
+  return {
+    quotation,
+    projectId: data.projectId,
+    projectStatus: data.projectStatus,
+  };
 }

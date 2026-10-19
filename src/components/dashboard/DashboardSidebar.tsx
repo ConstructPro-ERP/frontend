@@ -3,13 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import {
-  ChevronDown,
-  CircleUserRound,
-  LogOut,
-  Settings,
-  X,
-} from "lucide-react";
+import { ChevronDown, LogOut, Settings, X } from "lucide-react";
 import { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import type { AppDispatch, RootState } from "@/store";

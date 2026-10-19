@@ -49,6 +49,31 @@ export default function LeadSelectDropdown({
           setLoadError(
             error instanceof Error ? error.message : "Unable to load leads.",
           );
+        const response = await apiClient.get<
+          LeadOption[] | { items: LeadOption[] } | { data: LeadOption[] }
+        >("/leads");
+
+        if (!isMounted) return;
+
+        const data = response.data;
+        let fetchedList: LeadOption[] = [];
+
+        if (Array.isArray(data)) {
+          fetchedList = data;
+        } else if (data && typeof data === "object") {
+          if ("items" in data && Array.isArray(data.items)) {
+            fetchedList = data.items;
+          } else if ("data" in data && Array.isArray(data.data)) {
+            fetchedList = data.data;
+          }
+        }
+
+        setLeads(fetchedList);
+      } catch {
+        // Do not submit synthetic demo IDs during service outages.
+        if (isMounted) {
+          setLeads([]);
+        }
       } finally {
         if (active) setIsLoading(false);
       }
@@ -118,7 +143,7 @@ export default function LeadSelectDropdown({
           type="text"
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          placeholder="e.g. lead-2026-108"
+          placeholder="Existing lead UUID"
           disabled={disabled}
           className={`w-full rounded-lg border px-3 py-[9px] text-[13px] text-on-background outline-none transition ${
             error

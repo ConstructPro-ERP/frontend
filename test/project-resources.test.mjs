@@ -136,11 +136,10 @@ test("calendar validation rejects impossible dates and accepts leap days", () =>
   }
 });
 
-test("milestones require valid weight, status and date", () => {
+test("milestones require valid weight and date", () => {
   const valid = {
     milestoneName: "Foundation",
     weight: "3",
-    status: "PENDING",
     dueDate: "",
   };
   assert.equal(rules.validateMilestone(valid), null);
@@ -151,11 +150,42 @@ test("milestones require valid weight, status and date", () => {
     { weight: "0" },
     { weight: "11" },
     { weight: "NaN" },
-    { status: "TODO" },
     { dueDate: "2026-02-30" },
     { description: "x".repeat(2001) },
   ])
     assert.ok(rules.validateMilestone({ ...valid, ...invalid }));
+});
+
+test("milestone metadata and progress use separate DTOs", async () => {
+  const calls = [];
+
+  const api = loader({
+    post: async (url, body) => {
+      calls.push(["post", url, body]);
+      return { data: {} };
+    },
+    patch: async (url, body) => {
+      calls.push(["patch", url, body]);
+      return { data: {} };
+    },
+  })("src/services/milestonesApi.ts");
+
+  const metadata = {
+    milestoneName: "Foundation",
+    description: "Foundation works",
+    dueDate: null,
+    weight: 5,
+  };
+
+  await api.createMilestone("project", metadata);
+  await api.updateMilestone("milestone", metadata);
+  await api.updateMilestoneProgress("milestone", 100);
+
+  assert.deepEqual(JSON.parse(JSON.stringify(calls)), [
+    ["post", "/projects/project/milestones", metadata],
+    ["patch", "/milestones/milestone", metadata],
+    ["patch", "/milestones/milestone/progress", { progressPercentage: 100 }],
+  ]);
 });
 
 test("milestone progress accepts whole-number boundaries and rejects empty or fractional input", () => {
@@ -163,6 +193,99 @@ test("milestone progress accepts whole-number boundaries and rejects empty or fr
     assert.equal(rules.validateMilestoneProgress({ progress }), null);
   for (const progress of ["", " ", "-1", "101", "1.5", "Infinity"])
     assert.ok(rules.validateMilestoneProgress({ progress }));
+});
+
+test("milestone listing filters, sorts and paginates the complete backend array", async () => {
+  const milestones = Array.from({ length: 23 }, (_, index) => {
+    const number = index + 1;
+    const suffix = String(number).padStart(2, "0");
+
+    return {
+      id: `milestone-${suffix}`,
+      projectId: "project",
+      milestoneName: `Foundation ${suffix}`,
+      description: `Construction stage ${suffix}`,
+      createdAt: `2026-10-${suffix}T00:00:00.000Z`,
+      dueDate: null,
+      weight: 1,
+      progressPercentage: number % 2 === 0 ? 0 : 65,
+      status: number % 2 === 0 ? "PENDING" : "IN_PROGRESS",
+    };
+  });
+
+  const calls = [];
+
+  const api = loader({
+    get: async (url, config) => {
+      calls.push({ url, config });
+      return { data: milestones };
+    },
+  })("src/services/milestonesApi.ts");
+
+  const first = await api.listMilestones("project", {
+    page: 1,
+    limit: 10,
+    sortBy: "milestoneName",
+    sortOrder: "asc",
+  });
+
+  const second = await api.listMilestones("project", {
+    page: 2,
+    limit: 10,
+    sortBy: "milestoneName",
+    sortOrder: "asc",
+  });
+
+  const last = await api.listMilestones("project", {
+    page: 3,
+    limit: 10,
+    sortBy: "milestoneName",
+    sortOrder: "asc",
+  });
+
+  assert.deepEqual(JSON.parse(JSON.stringify(first.meta)), {
+    page: 1,
+    limit: 10,
+    total: 23,
+    totalPages: 3,
+  });
+
+  assert.equal(first.data.length, 10);
+  assert.equal(second.data.length, 10);
+  assert.equal(last.data.length, 3);
+
+  assert.equal(first.data[0].id, "milestone-01");
+  assert.equal(second.data[0].id, "milestone-11");
+  assert.equal(last.data[0].id, "milestone-21");
+
+  const descending = await api.listMilestones("project", {
+    sortBy: "milestoneName",
+    sortOrder: "desc",
+  });
+
+  assert.equal(descending.data[0].id, "milestone-23");
+
+  const filtered = await api.listMilestones("project", {
+    search: "FOUNDATION 1",
+    status: "PENDING",
+  });
+
+  assert.equal(filtered.meta.total, 5);
+  assert.equal(filtered.meta.totalPages, 1);
+
+  const empty = await api.listMilestones("project", {
+    search: "Nonexistent milestone",
+  });
+
+  assert.equal(empty.data.length, 0);
+  assert.equal(empty.meta.total, 0);
+
+  // Milestone pagination is local. The backend must receive no
+  // unsupported pagination, search, or sorting query parameters.
+  for (const call of calls) {
+    assert.equal(call.url, "/projects/project/milestones");
+    assert.equal(call.config, undefined);
+  }
 });
 
 test("task form validates UUID selections, name, calendar date and status", () => {

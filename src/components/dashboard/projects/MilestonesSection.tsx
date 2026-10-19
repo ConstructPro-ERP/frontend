@@ -11,7 +11,6 @@ import {
   MILESTONE_STATUSES,
   type Milestone,
   type MilestoneInput,
-  type MilestoneStatus,
 } from "@/types/milestone";
 import type { ResourceQuery } from "@/services/projectResources";
 import {
@@ -35,10 +34,9 @@ export default function MilestonesSection({
   );
   const input = (v: Record<string, string>): MilestoneInput => ({
     milestoneName: v.milestoneName.trim(),
-    description: v.description?.trim(),
-    dueDate: v.dueDate || null,
+    description: v.description?.trim() || null,
+    dueDate: v.dueDate ? `${v.dueDate}T00:00:00.000Z` : null,
     weight: Number(v.weight),
-    status: v.status as MilestoneStatus,
   });
   return (
     <ResourceSection<Milestone>
@@ -67,16 +65,6 @@ export default function MilestonesSection({
           step: "1",
         },
         {
-          name: "status",
-          label: "Status",
-          type: "select",
-          required: true,
-          options: MILESTONE_STATUSES.map((value) => ({
-            value,
-            label: label(value),
-          })),
-        },
-        {
           name: "description",
           label: "Description",
           type: "textarea",
@@ -87,7 +75,6 @@ export default function MilestonesSection({
         milestoneName: item?.milestoneName ?? "",
         dueDate: item?.dueDate?.slice(0, 10) ?? "",
         weight: String(item?.weight ?? 1),
-        status: item?.status ?? "PENDING",
         description: item?.description ?? "",
       })}
       validate={validateMilestone}
@@ -138,7 +125,7 @@ export default function MilestonesSection({
           label: "Progress",
           render: (item) => (
             <Progress
-              value={item.progress}
+              value={item.progressPercentage}
               ariaLabel={`${item.milestoneName} progress`}
             />
           ),
@@ -158,12 +145,15 @@ export default function MilestonesSection({
               min: 0,
               max: 100,
               step: "1",
+              hint: "0% = Pending, 1–99% = In Progress, 100% = Completed.",
             },
           ],
-          initial: (item) => ({ progress: String(item.progress ?? 0) }),
+          initial: (item) => ({
+            progress: String(item.progressPercentage),
+          }),
           validate: validateMilestoneProgress,
-          save: (item, v) =>
-            updateMilestoneProgress(item.id, Number(v.progress)),
+          save: (item, values) =>
+            updateMilestoneProgress(item.id, Number(values.progress)),
         },
       ]}
     />
