@@ -536,7 +536,7 @@ function LoadingView() {
           />
         ))}
       </section>
-      <div className="h-48 animate-pulse rounded-xl bg-gradient-to-br from-indigo-950 via-blue-900 to-slate-950" />
+      <div className="h-48 animate-pulse rounded-xl bg-gradient-to-br from-blue-950 via-blue-900 to-slate-950" />
       {[1, 2].map((item) => (
         <div
           key={item}
@@ -569,9 +569,9 @@ function AiPredictionBanner({
   onRunAnalysis: () => void;
 }) {
   return (
-    <section className="overflow-hidden rounded-xl bg-gradient-to-br from-indigo-950 via-blue-900 to-slate-950 px-6 py-5 text-on-hero shadow-level-2">
+    <section className="overflow-hidden rounded-xl bg-gradient-to-br from-blue-950 via-blue-900 to-slate-950 px-6 py-5 text-on-hero shadow-level-2">
       <div className="flex flex-col gap-5 lg:flex-row lg:items-center">
-        <div className="flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-xl bg-indigo-400/25 text-indigo-200">
+        <div className="flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-xl bg-blue-400/25 text-blue-200">
           <Radar size={24} strokeWidth={1.75} />
         </div>
         <div className="min-w-0 flex-1">
