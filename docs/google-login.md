@@ -3,7 +3,7 @@
 The frontend uses the existing backend OAuth redirect flow. No frontend Google SDK, client ID or client secret is needed.
 
 1. The shared Google button on `/login` and `/register` navigates to `http://localhost:4000/api/auth/google` by default.
-2. The gateway redirects to auth-service, which starts Google OAuth.
+2. The gateway calls auth-service internally and relays its redirect to Google. Google returns to the gateway callback, which calls auth-service internally to exchange the code.
 3. The backend redirects to `${FRONTEND_URL}/auth/callback#token=<accessToken>`.
 4. The callback removes the fragment from browser history and verifies the token using `GET /auth/me` with an explicit Bearer header. It cannot refresh with a previous user's credentials.
 5. After verification, it clears old tokens, saves the access token and updates Redux. Users with an assigned role proceed to `/modules`. Users with role `user` or `null` proceed to `/auth/select-role` to choose a role.
@@ -35,7 +35,9 @@ GOOGLE_CLIENT_ID=<Google OAuth web client ID>
 GOOGLE_CLIENT_SECRET=<backend-only secret>
 ```
 
-The Google Cloud authorized redirect URI must exactly match `GOOGLE_CALLBACK_URL`. The backend can instead use its directly exposed auth-service callback URL if that is how the deployment is configured. The current gateway redirects the browser to `AUTH_SERVICE_URL`, so that URL must be browser-accessible. Set `FRONTEND_URL` to the actual frontend origin: the backend's current fallback is port 5173, while Next.js normally uses port 3000.
+The Google Cloud authorized redirect URI must exactly match `GOOGLE_CALLBACK_URL` on auth-service. In production use `https://construct-pro-api-gateway.vercel.app/api/auth/google/callback`. Keep `AUTH_SERVICE_URL` on the gateway pointed at the internal auth-service address; the browser never needs that address. Set `FRONTEND_URL` on auth-service to the actual frontend origin. Auth-service owns this setting; the gateway relays its HTTP(S) `/auth/callback` redirect without requiring a duplicate setting, while blocking redirects to the auth-service origin. The default is port 5173, while Next.js normally uses port 3000. Configure the frontend API base URL as `https://construct-pro-api-gateway.vercel.app/api`.
+
+The gateway disables automatic redirect following, relays only approved Google/frontend redirects, and returns a generic error for downstream failures. Verify in browser Network tools that OAuth visits only the gateway, Google, and the frontend. Restrict direct service access at the hosting/network layer as well: proxying avoids exposing service URLs in this flow but does not itself make a publicly hosted service private.
 
 ## Existing backend limits
 
