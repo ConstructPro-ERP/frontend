@@ -1,5 +1,6 @@
 import { normalizeQuotationRecord } from "@/components/dashboard/quotations/quotationUtils";
 import apiClient from "@/lib/axios";
+import { dashboardQueryCache } from "@/lib/dashboardQueryCache";
 import type {
   ConvertToProjectInput,
   ConvertToProjectResponse,
@@ -22,6 +23,7 @@ export async function convertQuotationToProject(
     requestOptions,
   );
 
+  dashboardQueryCache.invalidate();
   const data = response.data;
 
   // Do not fabricate project linkage when the backend returns partial data.

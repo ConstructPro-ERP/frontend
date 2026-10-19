@@ -17,6 +17,16 @@ import { store } from "@/store";
 import { loginSuccess, logout } from "@/store/slices/authSlice";
 import DashboardWorkspace from "@/components/dashboard/DashboardWorkspace";
 
+const navigation = vi.hoisted(() => ({ search: "" }));
+vi.mock("next/navigation", () => ({
+  useSearchParams: () => new URLSearchParams(navigation.search),
+}));
+vi.mock("@/components/dashboard/quotations/QuotationsDashboardClient", () => ({
+  default: ({ initialLeadId }: { initialLeadId: string }) => (
+    <input aria-label={`Quotation draft ${initialLeadId}`} />
+  ),
+}));
+
 vi.mock("next/dynamic", async () => {
   const { lazy } = await import("react");
   return {
@@ -196,4 +206,37 @@ it("keeps visited workspace pages mounted across routes without rendering route 
   expect(
     ((await screen.findByLabelText("Home note")) as HTMLInputElement).value,
   ).toBe("retained");
+});
+
+it("retains separate quotation drafts across module and lead-link navigation", async () => {
+  const view = (path: string) => (
+    <Suspense fallback="Loading">
+      <DashboardWorkspace pathname={path}>
+        <p>Route fallback</p>
+      </DashboardWorkspace>
+    </Suspense>
+  );
+  navigation.search = "leadId=first";
+  const { rerender } = render(view("/dashboard/quotations"));
+  fireEvent.change(await screen.findByLabelText("Quotation draft first"), {
+    target: { value: "Saved draft" },
+  });
+  navigation.search = "";
+  rerender(view("/dashboard/analytics"));
+  await screen.findByText("Analytics view");
+  navigation.search = "leadId=second";
+  rerender(view("/dashboard/quotations"));
+  expect(
+    (
+      (await screen.findByLabelText(
+        "Quotation draft second",
+      )) as HTMLInputElement
+    ).value,
+  ).toBe("");
+  navigation.search = "leadId=first";
+  rerender(view("/dashboard/quotations"));
+  expect(
+    (screen.getByLabelText("Quotation draft first") as HTMLInputElement).value,
+  ).toBe("Saved draft");
+  navigation.search = "";
 });

@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useState } from "react";
+import { useDashboardQuery } from "@/hooks/useDashboardQuery";
 import Link from "next/link";
 import { useSelector } from "react-redux";
 import type { RootState } from "@/store";
-import type { Quotation } from "@/types/quotation";
 import { listQuotations } from "@/services/quotationsApi";
 import {
   canCreateQuotation,
@@ -20,43 +20,29 @@ export default function LeadQuotations({ leadId }: { leadId: string }) {
     "PROJECT_MANAGER",
     "ACCOUNTANT",
   ].includes(role ?? "");
-  const [items, setItems] = useState<Quotation[]>([]);
   const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [attempt, setAttempt] = useState(0);
-  useEffect(() => {
-    let active = true;
-    if (!canView) return;
-    listQuotations({ leadId, page, limit: 5 })
-      .then((result) => {
-        if (active) {
-          setItems(result.items);
-          setTotalPages(result.totalPages ?? 1);
-        }
-      })
-      .catch((error) => {
-        if (active)
-          setError(
-            error instanceof Error
-              ? error.message
-              : "Unable to load quotations.",
-          );
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
-    return () => {
-      active = false;
-    };
-  }, [leadId, page, attempt, canView]);
+  const loader = useCallback(
+    () => listQuotations({ leadId, page, limit: 5 }),
+    [leadId, page],
+  );
+  const query = useDashboardQuery(
+    JSON.stringify(["lead-quotations", leadId, page]),
+    loader,
+    canView,
+  );
+  const items = query.data?.items ?? [];
+  const totalPages = query.data?.totalPages ?? 1;
+  const loading = query.loading;
+  const error =
+    query.error instanceof Error
+      ? query.error.message
+      : query.error
+        ? "Unable to load quotations."
+        : "";
   if (!canView) return null;
   const reload = (nextPage: number) => {
-    setLoading(true);
-    setError("");
-    setPage(nextPage);
-    setAttempt((n) => n + 1);
+    if (nextPage === page) void query.refresh();
+    else setPage(nextPage);
   };
   return (
     <section className="space-y-3 p-5" aria-label="Lead quotations">
@@ -71,11 +57,19 @@ export default function LeadQuotations({ leadId }: { leadId: string }) {
           </Link>
         ) : null}
       </div>
+      {error && query.data ? (
+        <p role="status" className="text-xs text-error">
+          {error}{" "}
+          <button type="button" onClick={() => reload(page)}>
+            Retry refresh
+          </button>
+        </p>
+      ) : null}
       {loading ? (
         <p role="status" className="text-xs">
           Loading quotations...
         </p>
-      ) : error ? (
+      ) : error && !query.data ? (
         <p role="alert" className="text-xs text-error">
           {error}{" "}
           <button type="button" onClick={() => reload(page)}>

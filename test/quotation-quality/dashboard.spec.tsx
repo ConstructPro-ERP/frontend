@@ -3,8 +3,9 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { Quotation } from "@/types/quotation";
 import { ApiError } from "@/lib/ApiError";
+import { dashboardQueryCache } from "@/lib/dashboardQueryCache";
 const context = vi.hoisted(() => ({ role: "SALES_MANAGER" }));
-vi.mock("react-redux", () => ({ useSelector: () => ({ role: context.role }) }));
+vi.mock("react-redux", () => ({ useSelector: () => context }));
 vi.mock("next/link", () => ({
   default: ({
     href,
@@ -89,6 +90,7 @@ async function mount() {
 }
 beforeEach(() => {
   vi.resetAllMocks();
+  dashboardQueryCache.clear();
   context.role = "SALES_MANAGER";
   list();
   vi.mocked(api.approveQuotation).mockResolvedValue({
@@ -156,6 +158,7 @@ describe("Quotation dashboard interactions", () => {
       status: "DRAFT",
     });
     await mount();
+    list("DRAFT");
     await userEvent.click(
       screen.getByRole("button", { name: "Revise quotation q" }),
     );
@@ -287,6 +290,11 @@ describe("Quotation dashboard interactions", () => {
       screen.getByRole("textbox", { name: "Project manager ID" }),
       uuid,
     );
+    vi.mocked(api.listQuotations).mockResolvedValue({
+      items: [{ ...base, status: "CONVERTED", projectId: uuid }],
+      total: 1,
+      totalPages: 1,
+    });
     const form = screen.getByRole("dialog").querySelector("form")!;
     fireEvent.submit(form);
     fireEvent.submit(form);
@@ -326,7 +334,7 @@ describe("Quotation dashboard interactions", () => {
     );
     expect(
       screen
-        .getByRole("link", { name: /Converted to Project/ })
+        .getByRole("link", { name: /Open linked project/i })
         .getAttribute("href"),
     ).toBe(`/dashboard/projects/${uuid}`);
     expect(convertQuotationToProject).toHaveBeenCalledTimes(1);
@@ -365,6 +373,30 @@ it("runs create, edit, reject, revise, submit, approve, and conversion through r
       projectId: uuid,
       projectStatus: "ACTIVE",
     };
+  });
+  vi.mocked(api.listQuotations).mockImplementation(async () => {
+    const writes = [
+      api.createQuotation,
+      api.updateQuotation,
+      api.rejectQuotation,
+      api.reviseQuotation,
+      api.submitQuotation,
+      api.approveQuotation,
+      convertQuotationToProject,
+    ];
+    let latest = 0;
+    let value: Quotation | undefined;
+    for (const write of writes) {
+      const mock = vi.mocked(write).mock;
+      const index = mock.results.length - 1;
+      const order = mock.invocationCallOrder[index] ?? 0;
+      if (order > latest) {
+        latest = order;
+        const result = await mock.results[index].value;
+        value = result && "quotation" in result ? result.quotation : result;
+      }
+    }
+    return { items: value ? [value] : [], total: value ? 1 : 0, totalPages: 1 };
   });
   render(<Dashboard />);
   await screen.findByText("No quotations created yet");
@@ -515,4 +547,44 @@ it("refreshes authoritative project linkage after already-converted response", a
   fireEvent.submit(screen.getByRole("dialog").querySelector("form")!);
   await screen.findByRole("link", { name: /Converted to Project/ });
   expect(api.getQuotationById).toHaveBeenCalledWith("q");
+});
+
+it("reuses quotation responses on remount and preserves drafts during a failed background refresh", async () => {
+  let now = 1000;
+  const clock = vi.spyOn(Date, "now").mockImplementation(() => now);
+  const view = render(<Dashboard />);
+  await screen.findByText("Acme");
+  view.unmount();
+  render(<Dashboard />);
+  expect(screen.getByText("Acme")).toBeTruthy();
+  expect(api.listQuotations).toHaveBeenCalledTimes(1);
+  fireEvent.change(
+    screen.getByRole("textbox", { name: "Optional notes for this quotation" }),
+    {
+      target: { value: "Unsaved terms" },
+    },
+  );
+  vi.mocked(api.listQuotations).mockRejectedValue(new Error("Offline"));
+  now += 61000;
+  fireEvent.focus(window);
+  await screen.findByRole("button", { name: "Retry refresh" });
+  expect(screen.getByText("Acme")).toBeTruthy();
+  expect(
+    (
+      screen.getByRole("textbox", {
+        name: "Optional notes for this quotation",
+      }) as HTMLTextAreaElement
+    ).value,
+  ).toBe("Unsaved terms");
+  clock.mockRestore();
+});
+
+it("reuses a visited status filter without another request", async () => {
+  await mount();
+  await userEvent.click(screen.getByRole("button", { name: "Draft" }));
+  await waitFor(() => expect(api.listQuotations).toHaveBeenCalledTimes(2));
+  await screen.findByText("Acme");
+  await userEvent.click(screen.getByRole("button", { name: "All Quotations" }));
+  expect(screen.getByText("Acme")).toBeTruthy();
+  expect(api.listQuotations).toHaveBeenCalledTimes(2);
 });
