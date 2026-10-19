@@ -54,7 +54,7 @@ const statuses: ("All Leads" | LeadStatus)[] = [
 const avatarStyles = [
   "border-blue-200 text-blue-700",
   "border-emerald-200 text-emerald-700",
-  "border-violet-200 text-violet-700",
+  "border-blue-200 text-blue-700",
   "border-amber-200 text-amber-700",
   "border-red-200 text-red-700",
   "border-cyan-200 text-cyan-700",
@@ -1041,7 +1041,7 @@ export default function LeadsDashboardClient() {
             icon={UserRound}
             value={String(leads.filter((lead) => lead.status === "NEW").length)}
             label="New Leads"
-            tone="bg-violet-50 text-violet-600"
+            tone="bg-blue-50 text-blue-600"
           />
         </section>
       )}

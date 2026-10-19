@@ -181,9 +181,6 @@
 .avatar_green {
   background: linear-gradient(135deg, #059669, #047857);
 }
-.avatar_purple {
-  background: linear-gradient(135deg, #7c3aed, #5b21b6);
-}
 .avatar_amber {
   background: linear-gradient(135deg, #d97706, #b45309);
 }
@@ -210,10 +207,6 @@
 .green {
   color: var(--users-green);
   background: var(--users-green-bg);
-}
-.purple {
-  color: var(--users-purple);
-  background: var(--users-purple-bg);
 }
 .amber {
   color: var(--users-amber);

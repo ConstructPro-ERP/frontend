@@ -44,7 +44,7 @@ function roleTone(role?: string) {
     : role === "SALES_MANAGER"
       ? "green"
       : role === "PROJECT_MANAGER"
-        ? "purple"
+        ? "blue"
         : ["ACCOUNTANT", "FINANCE"].includes(role ?? "")
           ? "amber"
           : "blue";
