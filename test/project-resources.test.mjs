@@ -123,6 +123,53 @@ test("expense cards use the API total across all pages and calculate remaining b
   }
 });
 
+test("expenses display the backend-provided creator name", () => {
+  const Expenses = loader({}, [
+    {
+      total: "125.50",
+      byCategory: [{ category: "Materials", amount: "125.50" }],
+    },
+    {
+      data: [
+        {
+          id: "expense-1",
+          projectId: "project-1",
+          amount: "125.50",
+          category: "Materials",
+          description: "Foundation materials",
+          expenseDate: "2026-10-18T00:00:00.000Z",
+          recordedById: managerId,
+          recordedBy: {
+            id: managerId,
+            fullName: "Test Accountant",
+          },
+        },
+      ],
+      meta: {
+        page: 1,
+        limit: 10,
+        total: 1,
+        totalPages: 1,
+      },
+    },
+  ])("src/components/dashboard/projects/ExpensesSection.tsx").default;
+
+  const html = renderToStaticMarkup(
+    React.createElement(Expenses, {
+      projectId: "project-1",
+      budget: 1000,
+      canWrite: false,
+      canDelete: false,
+    }),
+  );
+
+  assert.match(html, /Recorded by/);
+  assert.match(html, /Test Accountant/);
+  assert.match(html, /Foundation materials/);
+  assert.doesNotMatch(html, /Not available/);
+  assert.doesNotMatch(html, /Edit expense/);
+});
+
 test("calendar validation rejects impossible dates and accepts leap days", () => {
   assert.equal(rules.isCalendarDate("2028-02-29"), true);
   for (const value of [
