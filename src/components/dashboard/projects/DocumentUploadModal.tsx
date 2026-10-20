@@ -5,6 +5,7 @@ import type { DocumentCategory, DocumentUploadStage } from "@/types/document";
 import { uploadDocument } from "@/services/documentsApi";
 import {
   DOCUMENT_ACCEPT,
+  MAX_DOCUMENT_MIB,
   formatFileSize,
   validateDocumentFile,
   validateDocumentMetadata,
@@ -149,8 +150,7 @@ export default function DocumentUploadModal({
           </label>
           <p id="document-file-help" className="text-xs text-on-surface-muted">
             Supports PDF, Office documents, CAD, Revit, Lumion, 3D models,
-            images, and archives. Maximum 50 MiB per file. Files up to 3 MiB use
-            standard upload; larger files upload directly.
+            images, and archives. Maximum {MAX_DOCUMENT_MIB} MiB per file.
           </p>
           {file && (
             <p className="break-all text-sm">

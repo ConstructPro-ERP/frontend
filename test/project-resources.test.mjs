@@ -12,7 +12,7 @@ const nativeRequire = createRequire(import.meta.url);
 const managerId = "b390c2c8-86f5-484f-ad9f-170bca22703d";
 const milestoneId = "0bf3b9dd-ce36-480a-8bc8-a5a28dde483c";
 
-function loader(api = {}, states, externals = {}) {
+function loader(api = {}, states, externals = {}, env = {}) {
   const cache = new Map();
   let stateIndex = 0;
   function load(path) {
@@ -49,6 +49,7 @@ function loader(api = {}, states, externals = {}) {
         Blob,
         File,
         crypto,
+        process: { env },
         console,
         Intl,
         setTimeout,
@@ -577,12 +578,12 @@ test("document validation accepts construction file formats", () => {
     );
   }
 
-  assert.equal(documentRules.MAX_DOCUMENT_BYTES, 50 * 1024 * 1024);
+  assert.equal(documentRules.MAX_DOCUMENT_BYTES, 10 * 1024 * 1024);
 
   assert.equal(
     documentRules.validateDocumentFile({
       name: "large-model.rvt",
-      size: 50 * 1024 * 1024,
+      size: 10 * 1024 * 1024,
     }),
     null,
   );
@@ -590,9 +591,9 @@ test("document validation accepts construction file formats", () => {
   assert.match(
     documentRules.validateDocumentFile({
       name: "oversized.rvt",
-      size: 50 * 1024 * 1024 + 1,
+      size: 10 * 1024 * 1024 + 1,
     }),
-    /50 MiB/,
+    /10 MiB/,
   );
 
   for (const name of ["program.exe", "script.js", "file.svg"]) {
@@ -603,6 +604,35 @@ test("document validation accepts construction file formats", () => {
       }),
     );
   }
+});
+
+test("premium Cloudinary setting allows files up to 50 MiB", () => {
+  const premiumRules = loader(
+    {},
+    undefined,
+    {},
+    {
+      NEXT_PUBLIC_CLOUDINARY_PREMIUM: "true",
+    },
+  )("src/lib/projectDocumentRules.ts");
+
+  assert.equal(premiumRules.MAX_DOCUMENT_BYTES, 50 * 1024 * 1024);
+
+  assert.equal(
+    premiumRules.validateDocumentFile({
+      name: "large-model.rvt",
+      size: 50 * 1024 * 1024,
+    }),
+    null,
+  );
+
+  assert.match(
+    premiumRules.validateDocumentFile({
+      name: "oversized.rvt",
+      size: 50 * 1024 * 1024 + 1,
+    }),
+    /50 MiB/,
+  );
 });
 
 test("document MIME handling matches backend upload requirements", () => {
@@ -1175,20 +1205,37 @@ test("direct uploads do not complete when Cloudinary returns inconsistent metada
 
 test("invalid uploads never call the server", async () => {
   let calls = 0;
+
   const api = loader({
     post: async () => {
       calls += 1;
     },
   })("src/services/documentsApi.ts");
+
   await assert.rejects(
     api.uploadDocument("project", new File(["exe"], "bad.exe"), milestoneId),
     /This file format is not supported\./,
   );
+
+  await assert.rejects(
+    api.uploadDocument(
+      "project",
+      {
+        name: "too-large.rvt",
+        size: 10 * 1024 * 1024 + 1,
+        type: "application/octet-stream",
+      },
+      milestoneId,
+    ),
+    /10 MiB Cloudinary Free plan upload limit/,
+  );
+
   assert.equal(calls, 0);
 });
 
 test("document requests preserve filters, metadata, delete path and download URL", async () => {
   const calls = [];
+
   const api = loader({
     get: async (url, config) => {
       calls.push({ url, params: config?.params });
@@ -1216,6 +1263,7 @@ test("document requests preserve filters, metadata, delete path and download URL
     page: 2,
     limit: 10,
   });
+
   assert.equal(calls[0].params.categoryId, milestoneId);
   assert.equal(calls[0].params.search, "plan");
   assert.equal(calls[0].params.page, 2);
@@ -1229,11 +1277,13 @@ test("document requests preserve filters, metadata, delete path and download URL
   assert.equal(calls[1].url, "/documents/doc%2F1");
   assert.equal(calls[1].body.categoryId, milestoneId);
   assert.equal(calls[1].body.description, null);
+
   assert.equal(
     await api.getDocumentDownloadUrl("doc"),
     "https://storage.example/plan.pdf?token=signed",
   );
   await api.deleteDocument("doc/1");
+
   assert.equal(calls.at(-1).url, "/documents/doc%2F1");
 });
 
@@ -1253,6 +1303,7 @@ test("download URL validation rejects executable schemes, relative links and cre
         },
       }),
     })("src/services/documentsApi.ts");
+
     await assert.rejects(api.getDocumentDownloadUrl("document"));
   }
 });
@@ -1274,12 +1325,15 @@ test("task tables and filters display names while select values remain UUIDs", (
       meta: { page: 1, limit: 10, total: 1, totalPages: 1 },
     },
   ]);
+
   const Tasks = load(
     "src/components/dashboard/projects/TasksSection.tsx",
   ).default;
+
   const html = renderToStaticMarkup(
     React.createElement(Tasks, { projectId: "project", canManage: false }),
   );
+
   assert.ok(html.includes('value="' + milestoneId + '">Foundation</option>'));
   assert.ok(html.includes('value="' + managerId + '">Asha Perera</option>'));
   assert.match(html, /Inspect concrete/);
@@ -1332,8 +1386,7 @@ test("document upload has required file and category inputs and described restri
   assert.match(html, /type="file"[^>]*required/);
   assert.match(html, /aria-describedby="document-file-help"/);
   assert.match(html, /<select required/);
-  assert.match(html, /Maximum 50 MiB/);
-  assert.match(html, /up to 3 MiB/);
+  assert.match(html, /Maximum 10 MiB/);
   assert.match(html, /CAD, Revit, Lumion/);
   assert.match(html, /Description \(optional\)/);
   assert.match(html, /<textarea[^>]*maxLength="1000"/);

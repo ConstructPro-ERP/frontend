@@ -1,8 +1,13 @@
 import { isUuid } from "./projectRules";
 import type { DocumentMetadataInput } from "@/types/document";
 
-// Keep this validation aligned with the Document Service direct-upload policy.
-export const MAX_DOCUMENT_BYTES = 50 * 1024 * 1024;
+// Use the Cloudinary Free plan limit unless larger uploads are enabled.
+export const CLOUDINARY_PREMIUM =
+  process.env.NEXT_PUBLIC_CLOUDINARY_PREMIUM === "true";
+
+export const MAX_DOCUMENT_MIB = CLOUDINARY_PREMIUM ? 50 : 10;
+export const MAX_DOCUMENT_BYTES = MAX_DOCUMENT_MIB * 1024 * 1024;
+
 export const LEGACY_DOCUMENT_UPLOAD_THRESHOLD_BYTES = 3 * 1024 * 1024;
 
 export const DOCUMENT_EXTENSIONS = [
@@ -150,7 +155,9 @@ export function validateDocumentFile(
   }
 
   if (file.size > MAX_DOCUMENT_BYTES) {
-    return "Files must be 50 MiB or smaller.";
+    return CLOUDINARY_PREMIUM
+      ? "Files must be 50 MiB or smaller."
+      : "This file exceeds the 10 MiB Cloudinary Free plan upload limit. Choose a smaller file.";
   }
 
   if (

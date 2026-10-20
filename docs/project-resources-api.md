@@ -256,7 +256,9 @@ The frontend selects the upload method based on file size:
 
 - **Up to 3 MiB:** Legacy multipart upload through the API Gateway.
 - **Above 3 MiB:** Signed direct-to-Cloudinary upload.
-- **Maximum file size:** 50 MiB.
+- **Maximum file size:** 10 MiB by default for Cloudinary Free accounts.
+  Setting `NEXT_PUBLIC_CLOUDINARY_PREMIUM=true` enables frontend uploads up
+  to 50 MiB for Cloudinary accounts that support that asset size.
 
 The legacy backend endpoint retains its 4 MiB limit. The frontend uses a 3 MiB threshold to provide request-size headroom.
 
