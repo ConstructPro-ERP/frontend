@@ -241,7 +241,7 @@ export default function DocumentsSection({
                             {document.fileName}
                           </p>
                           <p className="mt-1 text-xs text-on-surface-muted">
-                            {formatFileSize(document.sizeBytes)}
+                            {formatFileSize(document.fileSize)}
                           </p>
                         </div>
                       </div>

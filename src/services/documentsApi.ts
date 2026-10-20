@@ -1,6 +1,7 @@
 import apiClient from "@/lib/axios";
 import type {
   DocumentCategory,
+  DocumentDownloadResponse,
   DocumentMetadataInput,
   ProjectDocument,
 } from "@/types/document";
@@ -67,10 +68,11 @@ export async function updateDocument(id: string, input: DocumentMetadataInput) {
 }
 
 export async function getDocumentDownloadUrl(id: string): Promise<string> {
-  const response = await apiClient.get<{ url: string }>(
+  const response = await apiClient.get<DocumentDownloadResponse>(
     `/documents/${encodeURIComponent(id)}/download`,
   );
-  return safeDocumentDownloadUrl(response.data?.url);
+
+  return safeDocumentDownloadUrl(response.data?.downloadUrl);
 }
 
 export async function deleteDocument(id: string): Promise<void> {

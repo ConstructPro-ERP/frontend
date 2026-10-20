@@ -513,6 +513,148 @@ test("document file validation rejects empty, oversized and unsupported files", 
   );
 });
 
+test("document validation accepts construction file formats", () => {
+  const supported = [
+    "drawing.dwg",
+    "drawing.dxf",
+    "model.rvt",
+    "family.rfa",
+    "building.ifc",
+    "design.max",
+    "scene.lsf",
+    "legacy.ls12",
+    "model.skp",
+    "model.fbx",
+    "model.blend1",
+    "spreadsheet.xlsx",
+    "presentation.pptx",
+    "archive.zip",
+    "render.webp",
+    "survey.tiff",
+  ];
+
+  for (const name of supported) {
+    assert.equal(
+      documentRules.validateDocumentFile({
+        name,
+        size: 1024,
+      }),
+      null,
+      `Expected ${name} to be supported`,
+    );
+  }
+
+  assert.equal(documentRules.MAX_DOCUMENT_BYTES, 50 * 1024 * 1024);
+
+  assert.equal(
+    documentRules.validateDocumentFile({
+      name: "large-model.rvt",
+      size: 50 * 1024 * 1024,
+    }),
+    null,
+  );
+
+  assert.match(
+    documentRules.validateDocumentFile({
+      name: "oversized.rvt",
+      size: 50 * 1024 * 1024 + 1,
+    }),
+    /50 MiB/,
+  );
+
+  for (const name of ["program.exe", "script.js", "file.svg"]) {
+    assert.ok(
+      documentRules.validateDocumentFile({
+        name,
+        size: 1024,
+      }),
+    );
+  }
+});
+
+test("document MIME handling matches backend upload requirements", () => {
+  assert.equal(
+    documentRules.documentMimeType({
+      name: "drawing.pdf",
+      type: "",
+    }),
+    "application/pdf",
+  );
+
+  assert.equal(
+    documentRules.documentMimeType({
+      name: "building.rvt",
+      type: "",
+    }),
+    "application/octet-stream",
+  );
+
+  assert.equal(
+    documentRules.documentMimeType({
+      name: "render.webp",
+      type: "",
+    }),
+    "image/webp",
+  );
+
+  assert.equal(
+    documentRules.documentMimeType({
+      name: "model.fbx",
+      type: "model/fbx",
+    }),
+    "model/fbx",
+  );
+
+  assert.ok(
+    documentRules.validateDocumentFile({
+      name: "drawing.pdf",
+      size: 1024,
+      type: "text/plain",
+    }),
+  );
+});
+
+test("document metadata validation covers descriptions and filename safety", () => {
+  const valid = {
+    fileName: "Approved Plan.pdf",
+    categoryId: milestoneId,
+    description: "Final structural drawing",
+  };
+
+  assert.equal(documentRules.validateDocumentMetadata(valid), null);
+
+  assert.equal(
+    documentRules.validateDocumentMetadata({
+      ...valid,
+      description: null,
+    }),
+    null,
+  );
+
+  for (const description of [" ", "x".repeat(1001)]) {
+    assert.ok(
+      documentRules.validateDocumentMetadata({
+        ...valid,
+        description,
+      }),
+    );
+  }
+
+  for (const fileName of [
+    " Plan.pdf",
+    "Plan.pdf ",
+    "../Plan.pdf",
+    "Plan\n.pdf",
+  ]) {
+    assert.ok(
+      documentRules.validateDocumentMetadata({
+        ...valid,
+        fileName,
+      }),
+    );
+  }
+});
+
 test("document uploads send multipart content, category UUID, progress and an idempotency key", async () => {
   const progress = [];
   const file = new File(["plan"], "plan.pdf", { type: "application/pdf" });
@@ -548,7 +690,7 @@ test("invalid uploads never call the server", async () => {
   })("src/services/documentsApi.ts");
   await assert.rejects(
     api.uploadDocument("project", new File(["exe"], "bad.exe"), milestoneId),
-    /Choose/,
+    /This file format is not supported\./,
   );
   assert.equal(calls, 0);
 });
@@ -559,7 +701,12 @@ test("document requests preserve filters, metadata, delete path and download URL
     get: async (url, config) => {
       calls.push({ url, params: config?.params });
       return url.endsWith("/download")
-        ? { data: { url: "https://storage.example/plan.pdf?token=signed" } }
+        ? {
+            data: {
+              downloadUrl: "https://storage.example/plan.pdf?token=signed",
+              expiresInSeconds: 300,
+            },
+          }
         : { data: [] };
     },
     patch: async (url, body) => {
@@ -601,9 +748,14 @@ test("download URL validation rejects executable schemes, relative links and cre
     "https://user:pass@example.com/file",
     undefined,
   ]) {
-    const api = loader({ get: async () => ({ data: { url } }) })(
-      "src/services/documentsApi.ts",
-    );
+    const api = loader({
+      get: async () => ({
+        data: {
+          downloadUrl: url,
+          expiresInSeconds: 300,
+        },
+      }),
+    })("src/services/documentsApi.ts");
     await assert.rejects(api.getDocumentDownloadUrl("document"));
   }
 });
@@ -646,7 +798,7 @@ test("documents expose download but hide mutations for read-only project readers
           fileName: "Plan.pdf",
           categoryId: milestoneId,
           category: { id: milestoneId, categoryName: "Drawings" },
-          sizeBytes: 1024,
+          fileSize: 1024,
           createdAt: "2026-10-13",
           uploadedBy: { fullName: "Asha Perera" },
         },
