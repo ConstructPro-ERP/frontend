@@ -303,20 +303,6 @@ The frontend validates the returned URL and displays it through the existing dow
 
 Every download request requires backend authorization. Documents are not exposed through permanent public URLs.
 
-## Database gaps observed
-
-The current Prisma schema has:
-
-- Milestone: name, due date, status; missing description, weight, and progress.
-- Task: name, status, milestone and assignee relations; missing description/due date.
-- Expense: amount as `Float`, project/recorder relations, timestamps; missing
-  category, description, and expense date. Decimal storage needs a reviewed migration.
-- Document/category: basic file URL/name and relations; missing MIME type and byte
-  size, storage lifecycle, authorized downloads, and idempotent upload handling.
-
-Backend work must resolve these gaps before the frontend's workflows can persist.
-Do not apply a migration from this frontend change.
-
 ## Verification
 
 Use the existing Node test runner for validators, API payloads, pagination, upload

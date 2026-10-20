@@ -91,6 +91,32 @@ function waitBeforeRetry(
   });
 }
 
+function cloudinaryUploadError(error: unknown): Error {
+  const payload = (
+    error as {
+      response?: {
+        data?: {
+          error?: { message?: unknown };
+          message?: unknown;
+        };
+      };
+    } | null
+  )?.response?.data;
+
+  const message =
+    typeof payload?.message === "string" && payload.message.trim()
+      ? payload.message
+      : payload?.error?.message;
+
+  if (typeof message === "string" && message.trim()) {
+    return new Error(message);
+  }
+
+  return error instanceof Error
+    ? error
+    : new Error("Cloudinary upload failed. Please try again.");
+}
+
 function validateAuthorization(
   authorization: DocumentUploadAuthorization,
 ): void {
@@ -225,7 +251,7 @@ export async function uploadSignedDocument(
           attempt === MAX_CHUNK_ATTEMPTS - 1 ||
           !isRetryableUploadError(error)
         ) {
-          throw error;
+          throw cloudinaryUploadError(error);
         }
 
         onRetry?.();

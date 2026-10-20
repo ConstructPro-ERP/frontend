@@ -1140,6 +1140,39 @@ test("Cloudinary requires final confirmation before reporting success", async ()
   assert.equal(calls, 2);
 });
 
+test("Cloudinary upload failures preserve provider error messages", async () => {
+  const file = new File([new Uint8Array(4 * 1024 * 1024)], "model.rvt", {
+    type: "application/octet-stream",
+  });
+
+  let attempts = 0;
+
+  const transport = mockedCloudinaryTransport(async () => {
+    attempts += 1;
+
+    const error = new Error("Request failed with status code 400");
+
+    error.response = {
+      status: 400,
+      data: {
+        error: {
+          message: "File size too large. Maximum is 10485760.",
+        },
+        message: "Your file exceeds the Free plan upload limit.",
+      },
+    };
+
+    throw error;
+  });
+
+  await assert.rejects(
+    transport.uploadSignedDocument(file, sampleUploadAuthorization()),
+    /Your file exceeds the Free plan upload limit/,
+  );
+
+  assert.equal(attempts, 1);
+});
+
 test("direct uploads do not complete when Cloudinary returns inconsistent metadata", async () => {
   const file = new File([new Uint8Array(3 * 1024 * 1024 + 1)], "building.rvt", {
     type: "application/octet-stream",
