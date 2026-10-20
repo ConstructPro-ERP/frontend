@@ -10,7 +10,7 @@ export default function DashboardLoadingProgress({
       role="status"
       aria-live="polite"
       aria-label={label}
-      className="dashboard-loading-overlay fixed inset-0 z-[100] grid place-items-center bg-white/55 px-4 backdrop-blur-[2px]"
+      className="dashboard-loading-overlay fixed inset-0 z-100 grid place-items-center bg-white/55 px-4 backdrop-blur-[2px]"
     >
       <div className="flex items-center gap-4 rounded-2xl border border-white/80 bg-white/85 px-5 py-4 shadow-xl backdrop-blur-md">
         <svg

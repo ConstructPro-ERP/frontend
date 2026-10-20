@@ -15,7 +15,7 @@ const accountLinks = [
 export default function Footer() {
   return (
     <footer className="mt-8 border-t border-outline-variant bg-surface-container-low pb-8 pt-12">
-      <div className="mx-auto grid max-w-[1200px] gap-10 px-6 md:grid-cols-[2fr_1fr_1fr]">
+      <div className="mx-auto grid max-w-300 gap-10 px-6 md:grid-cols-[2fr_1fr_1fr]">
         <div>
           <Link
             href="/"
@@ -64,7 +64,7 @@ export default function Footer() {
           </nav>
         ))}
       </div>
-      <div className="mx-auto mt-10 max-w-[1200px] px-6">
+      <div className="mx-auto mt-10 max-w-300 px-6">
         <p className="border-t border-outline-variant pt-6 text-xs text-on-surface-variant">
           © {new Date().getFullYear()} ConstructPro ERP · Ishara Homes Pvt. Ltd.
           All rights reserved.

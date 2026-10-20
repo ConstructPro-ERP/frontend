@@ -132,7 +132,7 @@ export default function LeadSelectDropdown({
           onChange={(e) => onChange(e.target.value)}
           placeholder="Existing lead UUID"
           disabled={disabled}
-          className={`w-full rounded-lg border px-3 py-[9px] text-[13px] text-on-background outline-none transition ${
+          className={`w-full rounded-lg border px-3 py-2.25 text-[13px] text-on-background outline-none transition ${
             error
               ? "border-error bg-error-container"
               : "border-outline-variant bg-surface-container focus:border-primary"

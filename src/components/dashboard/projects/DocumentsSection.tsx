@@ -210,7 +210,7 @@ export default function DocumentsSection({
           />
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[760px] text-left text-sm">
+            <table className="w-full min-w-190 text-left text-sm">
               <caption className="sr-only">Project documents</caption>
               <thead className="bg-surface-container text-xs text-on-surface-muted">
                 <tr>
@@ -237,7 +237,7 @@ export default function DocumentsSection({
                       <div className="flex items-start gap-2">
                         <FileText size={18} className="shrink-0 text-primary" />
                         <div>
-                          <p className="max-w-xs break-words font-semibold">
+                          <p className="max-w-xs wrap-break-word font-semibold">
                             {document.fileName}
                           </p>
                           <p className="mt-1 text-xs text-on-surface-muted">
@@ -381,7 +381,7 @@ export default function DocumentsSection({
       {download && (
         <Modal title="Download document" onClose={() => setDownload(null)}>
           <div className="space-y-4 p-5">
-            <p className="break-words">{download.name}</p>
+            <p className="wrap-break-word">{download.name}</p>
             <p className="text-sm text-on-surface-muted">
               Your download link is ready. If it expires, close this dialog and
               request a new link.

@@ -307,7 +307,7 @@ function ProjectsList({ role }: { role: string | null }) {
           />
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[920px] text-left text-sm">
+            <table className="w-full min-w-230 text-left text-sm">
               <thead className="bg-surface-container text-xs text-on-surface-muted">
                 <tr>
                   {[

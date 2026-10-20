@@ -40,7 +40,7 @@ export default function ConfirmDialog({
         event.preventDefault();
         if (!pending) onCancel();
       }}
-      className="fixed inset-0 m-auto max-h-[90vh] w-[calc(100%_-_2rem)] max-w-md overflow-y-auto rounded-2xl border border-outline-variant bg-white p-6 text-on-surface shadow-level-2 backdrop:bg-slate-950/45"
+      className="fixed inset-0 m-auto max-h-[90vh] w-[calc(100%-2rem)] max-w-md overflow-y-auto rounded-2xl border border-outline-variant bg-white p-6 text-on-surface shadow-level-2 backdrop:bg-slate-950/45"
     >
       <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-full bg-error-container text-error">
         <Trash2 size={22} aria-hidden="true" />
@@ -50,12 +50,12 @@ export default function ConfirmDialog({
       </h2>
       <p
         id={messageId}
-        className="mt-2 break-words text-sm text-on-surface-variant"
+        className="mt-2 wrap-break-word text-sm text-on-surface-variant"
       >
         {message}
       </p>
       {error ? (
-        <p role="alert" className="mt-4 break-words text-sm text-error">
+        <p role="alert" className="mt-4 wrap-break-word text-sm text-error">
           {error}
         </p>
       ) : null}

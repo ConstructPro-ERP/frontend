@@ -15,12 +15,12 @@ export default function PublicPage({ children }: { children: ReactNode }) {
     <div className="flex min-h-screen flex-col">
       <a
         href="#main-content"
-        className="sr-only z-[60] rounded-lg bg-primary px-4 py-2 text-on-primary focus:not-sr-only focus:absolute focus:left-4 focus:top-4"
+        className="sr-only z-60 rounded-lg bg-primary px-4 py-2 text-on-primary focus:not-sr-only focus:absolute focus:left-4 focus:top-4"
       >
         Skip to content
       </a>
       <Header />
-      <main id="main-content" tabIndex={-1} className="flex-1 pt-[72px]">
+      <main id="main-content" tabIndex={-1} className="flex-1 pt-18">
         {children}
       </main>
       <Footer />
@@ -40,7 +40,7 @@ export function PublicHero({
   children?: ReactNode;
 }) {
   return (
-    <section className="mx-auto max-w-[1200px] px-6 pb-10 pt-16 text-center md:pt-20">
+    <section className="mx-auto max-w-300 px-6 pb-10 pt-16 text-center md:pt-20">
       <FadeIn>
         <span className="mb-6 inline-block rounded-full border border-outline-variant bg-surface-container-high px-3 py-1 text-xs font-semibold uppercase tracking-wide text-on-surface">
           {eyebrow}
@@ -75,7 +75,7 @@ export function PublicSection({
   return (
     <section
       id={id}
-      className="mx-auto max-w-[1200px] scroll-mt-24 px-6 py-12 md:py-16"
+      className="mx-auto max-w-300 scroll-mt-24 px-6 py-12 md:py-16"
     >
       <FadeIn>
         <h2 className="mb-4 text-center text-2xl font-bold text-on-background md:text-3xl">

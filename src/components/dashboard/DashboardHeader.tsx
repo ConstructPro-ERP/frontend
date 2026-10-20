@@ -79,7 +79,7 @@ export default function DashboardHeader({
 
         <div className="flex items-center gap-2">
           {!isUsers && (
-            <div className="hidden h-9 w-[220px] items-center gap-2 rounded-lg border border-outline-variant bg-surface-container px-3 sm:flex">
+            <div className="hidden h-9 w-55 items-center gap-2 rounded-lg border border-outline-variant bg-surface-container px-3 sm:flex">
               <Search size={14} className="text-on-surface-muted" />
               <input
                 type="text"
