@@ -699,6 +699,7 @@ test("small documents use the legacy multipart endpoint without automatic retrie
       assert.equal(url, "/projects/project%2Fone/documents");
       assert.equal(body.get("file").name, "plan.pdf");
       assert.equal(body.get("categoryId"), milestoneId);
+      assert.equal(body.get("description"), "Approved foundation plan");
       assert.equal(body.has("uploadedById"), false);
 
       assert.equal(config.headers["Content-Type"], "multipart/form-data");
@@ -717,6 +718,7 @@ test("small documents use the legacy multipart endpoint without automatic retrie
     file,
     milestoneId,
     (value) => progress.push(value),
+    { description: "Approved foundation plan" },
   );
 
   assert.equal(result.id, "document-1");
@@ -808,6 +810,7 @@ test("larger documents use signed Cloudinary upload before backend completion", 
           fileName: "building.rvt",
           mimeType: "application/octet-stream",
           fileSize: file.size,
+          description: "Structural Revit model",
         });
 
         assert.equal(config.skipNetworkRetry, true);
@@ -882,6 +885,7 @@ test("larger documents use signed Cloudinary upload before backend completion", 
     (value) => progress.push(value),
     {
       onStage: (stage) => stages.push(stage),
+      description: "Structural Revit model",
     },
   );
 
@@ -1205,6 +1209,7 @@ test("document requests preserve filters, metadata, delete path and download URL
       calls.push({ url });
     },
   })("src/services/documentsApi.ts");
+
   await api.listDocuments("project", {
     search: "plan",
     categoryId: milestoneId,
@@ -1214,12 +1219,16 @@ test("document requests preserve filters, metadata, delete path and download URL
   assert.equal(calls[0].params.categoryId, milestoneId);
   assert.equal(calls[0].params.search, "plan");
   assert.equal(calls[0].params.page, 2);
+
   await api.updateDocument("doc/1", {
     fileName: "renamed.pdf",
     categoryId: milestoneId,
+    description: null,
   });
+
   assert.equal(calls[1].url, "/documents/doc%2F1");
   assert.equal(calls[1].body.categoryId, milestoneId);
+  assert.equal(calls[1].body.description, null);
   assert.equal(
     await api.getDocumentDownloadUrl("doc"),
     "https://storage.example/plan.pdf?token=signed",
@@ -1284,6 +1293,7 @@ test("documents expose download but hide mutations for read-only project readers
         {
           id: "doc",
           fileName: "Plan.pdf",
+          description: "Approved structural drawing",
           categoryId: milestoneId,
           category: { id: milestoneId, categoryName: "Drawings" },
           fileSize: 1024,
@@ -1303,6 +1313,7 @@ test("documents expose download but hide mutations for read-only project readers
   );
   assert.match(html, /Plan.pdf|Drawings/);
   assert.match(html, /Download Plan.pdf/);
+  assert.match(html, /Approved structural drawing/);
   assert.doesNotMatch(html, /Upload document|>Edit<|>Delete<|Coming soon/);
 });
 
@@ -1324,4 +1335,6 @@ test("document upload has required file and category inputs and described restri
   assert.match(html, /Maximum 50 MiB/);
   assert.match(html, /up to 3 MiB/);
   assert.match(html, /CAD, Revit, Lumion/);
+  assert.match(html, /Description \(optional\)/);
+  assert.match(html, /<textarea[^>]*maxLength="1000"/);
 });

@@ -69,4 +69,5 @@ export type DocumentUploadStage =
 export interface DocumentUploadOptions {
   signal?: AbortSignal;
   onStage?: (stage: DocumentUploadStage) => void;
+  description?: string | null;
 }

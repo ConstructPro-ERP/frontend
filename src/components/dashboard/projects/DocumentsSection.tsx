@@ -243,6 +243,14 @@ export default function DocumentsSection({
                           <p className="mt-1 text-xs text-on-surface-muted">
                             {formatFileSize(document.fileSize)}
                           </p>
+                          {document.description && (
+                            <p
+                              className="mt-1 line-clamp-2 max-w-xs wrap-break-word text-xs text-on-surface-muted"
+                              title={document.description}
+                            >
+                              {document.description}
+                            </p>
+                          )}
                         </div>
                       </div>
                     </td>
@@ -295,6 +303,7 @@ export default function DocumentsSection({
             </table>
           </div>
         )}
+
         {documents.data && !documents.loading && !documents.error && (
           <Pager
             page={page}
@@ -304,6 +313,7 @@ export default function DocumentsSection({
           />
         )}
       </div>
+
       {uploading && canManage && (
         <DocumentUploadModal
           projectId={projectId}
@@ -316,6 +326,7 @@ export default function DocumentsSection({
           }}
         />
       )}
+
       {edit && canManage && (
         <Editor
           title="Edit document details"
@@ -339,12 +350,23 @@ export default function DocumentsSection({
                 })),
               ],
             },
+            {
+              name: "description",
+              label: "Description (optional)",
+              type: "textarea",
+              maxLength: 1000,
+            },
           ]}
-          initial={{ fileName: edit.fileName, categoryId: edit.categoryId }}
+          initial={{
+            fileName: edit.fileName,
+            categoryId: edit.categoryId,
+            description: edit.description ?? "",
+          }}
           validate={(values) =>
             validateDocumentMetadata({
               fileName: values.fileName ?? "",
               categoryId: values.categoryId ?? "",
+              description: values.description?.trim() || null,
             })
           }
           onClose={() => setEdit(null)}
@@ -352,12 +374,15 @@ export default function DocumentsSection({
             await updateDocument(edit.id, {
               fileName: values.fileName.trim(),
               categoryId: values.categoryId,
+              description: values.description?.trim() || null,
             });
+
             setFeedback("Document details updated.");
             refresh();
           }}
         />
       )}
+
       {deleting && canManage && (
         <Editor
           title="Delete document?"

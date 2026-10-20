@@ -40,6 +40,7 @@ export async function uploadDocument(
     validateDocumentMetadata({
       fileName: file.name,
       categoryId,
+      description: options.description,
     });
 
   if (error) {
@@ -81,6 +82,10 @@ async function uploadMultipartDocument(
   );
 
   body.append("categoryId", categoryId);
+
+  if (options.description != null) {
+    body.append("description", options.description);
+  }
 
   const response = await apiClient.post<ProjectDocument>(
     `${projectPath(projectId)}/documents`,
@@ -129,6 +134,9 @@ async function uploadDirectDocument(
     fileName: file.name,
     mimeType: documentMimeType(file),
     fileSize: file.size,
+    ...(options.description != null
+      ? { description: options.description }
+      : {}),
   };
 
   const authorizationResponse =

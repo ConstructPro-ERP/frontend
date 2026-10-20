@@ -31,6 +31,7 @@ export default function DocumentUploadModal({
 }) {
   const [file, setFile] = useState<File | null>(null);
   const [categoryId, setCategoryId] = useState("");
+  const [description, setDescription] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -66,6 +67,7 @@ export default function DocumentUploadModal({
       validateDocumentMetadata({
         fileName: file?.name ?? "",
         categoryId,
+        description: description.trim() || undefined,
       });
 
     if (validation || !file) {
@@ -86,6 +88,7 @@ export default function DocumentUploadModal({
       await uploadDocument(projectId, file, categoryId, setProgress, {
         signal: controller.signal,
         onStage: setStage,
+        description: description.trim() || undefined,
       });
 
       if (!controller.signal.aborted) {
@@ -169,6 +172,17 @@ export default function DocumentUploadModal({
                 </option>
               ))}
             </select>
+          </label>
+          <label className="block text-sm font-semibold">
+            Description (optional)
+            <textarea
+              rows={3}
+              maxLength={1000}
+              value={description}
+              onChange={(event) => setDescription(event.target.value)}
+              className={inputClass + " mt-2"}
+              placeholder="Add details about this document"
+            />
           </label>
         </fieldset>
         {busy && (
