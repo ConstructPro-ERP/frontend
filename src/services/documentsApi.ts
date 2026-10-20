@@ -5,6 +5,7 @@ import type {
   DocumentMetadataInput,
   DocumentUploadAuthorization,
   DocumentUploadAuthorizationInput,
+  DocumentUploadOptions,
   ProjectDocument,
 } from "@/types/document";
 import {
@@ -30,20 +31,36 @@ export async function uploadDocument(
   file: File,
   categoryId: string,
   onProgress?: (percent: number) => void,
+  options: DocumentUploadOptions = {},
 ): Promise<ProjectDocument> {
+  options.onStage?.("validating");
+
   const error =
     validateDocumentFile(file) ??
-    validateDocumentMetadata({ fileName: file.name, categoryId });
+    validateDocumentMetadata({
+      fileName: file.name,
+      categoryId,
+    });
 
   if (error) {
     throw new Error(error);
   }
 
-  if (file.size <= LEGACY_DOCUMENT_UPLOAD_THRESHOLD_BYTES) {
-    return uploadMultipartDocument(projectId, file, categoryId, onProgress);
+  if (options.signal?.aborted) {
+    throw new Error("Document upload was canceled.");
   }
 
-  return uploadDirectDocument(projectId, file, categoryId, onProgress);
+  if (file.size <= LEGACY_DOCUMENT_UPLOAD_THRESHOLD_BYTES) {
+    return uploadMultipartDocument(
+      projectId,
+      file,
+      categoryId,
+      onProgress,
+      options,
+    );
+  }
+
+  return uploadDirectDocument(projectId, file, categoryId, onProgress, options);
 }
 
 async function uploadMultipartDocument(
@@ -51,7 +68,10 @@ async function uploadMultipartDocument(
   file: File,
   categoryId: string,
   onProgress?: (percent: number) => void,
+  options: DocumentUploadOptions = {},
 ): Promise<ProjectDocument> {
+  options.onStage?.("uploading");
+
   const body = new FormData();
 
   body.append(
@@ -59,6 +79,7 @@ async function uploadMultipartDocument(
     new Blob([file], { type: documentMimeType(file) }),
     file.name,
   );
+
   body.append("categoryId", categoryId);
 
   const response = await apiClient.post<ProjectDocument>(
@@ -66,18 +87,28 @@ async function uploadMultipartDocument(
     body,
     {
       skipNetworkRetry: true,
+      signal: options.signal,
       headers: {
         "Content-Type": "multipart/form-data",
       },
       onUploadProgress: (event) => {
         if (event.total && event.total > 0) {
-          onProgress?.(
-            Math.min(100, Math.round((event.loaded / event.total) * 100)),
+          const percent = Math.min(
+            100,
+            Math.round((event.loaded / event.total) * 100),
           );
+
+          onProgress?.(percent);
         }
       },
     },
   );
+
+  if (options.signal?.aborted) {
+    throw new Error("Document upload was canceled.");
+  }
+
+  options.onStage?.("completed");
 
   return response.data;
 }
@@ -87,8 +118,11 @@ async function uploadDirectDocument(
   file: File,
   categoryId: string,
   onProgress?: (percent: number) => void,
+  options: DocumentUploadOptions = {},
 ): Promise<ProjectDocument> {
   const path = projectPath(projectId);
+
+  options.onStage?.("authorizing");
 
   const metadata: DocumentUploadAuthorizationInput = {
     categoryId,
@@ -101,17 +135,43 @@ async function uploadDirectDocument(
     await apiClient.post<DocumentUploadAuthorization>(
       `${path}/documents/upload-authorizations`,
       metadata,
-      { skipNetworkRetry: true },
+      {
+        skipNetworkRetry: true,
+        signal: options.signal,
+      },
     );
+
+  if (options.signal?.aborted) {
+    throw new Error("Document upload was canceled.");
+  }
 
   const authorization = authorizationResponse.data;
 
-  await uploadSignedDocument(file, authorization, onProgress);
+  options.onStage?.("uploading");
+
+  await uploadSignedDocument(file, authorization, onProgress, {
+    signal: options.signal,
+    onRetry: () => options.onStage?.("retrying"),
+    onResume: () => options.onStage?.("uploading"),
+  });
+
+  if (options.signal?.aborted) {
+    throw new Error("Document upload was canceled.");
+  }
+
+  options.onStage?.("verifying");
 
   const completionResponse = await apiClient.post<ProjectDocument>(
     `${path}/documents/${encodeURIComponent(authorization.documentId)}/complete`,
     {},
+    { signal: options.signal },
   );
+
+  if (options.signal?.aborted) {
+    throw new Error("Document upload was canceled.");
+  }
+
+  options.onStage?.("completed");
 
   return completionResponse.data;
 }

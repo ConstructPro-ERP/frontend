@@ -46,6 +46,7 @@ function loader(api = {}, states, externals = {}) {
         Error,
         URL,
         FormData,
+        Blob,
         File,
         crypto,
         console,
@@ -72,6 +73,37 @@ function loader(api = {}, states, externals = {}) {
 
 const rules = loader()("src/lib/projectResourceRules.ts");
 const documentRules = loader()("src/lib/projectDocumentRules.ts");
+
+function sampleUploadAuthorization() {
+  const publicId = "constructpro/projects/project/document-1.rvt";
+
+  return {
+    documentId: "document-1",
+    cloudName: "test-cloud",
+    apiKey: "test-public-key",
+    publicId,
+    resourceType: "raw",
+    timestamp: 1234567890,
+    signature: "backend-generated-signature",
+    uploadParameters: {
+      public_id: publicId,
+      timestamp: 1234567890,
+      type: "authenticated",
+      overwrite: "false",
+    },
+  };
+}
+
+function mockedCloudinaryTransport(post) {
+  return loader({}, undefined, {
+    axios: {
+      __esModule: true,
+      default: {
+        create: () => ({ post }),
+      },
+    },
+  })("src/services/cloudinaryDocumentUpload.ts");
+}
 
 test("document categories use the shared backend category route", async () => {
   const categories = [{ id: milestoneId, categoryName: "Drawings" }];
@@ -764,6 +796,7 @@ test("larger documents use signed Cloudinary upload before backend completion", 
 
   const calls = [];
   const progress = [];
+  const stages = [];
 
   const backend = {
     post: async (url, body, config) => {
@@ -847,6 +880,9 @@ test("larger documents use signed Cloudinary upload before backend completion", 
     file,
     milestoneId,
     (value) => progress.push(value),
+    {
+      onStage: (stage) => stages.push(stage),
+    },
   );
 
   assert.equal(result.id, "doc-1");
@@ -858,6 +894,216 @@ test("larger documents use signed Cloudinary upload before backend completion", 
   ]);
 
   assert.deepEqual(progress, [50, 100]);
+
+  assert.deepEqual(stages, [
+    "validating",
+    "authorizing",
+    "uploading",
+    "verifying",
+    "completed",
+  ]);
+});
+
+test("Cloudinary chunks use 6 MiB ranges and one upload ID", async () => {
+  const mib = 1024 * 1024;
+  const file = new File([new Uint8Array(13 * mib)], "building.rvt", {
+    type: "application/octet-stream",
+  });
+
+  const authorization = sampleUploadAuthorization();
+  const requests = [];
+  const progress = [];
+
+  const transport = mockedCloudinaryTransport(async (url, form, config) => {
+    const range = config.headers["Content-Range"];
+    const uploadId = config.headers["X-Unique-Upload-Id"];
+    const chunk = form.get("file");
+
+    requests.push({
+      url,
+      range,
+      uploadId,
+      chunkSize: chunk.size,
+    });
+
+    config.onUploadProgress({
+      loaded: chunk.size,
+      total: chunk.size,
+    });
+
+    const finalChunk = requests.length === 3;
+
+    return {
+      data: finalChunk
+        ? {
+            done: true,
+            public_id: authorization.publicId,
+            resource_type: "raw",
+            type: "authenticated",
+            bytes: file.size,
+          }
+        : {
+            done: false,
+            public_id: authorization.publicId,
+          },
+    };
+  });
+
+  await transport.uploadSignedDocument(file, authorization, (percent) =>
+    progress.push(percent),
+  );
+
+  assert.equal(transport.DOCUMENT_CHUNK_SIZE, 6 * mib);
+
+  assert.deepEqual(
+    requests.map((request) => request.chunkSize),
+    [6 * mib, 6 * mib, mib],
+  );
+
+  assert.deepEqual(
+    requests.map((request) => request.range),
+    [
+      `bytes 0-${6 * mib - 1}/${file.size}`,
+      `bytes ${6 * mib}-${12 * mib - 1}/${file.size}`,
+      `bytes ${12 * mib}-${13 * mib - 1}/${file.size}`,
+    ],
+  );
+
+  assert.equal(new Set(requests.map((request) => request.uploadId)).size, 1);
+
+  assert.match(requests[0].uploadId, /^[\da-f-]{36}$/i);
+
+  assert.ok(
+    requests.every((request) => request.url.endsWith("/test-cloud/raw/upload")),
+  );
+
+  assert.equal(progress.at(-1), 100);
+
+  for (let index = 1; index < progress.length; index++) {
+    assert.ok(progress[index] >= progress[index - 1]);
+  }
+});
+
+test("transient Cloudinary failures retry the same chunk and upload ID", async () => {
+  const mib = 1024 * 1024;
+  const file = new File([new Uint8Array(7 * mib)], "building.rvt", {
+    type: "application/octet-stream",
+  });
+
+  const authorization = sampleUploadAuthorization();
+  const requests = [];
+
+  let failedOnce = false;
+  let retries = 0;
+
+  const transport = mockedCloudinaryTransport(async (url, form, config) => {
+    const range = config.headers["Content-Range"];
+    const uploadId = config.headers["X-Unique-Upload-Id"];
+
+    requests.push({ range, uploadId });
+
+    if (requests.length === 1) {
+      return {
+        data: {
+          done: false,
+          public_id: authorization.publicId,
+        },
+      };
+    }
+
+    if (!failedOnce) {
+      failedOnce = true;
+
+      const error = new Error("Cloudinary unavailable");
+      error.response = { status: 503 };
+
+      throw error;
+    }
+
+    return {
+      data: {
+        done: true,
+        public_id: authorization.publicId,
+        resource_type: "raw",
+        type: "authenticated",
+        bytes: file.size,
+      },
+    };
+  });
+
+  await transport.uploadSignedDocument(file, authorization, undefined, {
+    onRetry: () => {
+      retries += 1;
+    },
+  });
+
+  assert.equal(retries, 1);
+  assert.equal(requests.length, 3);
+
+  assert.equal(requests[1].range, requests[2].range);
+  assert.equal(requests[1].uploadId, requests[2].uploadId);
+  assert.equal(new Set(requests.map((request) => request.uploadId)).size, 1);
+});
+
+test("canceling a Cloudinary upload prevents subsequent chunks", async () => {
+  const mib = 1024 * 1024;
+  const file = new File([new Uint8Array(13 * mib)], "building.rvt", {
+    type: "application/octet-stream",
+  });
+
+  const authorization = sampleUploadAuthorization();
+  const controller = new AbortController();
+
+  let calls = 0;
+
+  const transport = mockedCloudinaryTransport(async () => {
+    calls += 1;
+
+    controller.abort();
+
+    const error = new Error("Request canceled");
+    error.code = "ERR_CANCELED";
+
+    throw error;
+  });
+
+  await assert.rejects(
+    transport.uploadSignedDocument(file, authorization, undefined, {
+      signal: controller.signal,
+    }),
+    /canceled/i,
+  );
+
+  assert.equal(calls, 1);
+});
+
+test("Cloudinary requires final confirmation before reporting success", async () => {
+  const mib = 1024 * 1024;
+  const file = new File([new Uint8Array(7 * mib)], "building.rvt", {
+    type: "application/octet-stream",
+  });
+
+  const authorization = sampleUploadAuthorization();
+
+  let calls = 0;
+
+  const transport = mockedCloudinaryTransport(async () => {
+    calls += 1;
+
+    return {
+      data: {
+        done: false,
+        public_id: authorization.publicId,
+      },
+    };
+  });
+
+  await assert.rejects(
+    transport.uploadSignedDocument(file, authorization),
+    /unexpected document upload metadata/,
+  );
+
+  assert.equal(calls, 2);
 });
 
 test("direct uploads do not complete when Cloudinary returns inconsistent metadata", async () => {

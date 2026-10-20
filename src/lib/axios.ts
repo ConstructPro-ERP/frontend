@@ -53,6 +53,8 @@ axiosInstance.interceptors.response.use(
 
     // Retry Logic for Network / 5xx Errors
     if (
+      !originalRequest?.signal?.aborted &&
+      error.code !== "ERR_CANCELED" &&
       !originalRequest?.skipNetworkRetry &&
       (!error.response ||
         (status >= 500 && status < 600) ||

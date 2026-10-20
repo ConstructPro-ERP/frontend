@@ -57,3 +57,16 @@ export interface DocumentDownloadResponse {
   downloadUrl: string;
   expiresInSeconds: number;
 }
+
+export type DocumentUploadStage =
+  | "validating"
+  | "authorizing"
+  | "uploading"
+  | "retrying"
+  | "verifying"
+  | "completed";
+
+export interface DocumentUploadOptions {
+  signal?: AbortSignal;
+  onStage?: (stage: DocumentUploadStage) => void;
+}
