@@ -21,8 +21,8 @@ or API endpoints are required for this integration.
 - `ProjectDetails.tsx` owns project identity, section selection, and permissions.
   It passes project-scoped IDs and access flags into each resource section.
 - `types/{milestone,task,expense,document}.ts` define API records and inputs.
-- `services/*Api.ts` handle HTTP only, using `lib/axios.ts`'s shared `apiClient`.
-  Authentication, token refresh, retries, and normalized errors remain centralized.
+- Backend API requests use `lib/axios.ts`'s shared `apiClient`, preserving authentication, token refresh, retries, and normalized error handling.
+  Direct Cloudinary uploads use a separate HTTP client without application authentication credentials.
 - `projectResources.ts` normalizes paginated lists and loads all pages for name
   selectors. A selector never silently uses only the current table page.
 - `useProjectData.ts` owns request loading/error state and ignores stale results
@@ -37,9 +37,6 @@ or API endpoints are required for this integration.
 - Documents use a dedicated section and `DocumentUploadModal.tsx` because binary
   upload progress and download authorization differ from ordinary JSON CRUD.
   `projectDocumentRules.ts` owns file validation, display sizing, and URL checks.
-
-Redux continues to own authentication only. Resource state is local to the feature;
-no parallel HTTP client, global resource store, or new UI library was introduced.
 
 ## Permissions to enforce on the server
 
@@ -226,40 +223,83 @@ through the existing frontend error-handling components.
 
 ## Documents
 
-| Method | Route                                      | Input / result                                            |
-| ------ | ------------------------------------------ | --------------------------------------------------------- |
-| GET    | `/projects/:projectId/documents`           | Paginated `ProjectDocument` records                       |
-| GET    | `/projects/:projectId/document-categories` | Paginated `DocumentCategory` records                      |
-| POST   | `/projects/:projectId/documents`           | Multipart `file` and `categoryId`; returns saved document |
-| PATCH  | `/documents/:id`                           | `{ fileName, categoryId }`; returns saved document        |
-| GET    | `/documents/:id/download`                  | `{ url: string }`, short-lived authorized download URL    |
-| DELETE | `/documents/:id`                           | Deletes metadata and associated stored file               |
+Project documents are managed through the Document Service and API Gateway.
 
-Document lists accept `search`, `categoryId`, `page`, `limit`; default to newest
-first with stable ordering. Records include `id`, `projectId`, `categoryId`,
-`fileName`, `mimeType`, `sizeBytes`, `createdAt`, `category: { id, categoryName }`,
-and nullable `uploadedBy: { id, fullName }`. Categories include `id`,
-`categoryName`, and optional `description`. Category administration is outside
-this project's document section; empty categories disable upload with a clear message.
+| Method | Route                                                  | Purpose                                              |
+| ------ | ------------------------------------------------------ | ---------------------------------------------------- |
+| GET    | `/projects/:projectId/documents`                       | List project documents with filtering and pagination |
+| GET    | `/document-categories`                                 | List document categories                             |
+| POST   | `/projects/:projectId/documents`                       | Legacy multipart upload                              |
+| POST   | `/projects/:projectId/documents/upload-authorizations` | Generate signed Cloudinary upload authorization      |
+| POST   | `/projects/:projectId/documents/:documentId/complete`  | Verify and activate a direct upload                  |
+| PATCH  | `/documents/:id`                                       | Update document metadata                             |
+| GET    | `/documents/:id/download`                              | Generate a temporary authenticated download URL      |
+| DELETE | `/documents/:id`                                       | Delete a project document                            |
 
-The proposed upload limit is 20 MiB. Allowed extensions: PDF, DOC, DOCX, XLS,
-XLSX, CSV, TXT, PNG, JPG, JPEG, WEBP. Reject empty files. The server must independently
-validate actual file contents, size, category membership, and access. File names
-are 1–255 characters with no path separators/control characters. Client extension
-checks alone cannot validate file contents.
+### Document Metadata
 
-Uploads include an `Idempotency-Key` UUID. The shared Axios client automatically
-retries network/5xx failures, so the backend must deduplicate requests with the
-same actor/key before storing a second file. Each new user submission has a new
-key. Backend CORS must allow this header. Upload progress reaching 100% means bytes
-have transferred; success is displayed only after the server responds.
+Document responses include:
 
-Download requests must authorize each document before returning a short-lived
-HTTP(S) URL. Production URLs should use HTTPS and serve downloads with an
-appropriate Content-Disposition header. The frontend rejects executable/data URLs
-and credential-bearing URLs, then presents an explicit download link with
-`noopener noreferrer`. Do not return a permanently public storage URL as an access
-control substitute. No raw HTML/SVG preview is rendered.
+- `id`, `projectId`, `categoryId`
+- `originalName`, `fileName`, `mimeType`, `fileSize`
+- `description`, `createdAt`, `updatedAt`
+- `uploadedById`, `uploadedBy: { id, fullName } | null`
+- `category: { id, categoryName }`
+
+Document lists support server-side search, category filtering, sorting, and pagination.
+
+Metadata editing supports `fileName`, `categoryId`, and `description` without modifying the stored file or original uploader.
+
+### Hybrid Upload Strategy
+
+The frontend selects the upload method based on file size:
+
+- **Up to 3 MiB:** Legacy multipart upload through the API Gateway.
+- **Above 3 MiB:** Signed direct-to-Cloudinary upload.
+- **Maximum file size:** 50 MiB.
+
+The legacy backend endpoint retains its 4 MiB limit. The frontend uses a 3 MiB threshold to provide request-size headroom.
+
+Direct uploads follow three operations:
+
+1. Request backend-signed upload authorization.
+2. Transfer the file directly to Cloudinary.
+3. Request backend verification and document activation.
+
+Only metadata requests pass through the API Gateway during direct uploads. Cloudinary API secrets remain on the backend.
+
+The Cloudinary transport uses a separate HTTP client without application authentication tokens.
+
+Legacy multipart uploads disable automatic network and server-error retries to avoid duplicate uploads after uncertain outcomes.
+
+Direct uploads support 6 MiB chunking, transfer progress, and controlled retry handling.
+
+Upload success is displayed only after the backend confirms document activation.
+
+### Supported File Formats
+
+Supported formats include PDF, Office documents, CAD, Revit, BIM, Lumion, 3ds Max, 3D models, images, and approved archives.
+
+The backend validates file size, filename, MIME type, permissions, and storage metadata.
+
+PDF, PNG, JPEG, and DOCX retain binary-content verification. Other approved formats follow the documented opaque-attachment policy.
+
+Frontend validation is for usability; backend validation remains authoritative.
+
+### Secure Downloads
+
+`GET /documents/:id/download` returns:
+
+```json
+{
+  "downloadUrl": "https://example.com/signed-document",
+  "expiresInSeconds": 300
+}
+```
+
+The frontend validates the returned URL and displays it through the existing download modal.
+
+Every download request requires backend authorization. Documents are not exposed through permanent public URLs.
 
 ## Database gaps observed
 

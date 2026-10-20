@@ -3,6 +3,7 @@ import type { DocumentMetadataInput } from "@/types/document";
 
 // Keep this validation aligned with the Document Service direct-upload policy.
 export const MAX_DOCUMENT_BYTES = 50 * 1024 * 1024;
+export const LEGACY_DOCUMENT_UPLOAD_THRESHOLD_BYTES = 3 * 1024 * 1024;
 
 export const DOCUMENT_EXTENSIONS = [
   ".pdf",

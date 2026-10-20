@@ -3,16 +3,20 @@ import type {
   DocumentCategory,
   DocumentDownloadResponse,
   DocumentMetadataInput,
+  DocumentUploadAuthorization,
+  DocumentUploadAuthorizationInput,
   ProjectDocument,
 } from "@/types/document";
 import {
+  LEGACY_DOCUMENT_UPLOAD_THRESHOLD_BYTES,
+  documentMimeType,
   safeDocumentDownloadUrl,
   validateDocumentFile,
   validateDocumentMetadata,
 } from "@/lib/projectDocumentRules";
 import { listResource, type ResourceQuery } from "./projectResources";
+import { uploadSignedDocument } from "./cloudinaryDocumentUpload";
 
-// Frontend contract; see docs/project-resources-api.md for missing backend work.
 const projectPath = (projectId: string) =>
   `/projects/${encodeURIComponent(projectId)}`;
 export const listDocuments = (projectId: string, query?: ResourceQuery) =>
@@ -26,34 +30,90 @@ export async function uploadDocument(
   file: File,
   categoryId: string,
   onProgress?: (percent: number) => void,
-) {
+): Promise<ProjectDocument> {
   const error =
     validateDocumentFile(file) ??
     validateDocumentMetadata({ fileName: file.name, categoryId });
-  if (error) throw new Error(error);
+
+  if (error) {
+    throw new Error(error);
+  }
+
+  if (file.size <= LEGACY_DOCUMENT_UPLOAD_THRESHOLD_BYTES) {
+    return uploadMultipartDocument(projectId, file, categoryId, onProgress);
+  }
+
+  return uploadDirectDocument(projectId, file, categoryId, onProgress);
+}
+
+async function uploadMultipartDocument(
+  projectId: string,
+  file: File,
+  categoryId: string,
+  onProgress?: (percent: number) => void,
+): Promise<ProjectDocument> {
   const body = new FormData();
-  body.append("file", file);
+
+  body.append(
+    "file",
+    new Blob([file], { type: documentMimeType(file) }),
+    file.name,
+  );
   body.append("categoryId", categoryId);
-  return (
-    await apiClient.post<ProjectDocument>(
-      `${projectPath(projectId)}/documents`,
-      body,
-      {
-        // Override the shared JSON default; Axios supplies the multipart boundary.
-        // The shared client retries network failures: the server must deduplicate uploads.
-        headers: {
-          "Content-Type": "multipart/form-data",
-          "Idempotency-Key": crypto.randomUUID(),
-        },
-        onUploadProgress: (event) => {
-          if (event.total)
-            onProgress?.(
-              Math.min(100, Math.round((event.loaded / event.total) * 100)),
-            );
-        },
+
+  const response = await apiClient.post<ProjectDocument>(
+    `${projectPath(projectId)}/documents`,
+    body,
+    {
+      skipNetworkRetry: true,
+      headers: {
+        "Content-Type": "multipart/form-data",
       },
-    )
-  ).data;
+      onUploadProgress: (event) => {
+        if (event.total && event.total > 0) {
+          onProgress?.(
+            Math.min(100, Math.round((event.loaded / event.total) * 100)),
+          );
+        }
+      },
+    },
+  );
+
+  return response.data;
+}
+
+async function uploadDirectDocument(
+  projectId: string,
+  file: File,
+  categoryId: string,
+  onProgress?: (percent: number) => void,
+): Promise<ProjectDocument> {
+  const path = projectPath(projectId);
+
+  const metadata: DocumentUploadAuthorizationInput = {
+    categoryId,
+    fileName: file.name,
+    mimeType: documentMimeType(file),
+    fileSize: file.size,
+  };
+
+  const authorizationResponse =
+    await apiClient.post<DocumentUploadAuthorization>(
+      `${path}/documents/upload-authorizations`,
+      metadata,
+      { skipNetworkRetry: true },
+    );
+
+  const authorization = authorizationResponse.data;
+
+  await uploadSignedDocument(file, authorization, onProgress);
+
+  const completionResponse = await apiClient.post<ProjectDocument>(
+    `${path}/documents/${encodeURIComponent(authorization.documentId)}/complete`,
+    {},
+  );
+
+  return completionResponse.data;
 }
 
 export async function updateDocument(id: string, input: DocumentMetadataInput) {

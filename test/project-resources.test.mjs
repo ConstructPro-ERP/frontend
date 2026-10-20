@@ -12,7 +12,7 @@ const nativeRequire = createRequire(import.meta.url);
 const managerId = "b390c2c8-86f5-484f-ad9f-170bca22703d";
 const milestoneId = "0bf3b9dd-ce36-480a-8bc8-a5a28dde483c";
 
-function loader(api = {}, states) {
+function loader(api = {}, states, externals = {}) {
   const cache = new Map();
   let stateIndex = 0;
   function load(path) {
@@ -55,6 +55,7 @@ function loader(api = {}, states) {
         require: (specifier) => {
           if (specifier === "@/lib/axios")
             return { __esModule: true, default: api };
+          if (Object.hasOwn(externals, specifier)) return externals[specifier];
           if (specifier.startsWith("@/"))
             return load(resolve("src", specifier.slice(2)));
           if (specifier.startsWith("."))
@@ -655,30 +656,271 @@ test("document metadata validation covers descriptions and filename safety", () 
   }
 });
 
-test("document uploads send multipart content, category UUID, progress and an idempotency key", async () => {
+test("small documents use the legacy multipart endpoint without automatic retries", async () => {
   const progress = [];
-  const file = new File(["plan"], "plan.pdf", { type: "application/pdf" });
+  const file = new File(["plan"], "plan.pdf", {
+    type: "application/pdf",
+  });
+
   const api = loader({
     post: async (url, body, config) => {
       assert.equal(url, "/projects/project%2Fone/documents");
       assert.equal(body.get("file").name, "plan.pdf");
       assert.equal(body.get("categoryId"), milestoneId);
       assert.equal(body.has("uploadedById"), false);
+
       assert.equal(config.headers["Content-Type"], "multipart/form-data");
-      assert.match(config.headers["Idempotency-Key"], /^[\da-f-]{36}$/i);
+
+      assert.equal(config.skipNetworkRetry, true);
+      assert.equal(config.headers["Idempotency-Key"], undefined);
+
       config.onUploadProgress({ loaded: 2, total: 4 });
+
       return { data: { id: "document-1" } };
     },
   })("src/services/documentsApi.ts");
-  assert.equal(
-    (
-      await api.uploadDocument("project/one", file, milestoneId, (value) =>
-        progress.push(value),
-      )
-    ).id,
-    "document-1",
+
+  const result = await api.uploadDocument(
+    "project/one",
+    file,
+    milestoneId,
+    (value) => progress.push(value),
   );
+
+  assert.equal(result.id, "document-1");
   assert.deepEqual(progress, [50]);
+});
+
+test("legacy uploads normalize missing MIME types", async () => {
+  const file = new File(["%PDF-1.7\n"], "plan.pdf", {
+    type: "",
+  });
+
+  const api = loader({
+    post: async (url, body) => {
+      assert.equal(url, "/projects/project/documents");
+      assert.equal(body.get("file").name, "plan.pdf");
+      assert.equal(body.get("file").type, "application/pdf");
+
+      return { data: { id: "document-1" } };
+    },
+  })("src/services/documentsApi.ts");
+
+  const result = await api.uploadDocument("project", file, milestoneId);
+
+  assert.equal(result.id, "document-1");
+});
+
+test("documents at the 3 MiB threshold use multipart upload", async () => {
+  const size = 3 * 1024 * 1024;
+  const file = new File([new Uint8Array(size)], "drawing.rvt", {
+    type: "application/octet-stream",
+  });
+
+  assert.equal(documentRules.LEGACY_DOCUMENT_UPLOAD_THRESHOLD_BYTES, size);
+
+  let calls = 0;
+
+  const api = loader({
+    post: async (url, body, config) => {
+      calls += 1;
+
+      assert.equal(url, "/projects/project/documents");
+      assert.equal(body.get("file").size, size);
+      assert.equal(config.skipNetworkRetry, true);
+
+      return { data: { id: "legacy-document" } };
+    },
+  })("src/services/documentsApi.ts");
+
+  const result = await api.uploadDocument("project", file, milestoneId);
+
+  assert.equal(result.id, "legacy-document");
+  assert.equal(calls, 1);
+});
+
+test("larger documents use signed Cloudinary upload before backend completion", async () => {
+  const file = new File([new Uint8Array(3 * 1024 * 1024 + 1)], "building.rvt", {
+    type: "application/octet-stream",
+  });
+
+  const publicId = "constructpro/projects/project/doc-1.rvt";
+
+  const authorization = {
+    documentId: "doc-1",
+    cloudName: "test-cloud",
+    apiKey: "test-public-key",
+    publicId,
+    resourceType: "raw",
+    timestamp: 1234567890,
+    signature: "backend-generated-signature",
+    uploadParameters: {
+      public_id: publicId,
+      timestamp: 1234567890,
+      type: "authenticated",
+      overwrite: "false",
+    },
+  };
+
+  const calls = [];
+  const progress = [];
+
+  const backend = {
+    post: async (url, body, config) => {
+      calls.push(url);
+
+      if (url.endsWith("/upload-authorizations")) {
+        assert.deepEqual(JSON.parse(JSON.stringify(body)), {
+          categoryId: milestoneId,
+          fileName: "building.rvt",
+          mimeType: "application/octet-stream",
+          fileSize: file.size,
+        });
+
+        assert.equal(config.skipNetworkRetry, true);
+
+        return { data: authorization };
+      }
+
+      assert.equal(url, "/projects/project/documents/doc-1/complete");
+
+      assert.deepEqual(JSON.parse(JSON.stringify(body)), {});
+
+      return { data: { id: "doc-1", fileName: "building.rvt" } };
+    },
+  };
+
+  const cloudinaryAxios = {
+    __esModule: true,
+    default: {
+      create: (configuration) => {
+        assert.equal(configuration.withCredentials, false);
+
+        return {
+          post: async (url, form, config) => {
+            calls.push("cloudinary");
+
+            assert.equal(
+              url,
+              "https://api.cloudinary.com/v1_1/test-cloud/raw/upload",
+            );
+
+            assert.equal(form.get("file").size, file.size);
+            assert.equal(form.get("public_id"), publicId);
+            assert.equal(form.get("api_key"), authorization.apiKey);
+            assert.equal(form.get("signature"), authorization.signature);
+            assert.equal(form.get("type"), "authenticated");
+            assert.equal(form.get("overwrite"), "false");
+
+            assert.equal(config.headers?.Authorization, undefined);
+
+            config.onUploadProgress({
+              loaded: file.size / 2,
+              total: file.size,
+            });
+
+            config.onUploadProgress({
+              loaded: file.size,
+              total: file.size,
+            });
+
+            return {
+              data: {
+                public_id: publicId,
+                resource_type: "raw",
+                type: "authenticated",
+                bytes: file.size,
+              },
+            };
+          },
+        };
+      },
+    },
+  };
+
+  const api = loader(backend, undefined, {
+    axios: cloudinaryAxios,
+  })("src/services/documentsApi.ts");
+
+  const result = await api.uploadDocument(
+    "project",
+    file,
+    milestoneId,
+    (value) => progress.push(value),
+  );
+
+  assert.equal(result.id, "doc-1");
+
+  assert.deepEqual(calls, [
+    "/projects/project/documents/upload-authorizations",
+    "cloudinary",
+    "/projects/project/documents/doc-1/complete",
+  ]);
+
+  assert.deepEqual(progress, [50, 100]);
+});
+
+test("direct uploads do not complete when Cloudinary returns inconsistent metadata", async () => {
+  const file = new File([new Uint8Array(3 * 1024 * 1024 + 1)], "building.rvt", {
+    type: "application/octet-stream",
+  });
+
+  const publicId = "constructpro/projects/project/doc-2.rvt";
+  let completionCalled = false;
+
+  const authorization = {
+    documentId: "doc-2",
+    cloudName: "test-cloud",
+    apiKey: "test-public-key",
+    publicId,
+    resourceType: "raw",
+    timestamp: 1234567890,
+    signature: "backend-generated-signature",
+    uploadParameters: {
+      public_id: publicId,
+      timestamp: 1234567890,
+      type: "authenticated",
+      overwrite: "false",
+    },
+  };
+
+  const api = loader(
+    {
+      post: async (url) => {
+        if (url.endsWith("/upload-authorizations")) {
+          return { data: authorization };
+        }
+
+        completionCalled = true;
+        return { data: { id: "doc-2" } };
+      },
+    },
+    undefined,
+    {
+      axios: {
+        __esModule: true,
+        default: {
+          create: () => ({
+            post: async () => ({
+              data: {
+                public_id: publicId,
+                resource_type: "raw",
+                type: "authenticated",
+                bytes: file.size - 1,
+              },
+            }),
+          }),
+        },
+      },
+    },
+  )("src/services/documentsApi.ts");
+
+  await assert.rejects(
+    api.uploadDocument("project", file, milestoneId),
+    /unexpected document upload metadata/,
+  );
+
+  assert.equal(completionCalled, false);
 });
 
 test("invalid uploads never call the server", async () => {
@@ -833,5 +1075,7 @@ test("document upload has required file and category inputs and described restri
   assert.match(html, /type="file"[^>]*required/);
   assert.match(html, /aria-describedby="document-file-help"/);
   assert.match(html, /<select required/);
-  assert.match(html, /Maximum 20 MB/);
+  assert.match(html, /Maximum 50 MiB/);
+  assert.match(html, /up to 3 MiB/);
+  assert.match(html, /CAD, Revit, Lumion/);
 });

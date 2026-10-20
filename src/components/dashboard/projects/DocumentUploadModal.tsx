@@ -85,8 +85,9 @@ export default function DocumentUploadModal({
             />
           </label>
           <p id="document-file-help" className="text-xs text-on-surface-muted">
-            PDF, Word, Excel, CSV, text, PNG, JPEG, or WebP. Maximum 20 MB per
-            file.
+            Supports PDF, Office documents, CAD, Revit, Lumion, 3D models,
+            images, and archives. Maximum 50 MiB per file. Files up to 3 MiB use
+            standard upload; larger files upload directly.
           </p>
           {file && (
             <p className="break-all text-sm">
