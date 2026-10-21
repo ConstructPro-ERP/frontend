@@ -91,6 +91,7 @@ function sampleUploadAuthorization() {
       timestamp: 1234567890,
       type: "authenticated",
       overwrite: "false",
+      display_name: "building.rvt",
     },
   };
 }
@@ -823,6 +824,7 @@ test("larger documents use signed Cloudinary upload before backend completion", 
       timestamp: 1234567890,
       type: "authenticated",
       overwrite: "false",
+      display_name: "building.rvt",
     },
   };
 
@@ -877,6 +879,7 @@ test("larger documents use signed Cloudinary upload before backend completion", 
             assert.equal(form.get("signature"), authorization.signature);
             assert.equal(form.get("type"), "authenticated");
             assert.equal(form.get("overwrite"), "false");
+            assert.equal(form.get("display_name"), "building.rvt");
 
             assert.equal(config.headers?.Authorization, undefined);
 
@@ -958,6 +961,7 @@ test("Cloudinary chunks use 6 MiB ranges and one upload ID", async () => {
       range,
       uploadId,
       chunkSize: chunk.size,
+      displayName: form.get("display_name"),
     });
 
     config.onUploadProgress({
@@ -1004,6 +1008,10 @@ test("Cloudinary chunks use 6 MiB ranges and one upload ID", async () => {
   );
 
   assert.equal(new Set(requests.map((request) => request.uploadId)).size, 1);
+
+  assert.ok(
+    requests.every((request) => request.displayName === "building.rvt"),
+  );
 
   assert.match(requests[0].uploadId, /^[\da-f-]{36}$/i);
 
@@ -1194,6 +1202,7 @@ test("direct uploads do not complete when Cloudinary returns inconsistent metada
       timestamp: 1234567890,
       type: "authenticated",
       overwrite: "false",
+      display_name: "building.rvt",
     },
   };
 
