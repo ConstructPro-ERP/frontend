@@ -80,11 +80,11 @@ type QuotationFeedback = {
 function QuotationStatusBadge({ status }: { status: Quotation["status"] }) {
   return (
     <span
-      className={`inline-flex items-center gap-1 rounded-full px-[9px] py-[3px] text-[11px] font-semibold ${getQuotationStatusBadgeClasses(
+      className={`inline-flex items-center gap-1 rounded-full px-2.25 py-0.75 text-[11px] font-semibold ${getQuotationStatusBadgeClasses(
         status,
       )}`}
     >
-      <span className="h-[5px] w-[5px] rounded-full bg-current" />
+      <span className="h-1.25 w-1.25 rounded-full bg-current" />
       {getQuotationStatusLabel(status)}
     </span>
   );
@@ -194,7 +194,7 @@ function QuotationForm({
           Create a new quotation for a lead
         </p>
       </div>
-      <div className="space-y-[14px] p-5">
+      <div className="space-y-3.5 p-5">
         <LeadSelectDropdown
           value={values.leadId}
           onChange={(leadId) => onFieldChange("leadId", leadId)}
@@ -203,7 +203,7 @@ function QuotationForm({
         />
 
         <div>
-          <div className="mb-[5px] flex items-center justify-between">
+          <div className="mb-1.25 flex items-center justify-between">
             <label
               id="quotation-form-items-label"
               className="block text-[11.5px] font-semibold text-on-surface-variant"
@@ -244,7 +244,7 @@ function QuotationForm({
                       onItemChange(index, "itemName", event.target.value)
                     }
                     placeholder="Item name"
-                    className="w-full rounded-lg border border-outline-variant bg-surface-container px-3 py-[9px] text-[13px] text-on-background outline-none"
+                    className="w-full rounded-lg border border-outline-variant bg-surface-container px-3 py-2.25 text-[13px] text-on-background outline-none"
                   />
                   <input
                     type="number"
@@ -261,7 +261,7 @@ function QuotationForm({
                       onItemChange(index, "quantity", event.target.value)
                     }
                     placeholder="Qty"
-                    className="w-full rounded-lg border border-outline-variant bg-surface-container px-2 py-[9px] font-mono text-[13px] text-on-background outline-none text-right"
+                    className="w-full rounded-lg border border-outline-variant bg-surface-container px-2 py-2.25 font-mono text-[13px] text-on-background outline-none text-right"
                   />
                   <input
                     type="number"
@@ -278,14 +278,14 @@ function QuotationForm({
                       onItemChange(index, "unitPrice", event.target.value)
                     }
                     placeholder="Unit price"
-                    className="w-full rounded-lg border border-outline-variant bg-surface-container px-2 py-[9px] font-mono text-[13px] text-on-background outline-none text-right"
+                    className="w-full rounded-lg border border-outline-variant bg-surface-container px-2 py-2.25 font-mono text-[13px] text-on-background outline-none text-right"
                   />
                   <button
                     type="button"
                     onClick={() => onRemoveItem(index)}
                     disabled={isSubmitting || values.items.length === 1}
                     aria-label={`Remove item ${index + 1}`}
-                    className="rounded-lg border border-outline-variant bg-surface-container p-[9px] text-on-surface-muted transition hover:bg-surface-container-high disabled:cursor-not-allowed disabled:opacity-50"
+                    className="rounded-lg border border-outline-variant bg-surface-container p-2.25 text-on-surface-muted transition hover:bg-surface-container-high disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     <Trash2 size={14} />
                   </button>
@@ -310,7 +310,7 @@ function QuotationForm({
         <div>
           <label
             htmlFor="create-quotation-notes"
-            className="mb-[5px] block text-[11.5px] font-semibold text-on-surface-variant"
+            className="mb-1.25 block text-[11.5px] font-semibold text-on-surface-variant"
           >
             Notes
           </label>
@@ -321,7 +321,7 @@ function QuotationForm({
             aria-label="Optional notes for this quotation"
             onChange={(event) => onFieldChange("notes", event.target.value)}
             placeholder="Optional notes for this quotation..."
-            className="h-[70px] w-full resize-none rounded-lg border border-outline-variant bg-surface-container px-3 py-[9px] text-[13px] text-on-background outline-none placeholder:text-on-surface-muted"
+            className="h-17.5 w-full resize-none rounded-lg border border-outline-variant bg-surface-container px-3 py-2.25 text-[13px] text-on-background outline-none placeholder:text-on-surface-muted"
           />
         </div>
       </div>
@@ -448,16 +448,16 @@ function QuotationCard({
             <tbody>
               {quotation.items.map((item) => (
                 <tr key={item.id} className="border-b border-outline-variant">
-                  <td className="py-[9px] text-on-background font-medium">
+                  <td className="py-2.25 text-on-background font-medium">
                     {item.itemName}
                   </td>
-                  <td className="py-[9px] text-right font-mono text-on-background">
+                  <td className="py-2.25 text-right font-mono text-on-background">
                     {item.quantity}
                   </td>
-                  <td className="py-[9px] text-right font-mono text-on-background">
+                  <td className="py-2.25 text-right font-mono text-on-background">
                     {formatCurrency(item.unitPrice)}
                   </td>
-                  <td className="py-[9px] text-right font-mono font-semibold text-on-background">
+                  <td className="py-2.25 text-right font-mono font-semibold text-on-background">
                     {formatCurrency(item.amount)}
                   </td>
                 </tr>

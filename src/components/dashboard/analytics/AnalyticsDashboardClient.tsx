@@ -138,14 +138,14 @@ function KpiCard({ card }: { card: AnalyticsKpiCard }) {
             : "text-on-background";
 
   return (
-    <article className="rounded-lg border border-outline-variant bg-surface-container-lowest px-[18px] py-[14px] shadow-level-1">
+    <article className="rounded-lg border border-outline-variant bg-surface-container-lowest px-4.5 py-3.5 shadow-level-1">
       <p className="font-mono text-[22px] font-bold tracking-[-0.04em] text-on-background">
         {card.value}
       </p>
-      <p className="mt-[3px] text-[11.5px] text-on-surface-muted">
+      <p className="mt-0.75 text-[11.5px] text-on-surface-muted">
         {card.label}
       </p>
-      <p className={`mt-[6px] text-[10.5px] font-semibold ${toneClass}`}>
+      <p className={`mt-1.5 text-[10.5px] font-semibold ${toneClass}`}>
         {card.note}
       </p>
     </article>
@@ -197,7 +197,7 @@ function RevenueSummary({
           </div>
         ) : (
           <>
-            <div className="flex h-40 items-end gap-[6px]">
+            <div className="flex h-40 items-end gap-1.5">
               {data.points.map((point) => {
                 const height = `${Math.max((point.value / maxValue) * 100, 12)}%`;
                 const barClass =
@@ -214,7 +214,7 @@ function RevenueSummary({
                       <div
                         role="img"
                         aria-label={`${point.month} value ${formatAnalyticsCompactCurrency(point.value)}`}
-                        className={`w-full rounded-t-[4px] ${barClass}`}
+                        className={`w-full rounded-t-sm ${barClass}`}
                         style={{ height }}
                       />
                     </div>
@@ -323,9 +323,9 @@ function PaymentTrendSummary({
           return (
             <div
               key={metric.id}
-              className="flex items-center gap-3 border-b border-outline-variant py-[10px] last:border-b-0"
+              className="flex items-center gap-3 border-b border-outline-variant py-2.5 last:border-b-0"
             >
-              <div className="w-[140px] shrink-0">
+              <div className="w-35 shrink-0">
                 <p className="text-[12.5px] font-semibold text-on-background">
                   {metric.name}
                 </p>
@@ -337,7 +337,7 @@ function PaymentTrendSummary({
                 <Sparkline points={metric.points} strokeClass={lineColor} />
               </div>
               <div
-                className={`w-[60px] shrink-0 text-right font-mono text-[12px] font-bold ${trendColor}`}
+                className={`w-15 shrink-0 text-right font-mono text-[12px] font-bold ${trendColor}`}
               >
                 {metric.delta}
               </div>
@@ -424,7 +424,7 @@ function RiskBadge({ level }: { level: AnalyticsRiskItem["level"] }) {
 
   return (
     <span
-      className={`inline-flex items-center rounded-full px-[9px] py-[3px] text-[11px] font-semibold ${classes}`}
+      className={`inline-flex items-center rounded-full px-2.25 py-0.75 text-[11px] font-semibold ${classes}`}
     >
       {label}
     </span>
@@ -438,7 +438,7 @@ function RiskSummary({
 }) {
   return (
     <section>
-      <div className="mb-[14px] flex items-center gap-2 text-[13px] font-bold text-on-background">
+      <div className="mb-3.5 flex items-center gap-2 text-[13px] font-bold text-on-background">
         <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-error-container text-[10px] text-error">
           !
         </span>
@@ -471,7 +471,7 @@ function RiskSummary({
           return (
             <article
               key={item.id}
-              className={`flex flex-col gap-3 rounded-xl border border-outline-variant bg-surface-container-lowest px-5 py-[18px] shadow-level-1 ${borderClass}`}
+              className={`flex flex-col gap-3 rounded-xl border border-outline-variant bg-surface-container-lowest px-5 py-4.5 shadow-level-1 ${borderClass}`}
             >
               <div className="flex items-start justify-between gap-2">
                 <div>
@@ -488,12 +488,12 @@ function RiskSummary({
                   >
                     {item.confidence}%
                   </p>
-                  <p className="text-[10px] uppercase tracking-[0.05em] text-on-surface-muted">
+                  <p className="text-[10px] uppercase tracking-wider text-on-surface-muted">
                     Confidence
                   </p>
                 </div>
               </div>
-              <div className="mt-1 h-[5px] overflow-hidden rounded-full bg-surface-container-high">
+              <div className="mt-1 h-1.25 overflow-hidden rounded-full bg-surface-container-high">
                 <div
                   className={`h-full rounded-full ${meterClass}`}
                   style={{
@@ -536,7 +536,7 @@ function LoadingView() {
           />
         ))}
       </section>
-      <div className="h-48 animate-pulse rounded-xl bg-gradient-to-br from-blue-950 via-blue-900 to-slate-950" />
+      <div className="h-48 animate-pulse rounded-xl bg-linear-to-br from-blue-950 via-blue-900 to-slate-950" />
       {[1, 2].map((item) => (
         <div
           key={item}
@@ -569,9 +569,9 @@ function AiPredictionBanner({
   onRunAnalysis: () => void;
 }) {
   return (
-    <section className="overflow-hidden rounded-xl bg-gradient-to-br from-blue-950 via-blue-900 to-slate-950 px-6 py-5 text-on-hero shadow-level-2">
+    <section className="overflow-hidden rounded-xl bg-linear-to-br from-blue-950 via-blue-900 to-slate-950 px-6 py-5 text-on-hero shadow-level-2">
       <div className="flex flex-col gap-5 lg:flex-row lg:items-center">
-        <div className="flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-xl bg-blue-400/25 text-blue-200">
+        <div className="flex h-13 w-13 shrink-0 items-center justify-center rounded-xl bg-blue-400/25 text-blue-200">
           <Radar size={24} strokeWidth={1.75} />
         </div>
         <div className="min-w-0 flex-1">
@@ -587,7 +587,7 @@ function AiPredictionBanner({
           <select
             value={selectedProjectId}
             onChange={(event) => onProjectChange(event.target.value)}
-            className="w-full rounded-lg border border-white/20 bg-white/10 px-3 py-[10px] text-sm text-white outline-none"
+            className="w-full rounded-lg border border-white/20 bg-white/10 px-3 py-2.5 text-sm text-white outline-none"
           >
             {projectOptions.map((project) => (
               <option
@@ -603,7 +603,7 @@ function AiPredictionBanner({
             type="button"
             onClick={onRunAnalysis}
             disabled={isRunning || projectOptions.length === 0}
-            className="inline-flex items-center justify-center gap-2 rounded-lg border border-white/20 bg-white/10 px-[18px] py-[10px] text-[13px] font-semibold text-white transition hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-60"
+            className="inline-flex items-center justify-center gap-2 rounded-lg border border-white/20 bg-white/10 px-4.5 py-2.5 text-[13px] font-semibold text-white transition hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {isRunning ? (
               <RefreshCcw size={14} className="animate-spin" />

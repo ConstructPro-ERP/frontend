@@ -79,7 +79,7 @@ export default function DashboardSidebar({
       />
 
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex h-dvh max-h-dvh w-[240px] flex-col border-r border-outline-variant bg-surface-container-lowest shadow-level-2 transition-transform duration-200 ease-out lg:inset-y-0 lg:left-0 lg:z-50 lg:translate-x-0 lg:shadow-none ${
+        className={`fixed inset-y-0 left-0 z-50 flex h-dvh max-h-dvh w-60 flex-col border-r border-outline-variant bg-surface-container-lowest shadow-level-2 transition-transform duration-200 ease-out lg:inset-y-0 lg:left-0 lg:z-50 lg:translate-x-0 lg:shadow-none ${
           mobileOpen ? "translate-x-0" : "-translate-x-full"
         }`}
         aria-label="Dashboard sidebar"
@@ -139,7 +139,7 @@ export default function DashboardSidebar({
                         <Link
                           key={item.href}
                           href={item.href}
-                          className={`relative mb-px flex items-center gap-[9px] rounded-lg px-2.5 py-2 text-[13.5px] font-medium transition ${
+                          className={`relative mb-px flex items-center gap-2.25 rounded-lg px-2.5 py-2 text-[13.5px] font-medium transition ${
                             active
                               ? "bg-primary-soft font-semibold text-primary"
                               : "text-on-surface-variant hover:bg-surface-container hover:text-on-background"
@@ -149,7 +149,7 @@ export default function DashboardSidebar({
                         >
                           {active ? (
                             <span
-                              className="absolute left-0 top-1/2 h-[18px] w-[3px] -translate-y-1/2 rounded-r-[3px] bg-primary"
+                              className="absolute left-0 top-1/2 h-4.5 w-0.75 -translate-y-1/2 rounded-r-[3px] bg-primary"
                               aria-hidden="true"
                             />
                           ) : null}

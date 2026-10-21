@@ -210,7 +210,7 @@ export default function DocumentsSection({
           />
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[760px] text-left text-sm">
+            <table className="w-full min-w-190 text-left text-sm">
               <caption className="sr-only">Project documents</caption>
               <thead className="bg-surface-container text-xs text-on-surface-muted">
                 <tr>
@@ -237,12 +237,20 @@ export default function DocumentsSection({
                       <div className="flex items-start gap-2">
                         <FileText size={18} className="shrink-0 text-primary" />
                         <div>
-                          <p className="max-w-xs break-words font-semibold">
+                          <p className="max-w-xs wrap-break-word font-semibold">
                             {document.fileName}
                           </p>
                           <p className="mt-1 text-xs text-on-surface-muted">
-                            {formatFileSize(document.sizeBytes)}
+                            {formatFileSize(document.fileSize)}
                           </p>
+                          {document.description && (
+                            <p
+                              className="mt-1 line-clamp-2 max-w-xs wrap-break-word text-xs text-on-surface-muted"
+                              title={document.description}
+                            >
+                              {document.description}
+                            </p>
+                          )}
                         </div>
                       </div>
                     </td>
@@ -295,6 +303,7 @@ export default function DocumentsSection({
             </table>
           </div>
         )}
+
         {documents.data && !documents.loading && !documents.error && (
           <Pager
             page={page}
@@ -304,6 +313,7 @@ export default function DocumentsSection({
           />
         )}
       </div>
+
       {uploading && canManage && (
         <DocumentUploadModal
           projectId={projectId}
@@ -316,6 +326,7 @@ export default function DocumentsSection({
           }}
         />
       )}
+
       {edit && canManage && (
         <Editor
           title="Edit document details"
@@ -339,12 +350,23 @@ export default function DocumentsSection({
                 })),
               ],
             },
+            {
+              name: "description",
+              label: "Description (optional)",
+              type: "textarea",
+              maxLength: 1000,
+            },
           ]}
-          initial={{ fileName: edit.fileName, categoryId: edit.categoryId }}
+          initial={{
+            fileName: edit.fileName,
+            categoryId: edit.categoryId,
+            description: edit.description ?? "",
+          }}
           validate={(values) =>
             validateDocumentMetadata({
               fileName: values.fileName ?? "",
               categoryId: values.categoryId ?? "",
+              description: values.description?.trim() || null,
             })
           }
           onClose={() => setEdit(null)}
@@ -352,12 +374,15 @@ export default function DocumentsSection({
             await updateDocument(edit.id, {
               fileName: values.fileName.trim(),
               categoryId: values.categoryId,
+              description: values.description?.trim() || null,
             });
+
             setFeedback("Document details updated.");
             refresh();
           }}
         />
       )}
+
       {deleting && canManage && (
         <Editor
           title="Delete document?"
@@ -381,7 +406,7 @@ export default function DocumentsSection({
       {download && (
         <Modal title="Download document" onClose={() => setDownload(null)}>
           <div className="space-y-4 p-5">
-            <p className="break-words">{download.name}</p>
+            <p className="wrap-break-word">{download.name}</p>
             <p className="text-sm text-on-surface-muted">
               Your download link is ready. If it expires, close this dialog and
               request a new link.

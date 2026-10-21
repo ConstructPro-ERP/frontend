@@ -45,7 +45,7 @@ export default function DashboardShell({
 
   return (
     <div
-      className={`flex min-h-screen bg-surface-bg lg:pl-[240px] ${isHome ? `home-dashboard-shell ${dmSans.variable} ${dmMono.variable}` : ""} ${isUsers ? `users-dashboard-shell ${dmSans.variable} ${dmMono.variable}` : ""}`}
+      className={`flex min-h-screen bg-surface-bg lg:pl-60 ${isHome ? `home-dashboard-shell ${dmSans.variable} ${dmMono.variable}` : ""} ${isUsers ? `users-dashboard-shell ${dmSans.variable} ${dmMono.variable}` : ""}`}
     >
       <DashboardSidebar
         mobileOpen={mobileOpen}
@@ -63,7 +63,7 @@ export default function DashboardShell({
       <div className="flex min-h-screen min-w-0 flex-1 flex-col lg:pl-0">
         <a
           href="#dashboard-main-content"
-          className="sr-only z-[60] rounded-md bg-primary px-4 py-2 text-sm font-semibold text-on-primary focus:not-sr-only focus:absolute focus:left-4 focus:top-4"
+          className="sr-only z-60 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-on-primary focus:not-sr-only focus:absolute focus:left-4 focus:top-4"
         >
           Skip to main content
         </a>

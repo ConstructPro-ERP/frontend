@@ -223,7 +223,7 @@ export default function ResourceSection<T extends { id: string }>({
           />
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[720px] text-left text-sm">
+            <table className="w-full min-w-180 text-left text-sm">
               <caption className="sr-only">{title}</caption>
               <thead className="bg-surface-container text-xs text-on-surface-muted">
                 <tr>
