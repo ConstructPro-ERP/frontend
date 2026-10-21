@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { ChevronDown, LogOut, Settings, X } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import type { AppDispatch, RootState } from "@/store";
 import { dashboardNavItems } from "@/components/dashboard/dashboardConfig";
@@ -36,6 +36,7 @@ export default function DashboardSidebar({
   const dispatch = useDispatch<AppDispatch>();
   const sections = ["Main", "Finance", "Management"] as const;
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
+  const accountMenuRef = useRef<HTMLDivElement>(null);
   const { user, isLoading } = useSelector((state: RootState) => state.auth);
   const visibleItems = dashboardNavItems.filter((item) =>
     canAccessDashboardPath(user?.role, item.href),
@@ -57,6 +58,24 @@ export default function DashboardSidebar({
         ? user.role.replaceAll("_", " ")
         : "No role assigned",
   };
+
+  useEffect(() => {
+    if (!accountMenuOpen) return;
+
+    const handleOutsidePointerDown = (event: PointerEvent) => {
+      if (
+        event.target instanceof Node &&
+        !accountMenuRef.current?.contains(event.target)
+      ) {
+        setAccountMenuOpen(false);
+      }
+    };
+
+    document.addEventListener("pointerdown", handleOutsidePointerDown);
+    return () => {
+      document.removeEventListener("pointerdown", handleOutsidePointerDown);
+    };
+  }, [accountMenuOpen]);
 
   const handleSignOut = () => {
     clearTokens();
@@ -164,7 +183,7 @@ export default function DashboardSidebar({
         </nav>
 
         <div className="border-t border-outline-variant p-2.5">
-          <div className="relative">
+          <div ref={accountMenuRef} className="relative">
             <button
               type="button"
               className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left transition hover:bg-surface-container"
