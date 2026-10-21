@@ -50,6 +50,7 @@ export interface DocumentUploadAuthorization {
     timestamp: number;
     type: "authenticated";
     overwrite: "false";
+    display_name: string;
   };
 }
 
