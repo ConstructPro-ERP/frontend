@@ -208,9 +208,9 @@ function RevenueSummary({
                 return (
                   <div
                     key={point.month}
-                    className="flex flex-1 flex-col items-center gap-1"
+                    className="flex h-full min-w-0 flex-1 flex-col items-center gap-1"
                   >
-                    <div className="flex h-full w-full items-end">
+                    <div className="flex w-full flex-1 items-end">
                       <div
                         role="img"
                         aria-label={`${point.month} value ${formatAnalyticsCompactCurrency(point.value)}`}
