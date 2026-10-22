@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useState, type ReactNode } from "react";
+import { useCallback, useState, type FormEvent, type ReactNode } from "react";
 import { Plus, RefreshCw } from "lucide-react";
 import type { ResourcePage, ResourceQuery } from "@/services/projectResources";
 import {
@@ -23,10 +23,36 @@ export interface ResourceAction<T> {
   validate?: (values: Record<string, string>) => string | null;
   save: (item: T, values: Record<string, string>) => Promise<unknown>;
 }
+
 type ResourceModal<T> =
   | { kind: "new" }
   | { kind: "edit" | "delete"; item: T }
   | { kind: "action"; item: T; action: ResourceAction<T> };
+
+interface ResourceSectionProps<T extends { id: string }> {
+  title: string;
+  singular: string;
+  description: string;
+  canWrite: boolean;
+  canDelete: boolean;
+  load: (query: ResourceQuery) => Promise<ResourcePage<T>>;
+  create: (values: Record<string, string>) => Promise<unknown>;
+  update: (item: T, values: Record<string, string>) => Promise<unknown>;
+  remove: (id: string) => Promise<unknown>;
+  fields: Field[];
+  createFields?: Field[];
+  initial: (item?: T) => Record<string, string>;
+  validate?: (values: Record<string, string>) => string | null;
+  columns: { label: string; render: (item: T) => ReactNode }[];
+  actions?: ResourceAction<T>[];
+  filters?: Field[];
+  onChanged?: () => void;
+  deleteDescription?: string;
+  validateFilters?: (values: Record<string, string>) => string | null;
+  onRefresh?: () => void;
+  editorDisabled?: boolean;
+}
+
 export default function ResourceSection<T extends { id: string }>({
   title,
   singular,
@@ -49,29 +75,7 @@ export default function ResourceSection<T extends { id: string }>({
   validateFilters,
   onRefresh,
   editorDisabled = false,
-}: {
-  title: string;
-  singular: string;
-  description: string;
-  canWrite: boolean;
-  canDelete: boolean;
-  load: (query: ResourceQuery) => Promise<ResourcePage<T>>;
-  create: (values: Record<string, string>) => Promise<unknown>;
-  update: (item: T, values: Record<string, string>) => Promise<unknown>;
-  remove: (id: string) => Promise<unknown>;
-  fields: Field[];
-  createFields?: Field[];
-  initial: (item?: T) => Record<string, string>;
-  validate?: (values: Record<string, string>) => string | null;
-  columns: { label: string; render: (item: T) => ReactNode }[];
-  actions?: ResourceAction<T>[];
-  filters?: Field[];
-  onChanged?: () => void;
-  deleteDescription?: string;
-  validateFilters?: (values: Record<string, string>) => string | null;
-  onRefresh?: () => void;
-  editorDisabled?: boolean;
-}) {
+}: ResourceSectionProps<T>) {
   const [page, setPage] = useState(1);
   const [query, setQuery] = useState<ResourceQuery>({});
   const [filterValues, setFilterValues] = useState<Record<string, string>>({});
@@ -79,21 +83,95 @@ export default function ResourceSection<T extends { id: string }>({
   const [success, setSuccess] = useState("");
   const [filterError, setFilterError] = useState("");
   const [modal, setModal] = useState<ResourceModal<T> | null>(null);
+
   const loader = useCallback(
     () => load({ ...query, page, limit: 10 }),
     [load, query, page],
   );
+
   const { data, error, loading } = useProjectData(loader, revision);
+
   function changed(message: string) {
     setSuccess(message);
     setRevision((v) => v + 1);
     onChanged?.();
   }
+
   function refresh() {
     setRevision((v) => v + 1);
     onRefresh?.();
   }
+
+  function handleOpenCreate() {
+    setModal({ kind: "new" });
+  }
+
+  function handleOpenEdit(item: T) {
+    setModal({ kind: "edit", item });
+  }
+
+  function handleOpenAction(item: T, action: ResourceAction<T>) {
+    setModal({ kind: "action", item, action });
+  }
+
+  function handleOpenDelete(item: T) {
+    setModal({ kind: "delete", item });
+  }
+
+  function handleCloseModal() {
+    setModal(null);
+  }
+
+  function handleFilterChange(fieldName: string, value: string) {
+    setFilterValues((prev) => ({
+      ...prev,
+      [fieldName]: value,
+    }));
+  }
+
+  function handleApplyFilters(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const error = validateFilters?.(filterValues);
+    setFilterError(error ?? "");
+    if (error) return;
+    setQuery(
+      Object.fromEntries(
+        Object.entries(filterValues).map(([key, value]) => [
+          key,
+          value.trim() || undefined,
+        ]),
+      ),
+    );
+    setPage(1);
+  }
+
+  function handleClearFilters() {
+    setFilterValues({});
+    setFilterError("");
+    setQuery({});
+    setPage(1);
+  }
+
+  async function handleModalSave(values: Record<string, string>) {
+    if (!modal) return;
+    if (modal.kind === "delete") {
+      await remove(modal.item.id);
+      if (data?.data.length === 1 && page > 1) setPage(page - 1);
+    } else if (modal.kind === "action") {
+      await modal.action.save(modal.item, values);
+    } else if (modal.kind === "new") {
+      await create(values);
+      setPage(1);
+    } else {
+      await update(modal.item, values);
+    }
+    changed(
+      `${singular.charAt(0).toUpperCase() + singular.slice(1)} ${modal.kind === "delete" ? "deleted" : "saved"} successfully.`,
+    );
+  }
+
   const filterId = title.toLowerCase();
+
   return (
     <section className="space-y-4">
       <header className="flex flex-wrap items-center justify-between gap-3">
@@ -114,7 +192,7 @@ export default function ResourceSection<T extends { id: string }>({
             <button
               className={primaryClass}
               disabled={editorDisabled}
-              onClick={() => setModal({ kind: "new" })}
+              onClick={handleOpenCreate}
             >
               <Plus size={16} />
               Add {singular}
@@ -126,21 +204,7 @@ export default function ResourceSection<T extends { id: string }>({
       {!!filters.length && (
         <form
           className="flex flex-wrap items-end gap-3"
-          onSubmit={(e) => {
-            e.preventDefault();
-            const error = validateFilters?.(filterValues);
-            setFilterError(error ?? "");
-            if (error) return;
-            setQuery(
-              Object.fromEntries(
-                Object.entries(filterValues).map(([key, value]) => [
-                  key,
-                  value.trim() || undefined,
-                ]),
-              ),
-            );
-            setPage(1);
-          }}
+          onSubmit={handleApplyFilters}
         >
           {filters.map((field) => (
             <label
@@ -156,10 +220,7 @@ export default function ResourceSection<T extends { id: string }>({
                   disabled={field.disabled}
                   value={filterValues[field.name] ?? ""}
                   onChange={(e) =>
-                    setFilterValues({
-                      ...filterValues,
-                      [field.name]: e.target.value,
-                    })
+                    handleFilterChange(field.name, e.target.value)
                   }
                 >
                   {field.options?.map((option) => (
@@ -175,10 +236,7 @@ export default function ResourceSection<T extends { id: string }>({
                   type={field.type ?? "text"}
                   value={filterValues[field.name] ?? ""}
                   onChange={(e) =>
-                    setFilterValues({
-                      ...filterValues,
-                      [field.name]: e.target.value,
-                    })
+                    handleFilterChange(field.name, e.target.value)
                   }
                 />
               )}
@@ -188,12 +246,7 @@ export default function ResourceSection<T extends { id: string }>({
           <button
             className={buttonClass}
             type="button"
-            onClick={() => {
-              setFilterValues({});
-              setFilterError("");
-              setQuery({});
-              setPage(1);
-            }}
+            onClick={handleClearFilters}
           >
             Clear
           </button>
@@ -256,7 +309,7 @@ export default function ResourceSection<T extends { id: string }>({
                                 className={buttonClass}
                                 disabled={editorDisabled}
                                 aria-label={`Edit ${singular}`}
-                                onClick={() => setModal({ kind: "edit", item })}
+                                onClick={() => handleOpenEdit(item)}
                               >
                                 Edit
                               </button>
@@ -265,9 +318,7 @@ export default function ResourceSection<T extends { id: string }>({
                                   key={action.label}
                                   className={buttonClass}
                                   disabled={editorDisabled}
-                                  onClick={() =>
-                                    setModal({ kind: "action", item, action })
-                                  }
+                                  onClick={() => handleOpenAction(item, action)}
                                 >
                                   {action.label}
                                 </button>
@@ -277,7 +328,7 @@ export default function ResourceSection<T extends { id: string }>({
                           {canDelete && (
                             <button
                               className={buttonClass + " text-error"}
-                              onClick={() => setModal({ kind: "delete", item })}
+                              onClick={() => handleOpenDelete(item)}
                             >
                               Delete
                             </button>
@@ -340,21 +391,8 @@ export default function ResourceSection<T extends { id: string }>({
           submitLabel={
             modal.kind === "delete" ? "Delete permanently" : "Save changes"
           }
-          onClose={() => setModal(null)}
-          onSave={async (values) => {
-            if (modal.kind === "delete") {
-              await remove(modal.item.id);
-              if (data?.data.length === 1 && page > 1) setPage(page - 1);
-            } else if (modal.kind === "action")
-              await modal.action.save(modal.item, values);
-            else if (modal.kind === "new") {
-              await create(values);
-              setPage(1);
-            } else await update(modal.item, values);
-            changed(
-              `${singular.charAt(0).toUpperCase() + singular.slice(1)} ${modal.kind === "delete" ? "deleted" : "saved"} successfully.`,
-            );
-          }}
+          onClose={handleCloseModal}
+          onSave={handleModalSave}
         />
       )}
     </section>
