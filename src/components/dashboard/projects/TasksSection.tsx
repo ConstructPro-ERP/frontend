@@ -15,18 +15,25 @@ import {
   type ResourceQuery,
 } from "@/services/projectResources";
 import { listMilestones } from "@/services/milestonesApi";
-import { validateTask, validateTaskStatus } from "@/lib/projectResourceRules";
+import {
+  validateTask,
+  validateTaskFilters,
+  validateTaskStatus,
+} from "@/lib/projectResourceRules";
 import { useProjectData } from "./useProjectData";
 import { isUuid } from "@/lib/projectRules";
 import ResourceSection from "./ResourceSection";
 import { Badge, Notice, date, label, buttonClass } from "./ProjectUI";
+
+interface TaskSectionProps {
+  projectId: string;
+  canManage: boolean;
+}
+
 export default function TasksSection({
   projectId,
   canManage,
-}: {
-  projectId: string;
-  canManage: boolean;
-}) {
+}: TaskSectionProps) {
   const load = useCallback(
     (query: ResourceQuery) => listTasks(projectId, query),
     [projectId],
@@ -147,6 +154,7 @@ export default function TasksSection({
         }
         update={(item, v) => updateTask(item.id, input(v))}
         remove={deleteTask}
+        validateFilters={validateTaskFilters}
         filters={[
           { name: "search", label: "Search tasks" },
           {

@@ -77,6 +77,12 @@ export function validateTask(values: FormValues): string | null {
   return validateDescription(values.description);
 }
 
+export function validateTaskFilters(values: FormValues): string | null {
+  return (values.search?.trim().length ?? 0) > 200
+    ? "Task search must be 200 characters or fewer."
+    : null;
+}
+
 export function validateTaskStatus(values: FormValues): string | null {
   return TASK_STATUSES.some((status) => status === values.status)
     ? null

@@ -20,6 +20,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- **DDP-94 — Task Management API alignment** ([#81](https://github.com/ConstructPro-ERP/frontend/issues/81))
+  - Verified backend-driven task-name searching with categorical filters, sorting, and pagination while preserving the existing Tasks filter interface.
+  - Aligned search validation with backend constraints and confirmed task CRUD, assignment, unassignment, and status request contracts.
+  - Added regression tests for task validation, API parameters, CRUD requests, and existing filter controls.
+  - Updated task API documentation for search behavior, nullable assignment, and response fields.
+
 - Aligned milestone progress requests and responses with the backend API, separated metadata and progress updates, and corrected client-side milestone filtering, sorting, and pagination. (#63)
 - Aligned project expense forms with backend Decimal(12,2) validation,
   optional category and description constraints, and inclusive date filters;

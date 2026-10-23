@@ -256,6 +256,7 @@ test("permission, conflict and network errors are preserved by project mutations
 
 test("task listing forwards server filters, sorting and pagination", async () => {
   const query = {
+    search: "foundation",
     status: "BLOCKED",
     milestoneId: "milestone",
     assignedToId: managerId,
@@ -312,6 +313,51 @@ test("milestone progress and task status/assignment use separate endpoints", asy
     ["/milestones/milestone/progress", { progressPercentage: 65 }],
     ["/tasks/task/assign", { assignedToId: null }],
     ["/tasks/task/status", { status: "BLOCKED" }],
+  ]);
+});
+
+test("task CRUD uses backend endpoints and separates metadata updates", async () => {
+  const calls = [];
+
+  const api = loader({
+    post: async (url, body) => {
+      calls.push(["post", url, body]);
+      return { data: { id: "task-1" } };
+    },
+    patch: async (url, body) => {
+      calls.push(["patch", url, body]);
+      return { data: { id: "task-1" } };
+    },
+    del: async (url) => {
+      calls.push(["del", url]);
+    },
+  })("src/services/tasksApi.ts");
+
+  const createInput = {
+    projectId: "project",
+    taskName: "Prepare foundation",
+    description: null,
+    dueDate: null,
+    milestoneId: null,
+    assignedToId: managerId,
+    status: "TODO",
+  };
+
+  const updateInput = {
+    taskName: "Prepare revised foundation",
+    description: null,
+    dueDate: null,
+    milestoneId: null,
+  };
+
+  await api.createTask(createInput);
+  await api.updateTask("task-1", updateInput);
+  await api.deleteTask("task-1");
+
+  assert.deepEqual(JSON.parse(JSON.stringify(calls)), [
+    ["post", "/tasks", createInput],
+    ["patch", "/tasks/task-1", updateInput],
+    ["del", "/tasks/task-1"],
   ]);
 });
 
