@@ -23,8 +23,6 @@ const routeRoles: Record<string, readonly string[]> = {
     "PROJECT_MANAGER",
     "FINANCE",
     "ACCOUNTANT",
-    "CLIENT",
-    "CLIENT_PORTAL_USER",
   ],
 };
 

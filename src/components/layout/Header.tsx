@@ -12,6 +12,7 @@ import { clearTokens } from "@/lib/token";
 import { Menu, X } from "lucide-react";
 import { dashboardNavItems } from "@/components/dashboard/dashboardConfig";
 import { canAccessDashboardPath } from "@/lib/dashboardAccess";
+import { canAccessPortal } from "@/lib/portalAccess";
 
 const navLinks = [
   { label: "Overview", href: "/" },
@@ -32,9 +33,14 @@ export default function Header() {
   const { isAuthenticated, user } = useSelector(
     (state: RootState) => state.auth,
   );
-  const workspace = dashboardNavItems.find((item) =>
-    canAccessDashboardPath(user?.role, item.href),
-  );
+  const workspaceLabel = canAccessPortal(user?.role)
+    ? "Client portal"
+    : "Dashboard";
+  const workspace = canAccessPortal(user?.role)
+    ? { href: "/portal" }
+    : dashboardNavItems.find((item) =>
+        canAccessDashboardPath(user?.role, item.href),
+      );
 
   const handleSignOut = () => {
     dispatch(logout());
@@ -105,7 +111,7 @@ export default function Header() {
                   href={workspace.href}
                   className="text-sm font-semibold text-primary px-4 py-2 rounded-lg hover:bg-surface-container transition-colors duration-200"
                 >
-                  Dashboard
+                  {workspaceLabel}
                 </Link>
               )}
               <button
@@ -191,7 +197,7 @@ export default function Header() {
                       onClick={() => setMobileOpen(false)}
                       className="text-sm font-semibold text-primary text-left py-1"
                     >
-                      Dashboard
+                      {workspaceLabel}
                     </Link>
                   )}
                   <button
