@@ -12,6 +12,7 @@ import { clearTokens } from "@/lib/token";
 import { Menu, X } from "lucide-react";
 import { dashboardNavItems } from "@/components/dashboard/dashboardConfig";
 import { canAccessDashboardPath } from "@/lib/dashboardAccess";
+import { canAccessPortal } from "@/lib/portalAccess";
 
 const navLinks = [
   { label: "Overview", href: "/" },
@@ -32,9 +33,11 @@ export default function Header() {
   const { isAuthenticated, user } = useSelector(
     (state: RootState) => state.auth,
   );
-  const workspace = dashboardNavItems.find((item) =>
-    canAccessDashboardPath(user?.role, item.href),
-  );
+  const workspace = canAccessPortal(user?.role)
+    ? { href: "/portal" }
+    : dashboardNavItems.find((item) =>
+        canAccessDashboardPath(user?.role, item.href),
+      );
 
   const handleSignOut = () => {
     dispatch(logout());

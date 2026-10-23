@@ -17,6 +17,7 @@ import {
 import { ApiError } from "@/lib/ApiError";
 import { loginSuccess } from "@/store/slices/authSlice";
 import { roleLabel } from "@/lib/userManagement";
+import { homePathForRole } from "@/lib/portalAccess";
 
 export default function RoleSelection() {
   const router = useRouter();
@@ -44,7 +45,7 @@ export default function RoleSelection() {
         dispatch(loginSuccess({ user }));
         setUserId(user.id);
         if (!needsRoleSelection(user)) {
-          router.replace("/modules");
+          router.replace(homePathForRole(user.role));
           return;
         }
         const options = await getRoles();
@@ -70,7 +71,7 @@ export default function RoleSelection() {
     try {
       const user = await saveSelectedRole(userId, selectedRole);
       dispatch(loginSuccess({ user }));
-      router.replace("/modules");
+      router.replace(homePathForRole(user.role));
     } catch (error) {
       setSaveError(
         error instanceof ApiError && error.statusCode === 403

@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useSelector } from "react-redux";
 import type { RootState } from "@/store";
 import { canAccessDashboardPath } from "@/lib/dashboardAccess";
+import { canAccessPortal, homePathForRole } from "@/lib/portalAccess";
 import { DM_Sans, DM_Mono } from "next/font/google";
 import "./home-shell.css";
 import "./users/users-shell.css";
@@ -95,10 +96,14 @@ export default function DashboardShell({
                     : "Sign in to access your workspace."}
                 </p>
                 <Link
-                  href={user ? "/modules" : "/login"}
+                  href={user ? homePathForRole(user.role) : "/login"}
                   className="mt-4 inline-block text-primary"
                 >
-                  {user ? "Back to modules" : "Sign in"}
+                  {user
+                    ? canAccessPortal(user.role)
+                      ? "Go to client portal"
+                      : "Back to modules"
+                    : "Sign in"}
                 </Link>
               </div>
             )}

@@ -20,6 +20,7 @@ import AuthButton from "@/components/ui/AuthButton";
 import AuthCheckbox from "@/components/ui/AuthCheckbox";
 import apiClient from "@/lib/axios";
 import { setRefreshToken, setAccessToken } from "@/lib/token";
+import { homePathForRole } from "@/lib/portalAccess";
 import type { AuthResponse } from "@/types/auth";
 
 const loginSchema = z.object({
@@ -71,7 +72,7 @@ export default function LoginForm() {
           user: res.data.user,
         }),
       );
-      router.push("/modules");
+      router.push(homePathForRole(res.data.user?.role));
     } catch (err: unknown) {
       const message =
         err instanceof Error ? err.message : "Invalid email or password.";

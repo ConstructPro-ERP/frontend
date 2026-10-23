@@ -8,6 +8,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **Client portal** ([#82](https://github.com/ConstructPro-ERP/frontend/issues/82))
+  - Added a read-only `/portal` experience, separate from the staff dashboard, for `CLIENT_PORTAL_USER` accounts: overview, projects with milestones, quotations, and shared documents with signed downloads.
+  - Uses only the client-scoped `/client-portal/*` gateway routes; ownership is enforced by the backend.
+  - Added loading, empty, error and retry states per section, and role-based redirects after sign-in.
+  - Invoices and payments show an unavailable notice until the backend exposes client-scoped billing endpoints.
+  - Removed client roles from the staff `/dashboard/documents` placeholder route.
 - **DDP-92 — Secure project document upload integration** ([#74](https://github.com/ConstructPro-ERP/frontend/issues/74))
   - Integrated backend-signed direct Cloudinary uploads and verified document activation.
   - Added 6 MiB chunking, cumulative progress, controlled retries, and cancellation.
