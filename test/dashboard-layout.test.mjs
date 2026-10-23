@@ -32,11 +32,13 @@ test("dashboard shell wires shared header and sidebar with tighter content spaci
   );
 });
 
-test("dashboard header exposes the prototype search and notification actions", () => {
+test("dashboard header omits global search and exposes recent activity notifications", () => {
   const headerSource = read("src/components/dashboard/DashboardHeader.tsx");
 
-  assert.match(headerSource, /searchPlaceholder: "Search anything\.\.\."/);
-  assert.match(headerSource, /aria-label="Notifications"/);
+  assert.doesNotMatch(headerSource, /searchPlaceholder|Search anything/);
+  assert.match(headerSource, /aria-label="Recent activity notifications"/);
+  assert.match(headerSource, /getDashboardActivity\(1\)/);
+  assert.doesNotMatch(headerSource, /99\+|bg-primary px-1 text-\[9px\]/);
   assert.doesNotMatch(headerSource, /Open account menu/);
 });
 
