@@ -2,6 +2,7 @@
 
 import { useCallback, useState } from "react";
 import Link from "next/link";
+import { MapPin } from "lucide-react";
 import { usePortalQuery } from "@/hooks/usePortalQuery";
 import { listPortalProjects } from "@/services/portalApi";
 import { portalDate } from "@/lib/portalFormat";
@@ -11,7 +12,6 @@ import {
   PortalProgress,
   PortalQueryBoundary,
   PortalStatusBadge,
-  portalLinkClass,
 } from "./PortalUI";
 
 export default function PortalProjects() {
@@ -21,7 +21,6 @@ export default function PortalProjects() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-bold text-on-background">Projects</h1>
       <PortalPanel
         title="Your projects"
         description="Status and progress for the projects linked to your account."
@@ -35,64 +34,49 @@ export default function PortalProjects() {
         >
           {(data) => (
             <>
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-176 text-left text-sm">
-                  <caption className="sr-only">Your projects</caption>
-                  <thead className="bg-surface-container text-xs uppercase tracking-wide text-on-surface-muted">
-                    <tr>
-                      <th scope="col" className="px-4 py-3">
-                        Project
-                      </th>
-                      <th scope="col" className="px-4 py-3">
-                        Status
-                      </th>
-                      <th scope="col" className="px-4 py-3">
-                        Progress
-                      </th>
-                      <th scope="col" className="px-4 py-3">
-                        Start
-                      </th>
-                      <th scope="col" className="px-4 py-3">
-                        End
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-outline-variant">
-                    {data.items.map((project) => (
-                      <tr key={project.id}>
-                        <th scope="row" className="px-4 py-3 font-medium">
-                          <Link
-                            href={`/portal/projects/${encodeURIComponent(project.id)}`}
-                            className={portalLinkClass}
-                          >
-                            {project.projectName}
-                          </Link>
-                          {project.location ? (
-                            <span className="block text-xs font-normal text-on-surface-muted">
-                              {project.location}
-                            </span>
-                          ) : null}
-                        </th>
-                        <td className="px-4 py-3">
-                          <PortalStatusBadge status={project.status} />
-                        </td>
-                        <td className="px-4 py-3">
-                          <PortalProgress
-                            value={project.progressPercentage}
-                            label={`Progress of ${project.projectName}`}
-                          />
-                        </td>
-                        <td className="px-4 py-3">
-                          {portalDate(project.startDate)}
-                        </td>
-                        <td className="px-4 py-3">
-                          {portalDate(project.endDate)}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <ul className="grid gap-4 p-5 sm:grid-cols-2 xl:grid-cols-3">
+                {data.items.map((project) => (
+                  <li key={project.id}>
+                    <article className="group relative flex h-full flex-col gap-4 rounded-xl border border-outline-variant bg-surface-container-lowest p-5 transition duration-200 hover:border-primary/40 hover:shadow-level-1">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <h3 className="font-bold text-on-background">
+                            <Link
+                              href={`/portal/projects/${encodeURIComponent(project.id)}`}
+                              className="after:absolute after:inset-0 after:rounded-xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                            >
+                              {project.projectName}
+                            </Link>
+                          </h3>
+                          <p className="mt-0.5 flex items-center gap-1 text-xs text-on-surface-muted">
+                            <MapPin size={12} aria-hidden="true" />
+                            {project.location ?? "Location not set"}
+                          </p>
+                        </div>
+                        <PortalStatusBadge status={project.status} />
+                      </div>
+                      <PortalProgress
+                        value={project.progressPercentage}
+                        label={`Progress of ${project.projectName}`}
+                      />
+                      <dl className="mt-auto grid grid-cols-2 gap-3 border-t border-outline-variant pt-3 text-xs">
+                        <div>
+                          <dt className="text-on-surface-muted">Start</dt>
+                          <dd className="mt-0.5 font-semibold text-on-background">
+                            {portalDate(project.startDate)}
+                          </dd>
+                        </div>
+                        <div>
+                          <dt className="text-on-surface-muted">End</dt>
+                          <dd className="mt-0.5 font-semibold text-on-background">
+                            {portalDate(project.endDate)}
+                          </dd>
+                        </div>
+                      </dl>
+                    </article>
+                  </li>
+                ))}
+              </ul>
               <PortalPager
                 page={data.page}
                 totalPages={data.totalPages}

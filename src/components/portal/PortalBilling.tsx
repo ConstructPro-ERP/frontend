@@ -8,9 +8,6 @@ import { PortalPanel } from "./PortalUI";
 export default function PortalBilling() {
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-bold text-on-background">
-        Invoices &amp; payments
-      </h1>
       <PortalPanel
         title="Invoice and payment status"
         description="Billing details for your projects."

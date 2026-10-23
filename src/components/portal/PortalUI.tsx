@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { AlertTriangle, Inbox, Loader2, RefreshCw } from "lucide-react";
+import { AlertTriangle, Inbox, RefreshCw } from "lucide-react";
 import type { PortalQuery } from "@/hooks/usePortalQuery";
 import { describePortalError, portalLabel } from "@/lib/portalFormat";
 
@@ -10,7 +10,7 @@ export const portalButtonClass =
 export const portalLinkClass =
   "font-semibold text-primary underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary";
 export const portalPanelClass =
-  "rounded-xl border border-outline-variant bg-surface-container-lowest shadow-level-1";
+  "overflow-hidden rounded-xl border border-outline-variant bg-surface-container-lowest shadow-level-1";
 
 export function PortalPanel({
   title,
@@ -25,7 +25,7 @@ export function PortalPanel({
 }) {
   return (
     <section className={portalPanelClass}>
-      <header className="flex flex-wrap items-start justify-between gap-3 border-b border-outline-variant p-4">
+      <header className="flex flex-wrap items-start justify-between gap-3 border-b border-outline-variant bg-surface-container px-5 py-4">
         <div className="min-w-0">
           <h2 className="text-base font-bold text-on-background">{title}</h2>
           {description ? (
@@ -41,12 +41,13 @@ export function PortalPanel({
 
 export function PortalLoading({ label = "Loading" }: { label?: string }) {
   return (
-    <div
-      role="status"
-      className="flex items-center justify-center gap-2 p-10 text-sm text-on-surface-muted"
-    >
-      <Loader2 className="animate-spin motion-reduce:animate-none" size={18} />
-      <span>{label}…</span>
+    <div role="status" className="space-y-3 p-6">
+      <span className="sr-only">{label}…</span>
+      <div className="space-y-3" aria-hidden="true">
+        <div className="h-3 w-2/5 animate-pulse rounded bg-slate-200 motion-reduce:animate-none" />
+        <div className="h-3 w-4/5 animate-pulse rounded bg-slate-100 motion-reduce:animate-none" />
+        <div className="h-3 w-3/5 animate-pulse rounded bg-slate-100 motion-reduce:animate-none" />
+      </div>
     </div>
   );
 }
@@ -169,13 +170,22 @@ export function PortalProgress({
   const percent = Math.max(0, Math.min(100, value));
   return (
     <div className="flex min-w-28 items-center gap-3">
-      <progress
+      <div
+        role="progressbar"
         aria-label={label}
-        value={percent}
-        max={100}
-        className="h-2 w-24 accent-primary"
-      />
-      <span className="text-xs font-semibold">{percent.toFixed(0)}%</span>
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={Math.round(percent)}
+        className="h-2 w-full min-w-20 flex-1 overflow-hidden rounded-full bg-primary-container"
+      >
+        <div
+          className="h-full rounded-full bg-primary"
+          style={{ width: `${percent}%` }}
+        />
+      </div>
+      <span className="w-9 text-right text-xs font-semibold tabular-nums">
+        {percent.toFixed(0)}%
+      </span>
     </div>
   );
 }

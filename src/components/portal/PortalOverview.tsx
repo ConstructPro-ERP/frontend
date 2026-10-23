@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useSelector } from "react-redux";
-import type { RootState } from "@/store";
+import type { LucideIcon } from "lucide-react";
+import { FileText, FolderKanban, FolderOpen, Receipt } from "lucide-react";
 import { usePortalQuery } from "@/hooks/usePortalQuery";
 import { listPortalProjects, listPortalQuotations } from "@/services/portalApi";
 import { portalDate, portalMoney } from "@/lib/portalFormat";
@@ -12,12 +12,43 @@ import {
   PortalQueryBoundary,
   PortalStatusBadge,
   portalLinkClass,
-  portalPanelClass,
 } from "./PortalUI";
 
 const OVERVIEW_LIMIT = 5;
 const loadProjects = () => listPortalProjects(1, OVERVIEW_LIMIT);
 const loadQuotations = () => listPortalQuotations(1, OVERVIEW_LIMIT);
+
+function StatCard({
+  href,
+  icon: Icon,
+  label,
+  value,
+  note,
+}: Readonly<{
+  href: string;
+  icon: LucideIcon;
+  label: string;
+  value: string;
+  note: string;
+}>) {
+  return (
+    <Link
+      href={href}
+      className="group flex flex-col gap-4 rounded-xl border border-outline-variant bg-surface-container-lowest p-5 shadow-level-1 transition-colors duration-200 hover:border-primary/40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+    >
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-sm font-medium text-on-surface-variant">{label}</p>
+        <Icon size={18} className="text-primary" aria-hidden="true" />
+      </div>
+      <div>
+        <p className="text-3xl font-bold leading-tight tracking-tight tabular-nums text-on-background">
+          {value}
+        </p>
+        <p className="mt-1 text-xs text-on-surface-muted">{note}</p>
+      </div>
+    </Link>
+  );
+}
 
 function ViewAll({ href, label }: Readonly<{ href: string; label: string }>) {
   return (
@@ -28,43 +59,46 @@ function ViewAll({ href, label }: Readonly<{ href: string; label: string }>) {
 }
 
 export default function PortalOverview() {
-  const user = useSelector((state: RootState) => state.auth.user);
   const projects = usePortalQuery("projects:overview", loadProjects);
   const quotations = usePortalQuery("quotations:overview", loadQuotations);
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-on-background">
-          Welcome{user?.firstName ? `, ${user.firstName}` : ""}
-        </h1>
-        <p className="mt-1 text-sm text-on-surface-muted">
-          A read-only view of your projects, quotations and shared documents.
-        </p>
+    <div className="space-y-5">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <StatCard
+          href="/portal/projects"
+          icon={FolderKanban}
+          label="Projects"
+          value={projects.data ? String(projects.data.total) : "—"}
+          note="Linked to your account"
+        />
+        <StatCard
+          href="/portal/quotations"
+          icon={FileText}
+          label="Quotations"
+          value={quotations.data ? String(quotations.data.total) : "—"}
+          note="Prepared for you"
+        />
+        <StatCard
+          href="/portal/documents"
+          icon={FolderOpen}
+          label="Shared documents"
+          value="Browse"
+          note="Files from your project team"
+        />
+        <StatCard
+          href="/portal/billing"
+          icon={Receipt}
+          label="Invoices & payments"
+          value="Soon"
+          note="Not available in the portal yet"
+        />
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className={`${portalPanelClass} p-4`}>
-          <p className="text-xs font-semibold uppercase tracking-wide text-on-surface-muted">
-            Projects
-          </p>
-          <p className="mt-2 text-3xl font-bold tabular-nums text-on-background">
-            {projects.data ? projects.data.total : "—"}
-          </p>
-        </div>
-        <div className={`${portalPanelClass} p-4`}>
-          <p className="text-xs font-semibold uppercase tracking-wide text-on-surface-muted">
-            Quotations
-          </p>
-          <p className="mt-2 text-3xl font-bold tabular-nums text-on-background">
-            {quotations.data ? quotations.data.total : "—"}
-          </p>
-        </div>
-      </div>
-
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid gap-5 lg:grid-cols-2">
         <PortalPanel
           title="Recent projects"
+          description="Your latest projects and how far along they are."
           action={<ViewAll href="/portal/projects" label="View all" />}
         >
           <PortalQueryBoundary
@@ -79,12 +113,12 @@ export default function PortalOverview() {
                 {data.items.map((project) => (
                   <li
                     key={project.id}
-                    className="flex flex-wrap items-center justify-between gap-3 p-4"
+                    className="flex flex-wrap items-center justify-between gap-3 px-4 py-3"
                   >
                     <div className="min-w-0">
                       <Link
                         href={`/portal/projects/${encodeURIComponent(project.id)}`}
-                        className={portalLinkClass}
+                        className={`${portalLinkClass} text-sm`}
                       >
                         {project.projectName}
                       </Link>
@@ -105,6 +139,7 @@ export default function PortalOverview() {
 
         <PortalPanel
           title="Recent quotations"
+          description="The latest quotations prepared for you."
           action={<ViewAll href="/portal/quotations" label="View all" />}
         >
           <PortalQueryBoundary
@@ -119,7 +154,7 @@ export default function PortalOverview() {
                 {data.items.map((quotation) => (
                   <li
                     key={quotation.id}
-                    className="flex flex-wrap items-center justify-between gap-3 p-4"
+                    className="flex flex-wrap items-center justify-between gap-3 px-4 py-3"
                   >
                     <div>
                       <p className="text-sm font-medium text-on-background">
@@ -129,7 +164,7 @@ export default function PortalOverview() {
                         <PortalStatusBadge status={quotation.status} />
                       </div>
                     </div>
-                    <p className="font-semibold tabular-nums">
+                    <p className="text-sm font-semibold tabular-nums">
                       {portalMoney(quotation.totalAmount)}
                     </p>
                   </li>
@@ -138,29 +173,6 @@ export default function PortalOverview() {
             )}
           </PortalQueryBoundary>
         </PortalPanel>
-      </div>
-
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Link
-          href="/portal/billing"
-          className={`${portalPanelClass} block p-4 hover:bg-surface-container`}
-        >
-          <h2 className="font-bold text-on-background">
-            Invoices &amp; payments
-          </h2>
-          <p className="mt-1 text-sm text-on-surface-muted">
-            Billing status for your projects.
-          </p>
-        </Link>
-        <Link
-          href="/portal/documents"
-          className={`${portalPanelClass} block p-4 hover:bg-surface-container`}
-        >
-          <h2 className="font-bold text-on-background">Shared documents</h2>
-          <p className="mt-1 text-sm text-on-surface-muted">
-            Download files shared by your project team.
-          </p>
-        </Link>
       </div>
     </div>
   );

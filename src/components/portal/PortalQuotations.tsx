@@ -18,7 +18,6 @@ export default function PortalQuotations() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-bold text-on-background">Quotations</h1>
       <PortalPanel
         title="Your quotations"
         description="Quotations prepared for you. Approval and changes are handled by the ConstructPro team."

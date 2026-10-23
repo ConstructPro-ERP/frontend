@@ -4,6 +4,7 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from "@testing-library/react";
 import { Provider } from "react-redux";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -111,7 +112,9 @@ describe("PortalShell access control", () => {
         <p>Secret projects</p>
       </PortalShell>,
     );
-    expect(screen.getByRole("link", { name: "Sign in" })).toBeTruthy();
+    expect(
+      within(screen.getByRole("main")).getByRole("link", { name: "Sign in" }),
+    ).toBeTruthy();
     expect(screen.queryByText("Secret projects")).toBeNull();
     expect(
       screen.queryByRole("navigation", { name: "Client portal" }),
@@ -155,7 +158,7 @@ describe("PortalShell access control", () => {
     ]);
     expect(screen.queryByLabelText("Dashboard sidebar")).toBeNull();
     expect(
-      screen
+      within(menu)
         .getByRole("link", { name: "Overview" })
         .getAttribute("aria-current"),
     ).toBe("page");

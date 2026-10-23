@@ -15,7 +15,6 @@ export default function PortalDocuments() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-bold text-on-background">Documents</h1>
       <PortalPanel
         title="Shared documents"
         description="Choose a project to see the files shared with you."

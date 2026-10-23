@@ -33,6 +33,9 @@ export default function Header() {
   const { isAuthenticated, user } = useSelector(
     (state: RootState) => state.auth,
   );
+  const workspaceLabel = canAccessPortal(user?.role)
+    ? "Client portal"
+    : "Dashboard";
   const workspace = canAccessPortal(user?.role)
     ? { href: "/portal" }
     : dashboardNavItems.find((item) =>
@@ -108,7 +111,7 @@ export default function Header() {
                   href={workspace.href}
                   className="text-sm font-semibold text-primary px-4 py-2 rounded-lg hover:bg-surface-container transition-colors duration-200"
                 >
-                  Dashboard
+                  {workspaceLabel}
                 </Link>
               )}
               <button
@@ -194,7 +197,7 @@ export default function Header() {
                       onClick={() => setMobileOpen(false)}
                       className="text-sm font-semibold text-primary text-left py-1"
                     >
-                      Dashboard
+                      {workspaceLabel}
                     </Link>
                   )}
                   <button

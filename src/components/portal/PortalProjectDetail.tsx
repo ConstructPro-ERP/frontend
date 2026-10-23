@@ -64,9 +64,9 @@ export default function PortalProjectDetail({
           {(data) => (
             <div className="space-y-4 p-4">
               <div className="flex flex-wrap items-center gap-3">
-                <h1 className="text-2xl font-bold text-on-background">
+                <h2 className="text-xl font-bold text-on-background">
                   {data.projectName}
-                </h1>
+                </h2>
                 <PortalStatusBadge status={data.status} />
               </div>
               <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

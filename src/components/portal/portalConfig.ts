@@ -26,3 +26,38 @@ export function isPortalNavActive(pathname: string, href: string) {
     ? pathname === href
     : pathname === href || pathname.startsWith(`${href}/`);
 }
+
+export type PortalPageConfig = { title: string; description: string };
+
+const portalPageConfigs: Record<string, PortalPageConfig> = {
+  "/portal": {
+    title: "Overview",
+    description: "Your projects, quotations and shared documents",
+  },
+  "/portal/projects": {
+    title: "Projects",
+    description: "Status and progress of your projects",
+  },
+  "/portal/quotations": {
+    title: "Quotations",
+    description: "Quotations prepared for you",
+  },
+  "/portal/billing": {
+    title: "Invoices & payments",
+    description: "Billing status for your projects",
+  },
+  "/portal/documents": {
+    title: "Documents",
+    description: "Files shared with you by your project team",
+  },
+};
+
+export function getPortalPageConfig(pathname: string): PortalPageConfig {
+  if (pathname.startsWith("/portal/projects/")) {
+    return {
+      title: "Project details",
+      description: "Progress, milestones and shared documents",
+    };
+  }
+  return portalPageConfigs[pathname] ?? portalPageConfigs["/portal"];
+}
