@@ -1,8 +1,5 @@
 # ConstructPro Frontend
 
-![CI Status](https://img.shields.io/badge/CI-Passing-brightgreen)
-![Coverage](https://img.shields.io/badge/Coverage-TBD-success)
-<!-- ![Coverage](https://img.shields.io/badge/Coverage-80%25+-success) -->
 
 ## Overview
 
@@ -65,7 +62,7 @@ Before running the frontend locally, ensure the following software is installed:
 
 | Software | Version |
 |-----------|-----------|
-| Node.js | 20+ |
+| Node.js | 22+ |
 | npm | Latest |
 | Git | Latest |
 
@@ -91,7 +88,7 @@ cd frontend
 Install dependencies:
 
 ```bash
-npm install
+npm ci
 ```
 
 ---
@@ -103,7 +100,7 @@ Create a `.env.local` file in the project root.
 Example:
 
 ```env
-NEXT_PUBLIC_API_BASE_URL=http://localhost:4000/api
+NEXT_PUBLIC_API_URL=http://localhost:4000/api
 ```
 
 > Only example values should be committed. Never commit secrets or production configuration.
@@ -117,7 +114,7 @@ Google login uses the backend redirect endpoint `/auth/google`. See [Google logi
 Start the development server:
 
 ```bash
-npm dev
+npm run dev
 ```
 
 Frontend URL:
@@ -133,7 +130,7 @@ http://localhost:3000
 Build the frontend application:
 
 ```bash
-npm build
+npm run build
 ```
 
 ---
@@ -155,25 +152,25 @@ The following commands mirror the frontend CI pipeline and should be run before 
 ### Install Dependencies
 
 ```bash
-npm install
+npm ci
 ```
 
 ### Lint
 
 ```bash
-npm lint
+npm run lint
 ```
 
 ### Format Check
 
 ```bash
-npm format:check
+npm run format:check
 ```
 
 ### Build Verification
 
 ```bash
-npm build
+npm run build
 ```
 
 ### Dependency Security Scan
@@ -262,3 +259,40 @@ Developed as part of:
 **SENG 34213 – System Development Project**  
 **Bachelor of Science (Hons.) in Software Engineering**  
 **University of Kelaniya**
+
+## Current development reference
+
+`NEXT_PUBLIC_API_URL` takes precedence over the legacy `NEXT_PUBLIC_API_BASE_URL`.
+The default is `http://localhost:4000/api`. Start the backend gateway and required
+services separately. Public environment values are included in the browser build.
+
+All backend requests must use `apiClient` from [src/lib/axios.ts](src/lib/axios.ts).
+Do not create another Axios instance or use raw Axios/fetch for backend requests.
+Changes to that client require explicit user approval; preserve its interceptors,
+refresh workflows, retry policies, and standardized error handling.
+
+| Command | Purpose |
+| --- | --- |
+| `npm run typecheck` | Check TypeScript without emitting files |
+| `npm test` | Run Node-based tests in `test/*.test.mjs` |
+| `npm run test:coverage` | Run those tests with scoped coverage thresholds |
+| `npm run test:quotation-quality` | Run quotation Vitest tests with coverage |
+| `npm run format` | Rewrite formatting with Prettier |
+
+The Node test runner transpiles selected dashboard and analytics modules and mocks
+their API client. Its coverage does not represent the whole application. Browser
+workflows live in the separate `tests` repository.
+
+| Path | Responsibility |
+| --- | --- |
+| `src/app/` | App Router pages and layouts |
+| `src/components/` | Dashboard features, layouts, and shared UI |
+| `src/services/` | API operations |
+| `src/lib/` | API configuration, errors, tokens, and domain helpers |
+| `src/providers/`, `src/store/` | Authentication and Redux state |
+| `src/types/` | Shared TypeScript contracts |
+| `test/`, `docs/` | Tests and feature documentation |
+
+[Frontend CI](.github/workflows/ci.yml) delegates to
+`ConstructPro-ERP/infra/.github/workflows/frontend-ci.yml@v1`.
+Consult that reusable workflow for its current checks.
