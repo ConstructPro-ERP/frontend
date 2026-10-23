@@ -105,24 +105,39 @@ refreshed in Project Details after successful mutations.
 
 ## Tasks
 
-| Method | Route                                 | Input / result                                               |
-| ------ | ------------------------------------- | ------------------------------------------------------------ |
-| GET    | `/projects/:projectId/tasks`          | Paginated `Task` records                                     |
-| GET    | `/projects/:projectId/task-assignees` | Paginated `{ id, fullName, email? }`                         |
-| POST   | `/tasks`                              | `{ projectId, taskName, description, dueDate, milestoneId }` |
-| PATCH  | `/tasks/:id`                          | Editable task fields, excluding project/assignee identity    |
-| PATCH  | `/tasks/:id/status`                   | `{ status }`                                                 |
-| PATCH  | `/tasks/:id/assign`                   | `{ assignedToId: UUID or null }`                             |
-| DELETE | `/tasks/:id`                          | Deletes the task                                             |
+| Method | Route                                 | Input / result                                                                          |
+| ------ | ------------------------------------- | --------------------------------------------------------------------------------------- |
+| GET    | `/projects/:projectId/tasks`          | Paginated `Task` records                                                                |
+| GET    | `/projects/:projectId/task-assignees` | Paginated `{ id, fullName, email? }`                                                    |
+| POST   | `/tasks`                              | `{ projectId, taskName, description?, dueDate?, milestoneId?, assignedToId?, status? }` |
+| PATCH  | `/tasks/:id`                          | Editable task fields, excluding project/assignee identity                               |
+| PATCH  | `/tasks/:id/status`                   | `{ status }`                                                                            |
+| PATCH  | `/tasks/:id/assign`                   | `{ assignedToId: UUID or null }`                                                        |
+| DELETE | `/tasks/:id`                          | Deletes the task                                                                        |
 
-Task statuses are `TODO`, `IN_PROGRESS`, `BLOCKED`, `COMPLETED`. Creation defaults
-to `TODO`. Optional milestone and due date are submitted as `null` when cleared.
-Names are 1–200 trimmed characters; descriptions at most 2,000. Lists accept
-`search`, `status`, `milestoneId`, `assignedToId`, `sortBy` (`createdAt`, `dueDate`,
-`taskName`), `sortOrder` (`asc`, `desc`), `page`, `limit`.
+Task statuses are `TODO`, `IN_PROGRESS`, `BLOCKED`, `COMPLETED`.
+Creation defaults to `TODO`. Optional milestone and due date fields support
+`null` when cleared. Names are 1–200 trimmed characters; descriptions are
+limited to 2,000 characters.
 
-Return `assignedTo: { fullName } | null` and
-`milestone: { id, milestoneName } | null` with task records. The project-scoped
+Task lists use backend-driven, case-insensitive partial search on `taskName`.
+The optional `search` parameter is limited to 200 characters. Searching is
+combined with `status`, `milestoneId`, `assignedToId`, `sortBy` (`createdAt`,
+`dueDate`, `taskName`), `sortOrder` (`asc`, `desc`), `page`, and `limit`.
+
+The existing filter form submits these parameters when Apply filters is clicked
+or the form is submitted with Enter. Search is not performed on each keystroke.
+Search, categorical filters, and sorting are processed by the backend before
+pagination. The Tasks table displays 10 records per page and uses backend
+pagination metadata. Clearing filters restores the unfiltered list.
+
+Task assignment uses `PATCH /tasks/:id/assign` with an active user UUID.
+Sending an explicit `{ "assignedToId": null }` clears the assignment.
+
+Task records include `assignedToId` and `milestoneId`. The frontend resolves
+readable names using independently loaded assignee and milestone selectors.
+Optional nested `assignedTo` and `milestone` objects are supported when present,
+but are not required by the current backend response contract. The project-scoped
 assignee directory must be readable by all project readers and expose only eligible
 team members, plus currently assigned members needed to display existing records.
 The server must reject a new assignment to an ineligible/inactive member. This

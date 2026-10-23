@@ -218,6 +218,42 @@ test("calendar validation rejects impossible dates and accepts leap days", () =>
   }
 });
 
+test("task validation follows backend task field constraints", () => {
+  const valid = {
+    taskName: "Prepare foundation",
+    description: "",
+    dueDate: "",
+    milestoneId: "",
+    assignedToId: "",
+    status: "TODO",
+  };
+
+  assert.equal(rules.validateTask(valid), null);
+
+  for (const invalid of [
+    { taskName: "   " },
+    { taskName: "a".repeat(201) },
+    { description: "a".repeat(2001) },
+    { dueDate: "2026-02-30" },
+    { milestoneId: "invalid" },
+    { assignedToId: "invalid" },
+    { status: "DELAYED" },
+  ]) {
+    assert.ok(rules.validateTask({ ...valid, ...invalid }));
+  }
+});
+
+test("task search validation respects the backend 200-character limit", () => {
+  for (const search of ["", "foundation", " ".repeat(3), "a".repeat(200)]) {
+    assert.equal(rules.validateTaskFilters({ search }), null);
+  }
+
+  assert.match(
+    rules.validateTaskFilters({ search: "a".repeat(201) }),
+    /200 characters/,
+  );
+});
+
 test("milestones require valid weight and date", () => {
   const valid = {
     milestoneName: "Foundation",
@@ -1380,6 +1416,9 @@ test("task tables and filters display names while select values remain UUIDs", (
   assert.ok(html.includes('value="' + managerId + '">Asha Perera</option>'));
   assert.match(html, /Inspect concrete/);
   assert.doesNotMatch(html, /UUID|Add task|>Edit<|>Delete</);
+  assert.match(html, /Search tasks/);
+  assert.match(html, /Apply filters/);
+  assert.match(html, /Clear/);
 });
 
 test("documents expose download but hide mutations for read-only project readers", () => {
