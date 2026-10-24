@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useDashboardQuery } from "@/hooks/useDashboardQuery";
 import { getLead } from "@/components/dashboard/leads/leadApi";
 import { quotationActions, safePdfUrl } from "@/lib/quotationActions";
 import {
@@ -79,11 +80,11 @@ type QuotationFeedback = {
 function QuotationStatusBadge({ status }: { status: Quotation["status"] }) {
   return (
     <span
-      className={`inline-flex items-center gap-1 rounded-full px-[9px] py-[3px] text-[11px] font-semibold ${getQuotationStatusBadgeClasses(
+      className={`inline-flex items-center gap-1 rounded-full px-2.25 py-0.75 text-[11px] font-semibold ${getQuotationStatusBadgeClasses(
         status,
       )}`}
     >
-      <span className="h-[5px] w-[5px] rounded-full bg-current" />
+      <span className="h-1.25 w-1.25 rounded-full bg-current" />
       {getQuotationStatusLabel(status)}
     </span>
   );
@@ -193,7 +194,7 @@ function QuotationForm({
           Create a new quotation for a lead
         </p>
       </div>
-      <div className="space-y-[14px] p-5">
+      <div className="space-y-3.5 p-5">
         <LeadSelectDropdown
           value={values.leadId}
           onChange={(leadId) => onFieldChange("leadId", leadId)}
@@ -202,7 +203,7 @@ function QuotationForm({
         />
 
         <div>
-          <div className="mb-[5px] flex items-center justify-between">
+          <div className="mb-1.25 flex items-center justify-between">
             <label
               id="quotation-form-items-label"
               className="block text-[11.5px] font-semibold text-on-surface-variant"
@@ -243,7 +244,7 @@ function QuotationForm({
                       onItemChange(index, "itemName", event.target.value)
                     }
                     placeholder="Item name"
-                    className="w-full rounded-lg border border-outline-variant bg-surface-container px-3 py-[9px] text-[13px] text-on-background outline-none"
+                    className="w-full rounded-lg border border-outline-variant bg-surface-container px-3 py-2.25 text-[13px] text-on-background outline-none"
                   />
                   <input
                     type="number"
@@ -260,7 +261,7 @@ function QuotationForm({
                       onItemChange(index, "quantity", event.target.value)
                     }
                     placeholder="Qty"
-                    className="w-full rounded-lg border border-outline-variant bg-surface-container px-2 py-[9px] font-mono text-[13px] text-on-background outline-none text-right"
+                    className="w-full rounded-lg border border-outline-variant bg-surface-container px-2 py-2.25 font-mono text-[13px] text-on-background outline-none text-right"
                   />
                   <input
                     type="number"
@@ -277,14 +278,14 @@ function QuotationForm({
                       onItemChange(index, "unitPrice", event.target.value)
                     }
                     placeholder="Unit price"
-                    className="w-full rounded-lg border border-outline-variant bg-surface-container px-2 py-[9px] font-mono text-[13px] text-on-background outline-none text-right"
+                    className="w-full rounded-lg border border-outline-variant bg-surface-container px-2 py-2.25 font-mono text-[13px] text-on-background outline-none text-right"
                   />
                   <button
                     type="button"
                     onClick={() => onRemoveItem(index)}
                     disabled={isSubmitting || values.items.length === 1}
                     aria-label={`Remove item ${index + 1}`}
-                    className="rounded-lg border border-outline-variant bg-surface-container p-[9px] text-on-surface-muted transition hover:bg-surface-container-high disabled:cursor-not-allowed disabled:opacity-50"
+                    className="rounded-lg border border-outline-variant bg-surface-container p-2.25 text-on-surface-muted transition hover:bg-surface-container-high disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     <Trash2 size={14} />
                   </button>
@@ -309,7 +310,7 @@ function QuotationForm({
         <div>
           <label
             htmlFor="create-quotation-notes"
-            className="mb-[5px] block text-[11.5px] font-semibold text-on-surface-variant"
+            className="mb-1.25 block text-[11.5px] font-semibold text-on-surface-variant"
           >
             Notes
           </label>
@@ -320,7 +321,7 @@ function QuotationForm({
             aria-label="Optional notes for this quotation"
             onChange={(event) => onFieldChange("notes", event.target.value)}
             placeholder="Optional notes for this quotation..."
-            className="h-[70px] w-full resize-none rounded-lg border border-outline-variant bg-surface-container px-3 py-[9px] text-[13px] text-on-background outline-none placeholder:text-on-surface-muted"
+            className="h-17.5 w-full resize-none rounded-lg border border-outline-variant bg-surface-container px-3 py-2.25 text-[13px] text-on-background outline-none placeholder:text-on-surface-muted"
           />
         </div>
       </div>
@@ -447,16 +448,16 @@ function QuotationCard({
             <tbody>
               {quotation.items.map((item) => (
                 <tr key={item.id} className="border-b border-outline-variant">
-                  <td className="py-[9px] text-on-background font-medium">
+                  <td className="py-2.25 text-on-background font-medium">
                     {item.itemName}
                   </td>
-                  <td className="py-[9px] text-right font-mono text-on-background">
+                  <td className="py-2.25 text-right font-mono text-on-background">
                     {item.quantity}
                   </td>
-                  <td className="py-[9px] text-right font-mono text-on-background">
+                  <td className="py-2.25 text-right font-mono text-on-background">
                     {formatCurrency(item.unitPrice)}
                   </td>
-                  <td className="py-[9px] text-right font-mono font-semibold text-on-background">
+                  <td className="py-2.25 text-right font-mono font-semibold text-on-background">
                     {formatCurrency(item.amount)}
                   </td>
                 </tr>
@@ -626,8 +627,10 @@ function QuotationCard({
 
 export default function QuotationsDashboardClient({
   initialLeadId = "",
+  initialQuotationId = "",
 }: {
   initialLeadId?: string;
+  initialQuotationId?: string;
 }) {
   const creatingRef = useRef(false);
   const pendingActions = useRef(new Set<string>());
@@ -639,9 +642,6 @@ export default function QuotationsDashboardClient({
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 5;
 
-  const [quotationsState, setQuotationsState] = useState<QuotationsState>({
-    kind: "loading",
-  });
   const [formValues, setFormValues] = useState<QuotationFormValues>({
     ...createQuotationFormValues(),
     leadId: initialLeadId,
@@ -675,98 +675,79 @@ export default function QuotationsDashboardClient({
     return () => clearTimeout(timer);
   }, [searchTerm]);
 
-  const replaceQuotationInState = (updated: Quotation) => {
-    setQuotationsState((current) => {
-      if (current.kind !== "ready") {
-        return { kind: "ready", quotations: [updated] };
+  const fetchQuotationsData =
+    useCallback(async (): Promise<QuotationsState> => {
+      if (
+        initialQuotationId &&
+        activeTab === "ALL" &&
+        !debouncedSearch.trim()
+      ) {
+        const quotation = await getQuotationById(initialQuotationId);
+        return { kind: "ready", quotations: normalizeQuotations([quotation]) };
       }
-
-      return {
-        ...current,
-        quotations: current.quotations.map((quotation) =>
-          quotation.id === updated.id ? updated : quotation,
-        ),
-      };
-    });
-  };
-
-  // Fetch real quotations on page load, search changes, or status filter tab changes asynchronously
-  const fetchQuotationsData = useCallback(
-    async (tab: QuotationFilterTab, search: string = "", page: number = 1) => {
-      try {
-        const linkedId = new URLSearchParams(window.location.search).get(
-          "quotationId",
-        );
-        if (linkedId && tab === "ALL" && !search.trim()) {
-          const quotation = await getQuotationById(linkedId);
-          return {
-            kind: "ready" as const,
-            quotations: normalizeQuotations([quotation]),
-          };
-        }
-        const res = await listQuotations({
-          status: tab,
-          leadId: initialLeadId || undefined,
-          page,
-          limit: pageSize,
-          search: search.trim() || undefined,
-        });
-        const items = normalizeQuotations(res);
-        if (items.length === 0) {
-          return { kind: "empty" as const };
-        }
-        return {
-          kind: "ready" as const,
-          quotations: items,
-          total: res.total,
-          totalPages: res.totalPages ?? 1,
-        };
-      } catch (error) {
-        // Report the real API failure rather than displaying prototype quotations.
-        return {
-          kind: "error" as const,
-          message: getQuotationErrorMessage(error),
-        };
-      }
-    },
-    [initialLeadId],
-  );
-
-  useEffect(() => {
-    let active = true;
-
-    async function load() {
-      const nextState = await fetchQuotationsData(
-        activeTab,
-        debouncedSearch,
-        currentPage,
-      );
-      if (active) {
-        setQuotationsState(nextState);
-      }
-    }
-
-    load();
-
-    return () => {
-      active = false;
-    };
-  }, [activeTab, debouncedSearch, currentPage, fetchQuotationsData]);
-
-  const loadQuotations = async () => {
-    setQuotationsState({ kind: "loading" });
-    const nextState = await fetchQuotationsData(
+      const res = await listQuotations({
+        status: activeTab,
+        leadId: initialLeadId || undefined,
+        page: currentPage,
+        limit: pageSize,
+        search: debouncedSearch.trim() || undefined,
+      });
+      const items = normalizeQuotations(res);
+      return items.length
+        ? {
+            kind: "ready",
+            quotations: items,
+            total: res.total,
+            totalPages: res.totalPages ?? 1,
+          }
+        : { kind: "empty" };
+    }, [
+      initialQuotationId,
+      initialLeadId,
       activeTab,
       debouncedSearch,
       currentPage,
-    );
-    setQuotationsState(nextState);
-  };
+    ]);
 
+  const query = useDashboardQuery<QuotationsState>(
+    JSON.stringify([
+      "quotations",
+      initialLeadId,
+      initialQuotationId,
+      activeTab,
+      debouncedSearch.trim(),
+      currentPage,
+    ]),
+    fetchQuotationsData,
+  );
+  const quotationsState: QuotationsState =
+    query.data ??
+    (query.error
+      ? { kind: "error", message: getQuotationErrorMessage(query.error) }
+      : { kind: "loading" });
+  const setQuotationsState = (
+    update: (current: QuotationsState) => QuotationsState,
+  ) => query.setData((current) => update(current ?? { kind: "loading" }));
+  const replaceQuotationInState = (updated: Quotation) => {
+    // Keep matching rows current while the invalidated list refreshes its counts and membership.
+    setQuotationsState((current) =>
+      current.kind === "ready"
+        ? {
+            ...current,
+            quotations: current.quotations.map((quotation) =>
+              quotation.id === updated.id ? updated : quotation,
+            ),
+          }
+        : current,
+    );
+    void query.refresh();
+  };
+  const loadQuotations = () => {
+    void query.refresh();
+  };
   const handleTabChange = (tabId: QuotationFilterTab) => {
     setActiveTab(tabId);
     setCurrentPage(1);
-    setQuotationsState({ kind: "loading" });
   };
 
   const handleSearchChange = (value: string) => {
@@ -993,6 +974,7 @@ export default function QuotationsDashboardClient({
 
         return { kind: "ready", quotations: [createdQuotation, ...existing] };
       });
+      void query.refresh();
       setFormValues({ ...createQuotationFormValues(), leadId: initialLeadId });
       setFormErrors({});
       setFeedback({
@@ -1027,6 +1009,14 @@ export default function QuotationsDashboardClient({
 
   return (
     <div className="space-y-5">
+      {query.error && query.data ? (
+        <div role="status" className="text-sm text-error">
+          {getQuotationErrorMessage(query.error)}{" "}
+          <button type="button" onClick={loadQuotations}>
+            Retry refresh
+          </button>
+        </div>
+      ) : null}
       {/* Feedback Banner */}
       {feedback ? <QuotationFeedbackBanner feedback={feedback} /> : null}
       {convertedProjectId && (
@@ -1285,13 +1275,28 @@ export default function QuotationsDashboardClient({
           quotation={convertingQuotation}
           isOpen={Boolean(convertingQuotation)}
           onClose={() => setConvertingQuotation(null)}
-          onSuccess={({ quotation: updated, projectId, projectStatus }) => {
+          onSuccess={async ({
+            quotation: updated,
+            projectId,
+            projectStatus,
+          }) => {
             replaceQuotationInState(updated);
             setConvertedProjectId(projectId);
             setFeedback({
               tone: "success",
-              message: `Project created successfully (ID: ${projectId}). Status: ${projectStatus ?? "ACTIVE"}`,
+              message: `Quotation converted successfully. Project: ${projectId}. Status: ${projectStatus ?? "ACTIVE"}`,
             });
+            try {
+              const refreshed = await getQuotationById(updated.id);
+              replaceQuotationInState(refreshed);
+              if (refreshed.projectId)
+                setConvertedProjectId(refreshed.projectId);
+            } catch (error) {
+              setFeedback({
+                tone: "info",
+                message: `Conversion succeeded, but the quotation could not be refreshed: ${getQuotationErrorMessage(error)}`,
+              });
+            }
           }}
           onAlreadyConverted={(q) => {
             // The conversion modal has already fetched and verified this quotation.

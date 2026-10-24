@@ -21,7 +21,7 @@ export default function AuthButton({
 
   const variants = {
     primary:
-      "bg-action text-on-action hover:bg-action-hover active:scale-[0.98]",
+      "bg-primary text-on-primary hover:bg-primary-hover active:scale-[0.98]",
     secondary:
       "bg-action-soft text-action hover:bg-action-container active:scale-[0.98]",
     social:

@@ -2,6 +2,8 @@ import { beforeEach, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { Quotation } from "@/types/quotation";
+import { listProjects } from "@/services/projectsApi";
+import type { Project } from "@/types/project";
 import { ApiError } from "@/lib/ApiError";
 import { convertQuotationToProject } from "@/services/projectConversionApi";
 import {
@@ -13,6 +15,7 @@ import Convert from "@/components/dashboard/quotations/modals/ConvertToProjectMo
 import Edit from "@/components/dashboard/quotations/modals/EditQuotationModal";
 import Reject from "@/components/dashboard/quotations/modals/RejectQuotationModal";
 
+vi.mock("@/services/projectsApi", () => ({ listProjects: vi.fn() }));
 vi.mock("@/services/projectConversionApi", () => ({
   convertQuotationToProject: vi.fn(),
 }));
@@ -39,7 +42,13 @@ const callbacks = {
   onSuccess: vi.fn(),
   onAlreadyConverted: vi.fn(),
 };
-beforeEach(() => vi.resetAllMocks());
+beforeEach(() => {
+  vi.resetAllMocks();
+  vi.mocked(listProjects).mockResolvedValue({
+    data: [{ id: uuid, projectName: "Lotus Villa" } as Project],
+    meta: { page: 1, limit: 20, total: 1, totalPages: 1 },
+  });
+});
 function submit() {
   fireEvent.submit(screen.getByRole("dialog").querySelector("form")!);
 }
@@ -62,11 +71,9 @@ it("validates target IDs and allows a valid existing project", async () => {
     screen.getByRole("button", { name: /Link.*Existing/i }),
   );
   submit();
-  await screen.findByText("A valid target project UUID is required.");
-  await userEvent.type(
-    screen.getByRole("textbox", { name: "Target project ID" }),
-    uuid,
-  );
+  await screen.findByText("Select an existing project before converting.");
+  await screen.findByRole("option", { name: /Lotus Villa/ });
+  await userEvent.selectOptions(screen.getByRole("combobox"), uuid);
   submit();
   await waitFor(() => expect(callbacks.onSuccess).toHaveBeenCalled());
   expect(convertQuotationToProject).toHaveBeenCalledWith("q", {
@@ -260,4 +267,59 @@ it("surfaces reject failure and supports closing", async () => {
   await screen.findByText("Reject failed");
   await userEvent.click(screen.getByRole("button", { name: "Close dialog" }));
   expect(callbacks.onClose).toHaveBeenCalled();
+});
+
+it("preserves linked projects without listing or allowing a different project", async () => {
+  vi.mocked(convertQuotationToProject).mockReturnValue(new Promise(() => {}));
+  render(
+    <Convert quotation={{ ...q, projectId: uuid }} isOpen {...callbacks} />,
+  );
+  expect(
+    screen
+      .getByRole("link", { name: `Linked project: ${uuid}` })
+      .getAttribute("href"),
+  ).toBe(`/dashboard/projects/${uuid}`);
+  expect(
+    (
+      screen.getByRole("button", {
+        name: "Create New Project",
+      }) as HTMLButtonElement
+    ).disabled,
+  ).toBe(true);
+  submit();
+  submit();
+  expect(convertQuotationToProject).toHaveBeenCalledExactlyOnceWith("q", {
+    targetProjectId: uuid,
+  });
+  expect(listProjects).not.toHaveBeenCalled();
+});
+
+it.each(["DRAFT", "REJECTED", "CONVERTED"] as const)(
+  "blocks conversion for %s",
+  (status) => {
+    render(<Convert quotation={{ ...q, status }} isOpen {...callbacks} />);
+    submit();
+    expect(convertQuotationToProject).not.toHaveBeenCalled();
+  },
+);
+
+it("allows an existing project for pending approval without new-project fields", async () => {
+  vi.mocked(convertQuotationToProject).mockReturnValue(new Promise(() => {}));
+  render(
+    <Convert
+      quotation={{ ...q, status: "PENDING_APPROVAL" }}
+      isOpen
+      {...callbacks}
+    />,
+  );
+  await userEvent.click(
+    screen.getByRole("button", { name: "Link to Existing Project" }),
+  );
+  await screen.findByRole("option", { name: /Lotus Villa/ });
+  await userEvent.selectOptions(screen.getByRole("combobox"), uuid);
+  submit();
+  submit();
+  expect(convertQuotationToProject).toHaveBeenCalledExactlyOnceWith("q", {
+    targetProjectId: uuid,
+  });
 });

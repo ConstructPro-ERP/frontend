@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState, type RefObject } from "react";
+import { useCallback, useRef, useState, type RefObject } from "react";
+import { useDashboardQuery } from "@/hooks/useDashboardQuery";
 import { Check, Download, Eye, Plus, RefreshCcw } from "lucide-react";
 import apiClient from "@/lib/axios";
 import {
@@ -12,7 +13,6 @@ import {
 } from "@/services/financeApi";
 import type {
   FinanceInvoice,
-  FinanceInvoiceDetails,
   FinancePaymentFormErrors,
   FinancePaymentFormValues,
   FinanceSummary,
@@ -87,34 +87,26 @@ function normalizeFinanceSummaryFromAnalytics(
   );
 }
 
-async function loadFinanceData(): Promise<FinanceState> {
-  try {
-    const invoices = await listFinanceInvoices();
-    const summaryResponse = await apiClient
-      .get<unknown>("/analytics/dashboard/summary")
-      .catch(() => null);
-    const summary = summaryResponse
-      ? normalizeFinanceSummaryFromAnalytics(summaryResponse.data, invoices)
-      : normalizeSummary({}, invoices);
+async function loadFinanceData(): Promise<
+  Extract<FinanceState, { kind: "ready" | "empty" }>
+> {
+  const [invoices, summaryResponse] = await Promise.all([
+    listFinanceInvoices(),
+    apiClient.get<unknown>("/analytics/dashboard/summary").catch(() => null),
+  ]);
+  const summary = summaryResponse
+    ? normalizeFinanceSummaryFromAnalytics(summaryResponse.data, invoices)
+    : normalizeSummary({}, invoices);
 
-    if (invoices.length === 0 && summary.outstandingBalance === 0) {
-      return { kind: "empty" };
-    }
-
-    return {
-      kind: "ready",
-      invoices,
-      summary,
-    };
-  } catch (error) {
-    return {
-      kind: "error",
-      message: getFinanceErrorMessage(
-        error,
-        "Finance data could not be loaded right now.",
-      ),
-    };
+  if (invoices.length === 0 && summary.outstandingBalance === 0) {
+    return { kind: "empty" };
   }
+
+  return {
+    kind: "ready",
+    invoices,
+    summary,
+  };
 }
 
 function FinanceSummaryCard({
@@ -144,7 +136,7 @@ function FinanceSummaryCard({
           : "text-on-surface-muted";
 
   return (
-    <article className="rounded-xl border border-outline-variant bg-surface-container-lowest px-5 py-[18px] shadow-level-1">
+    <article className="rounded-xl border border-outline-variant bg-surface-container-lowest px-5 py-4.5 shadow-level-1">
       <p className="mb-1.5 text-[11.5px] text-on-surface-muted">{label}</p>
       <p
         className={`font-mono text-[22px] font-bold tracking-[-0.04em] ${valueTone}`}
@@ -159,9 +151,9 @@ function FinanceSummaryCard({
 function FinanceStatusBadge({ status }: { status: FinanceInvoice["status"] }) {
   return (
     <span
-      className={`inline-flex items-center gap-1 rounded-full px-[9px] py-[3px] text-[11px] font-semibold ${getFinanceStatusBadgeClasses(status)}`}
+      className={`inline-flex items-center gap-1 rounded-full px-2.25 py-0.75 text-[11px] font-semibold ${getFinanceStatusBadgeClasses(status)}`}
     >
-      <span className="h-[5px] w-[5px] rounded-full bg-current" />
+      <span className="h-1.25 w-1.25 rounded-full bg-current" />
       {getFinanceStatusLabel(status)}
     </span>
   );
@@ -229,7 +221,7 @@ function FinanceTable({
 }) {
   return (
     <div className="overflow-x-auto">
-      <table className="min-w-[1040px] w-full border-collapse">
+      <table className="min-w-260 w-full border-collapse">
         <thead>
           <tr className="border-b border-outline-variant bg-surface-container">
             {[
@@ -261,10 +253,10 @@ function FinanceTable({
                 key={invoice.id}
                 className={`border-b border-outline-variant transition hover:bg-surface-container ${rowAccent}`}
               >
-                <td className="px-5 py-[13px] font-mono text-[12.5px] text-on-background">
+                <td className="px-5 py-3.25 font-mono text-[12.5px] text-on-background">
                   {invoice.invoiceNumber}
                 </td>
-                <td className="px-5 py-[13px]">
+                <td className="px-5 py-3.25">
                   <div className="text-[13px] font-semibold text-on-background">
                     {invoice.projectName}
                   </div>
@@ -272,14 +264,14 @@ function FinanceTable({
                     {invoice.clientName}
                   </div>
                 </td>
-                <td className="px-5 py-[13px] font-mono text-[12.5px] text-on-background">
+                <td className="px-5 py-3.25 font-mono text-[12.5px] text-on-background">
                   {formatCurrency(invoice.invoiceAmount)}
                 </td>
-                <td className="px-5 py-[13px] font-mono text-[12.5px] text-on-background">
+                <td className="px-5 py-3.25 font-mono text-[12.5px] text-on-background">
                   {formatCurrency(invoice.paidAmount)}
                 </td>
                 <td
-                  className={`px-5 py-[13px] font-mono text-[12.5px] font-semibold ${
+                  className={`px-5 py-3.25 font-mono text-[12.5px] font-semibold ${
                     invoice.status === "OVERDUE"
                       ? "text-error"
                       : invoice.outstandingBalance > 0
@@ -289,11 +281,11 @@ function FinanceTable({
                 >
                   {formatCurrency(invoice.outstandingBalance)}
                 </td>
-                <td className="px-5 py-[13px]">
+                <td className="px-5 py-3.25">
                   <FinanceStatusBadge status={invoice.status} />
                 </td>
                 <td
-                  className={`px-5 py-[13px] text-[12px] ${
+                  className={`px-5 py-3.25 text-[12px] ${
                     invoice.status === "OVERDUE"
                       ? "font-semibold text-error"
                       : "text-on-surface-muted"
@@ -301,7 +293,7 @@ function FinanceTable({
                 >
                   {invoice.previewDueNote || formatDate(invoice.dueDate)}
                 </td>
-                <td className="px-5 py-[13px]">
+                <td className="px-5 py-3.25">
                   <div className="flex flex-wrap items-center gap-2">
                     <button
                       type="button"
@@ -377,14 +369,14 @@ function FinancePaymentForm({
           Update invoice payment status
         </p>
       </div>
-      <div className="space-y-[14px] p-5">
+      <div className="space-y-3.5 p-5">
         {unavailableMessage ? (
           <div className="rounded-lg border border-primary/20 bg-primary-soft px-3 py-2 text-xs text-on-surface-variant">
             {unavailableMessage}
           </div>
         ) : null}
         <div>
-          <label className="mb-[5px] block text-[11.5px] font-semibold text-on-surface-variant">
+          <label className="mb-1.25 block text-[11.5px] font-semibold text-on-surface-variant">
             Invoice
           </label>
           <select
@@ -392,7 +384,7 @@ function FinancePaymentForm({
             onChange={(event) =>
               onChange("invoiceId", event.target.value, true)
             }
-            className={`w-full rounded-lg border px-3 py-[9px] text-[13px] text-on-background outline-none ${
+            className={`w-full rounded-lg border px-3 py-2.25 text-[13px] text-on-background outline-none ${
               errors.invoiceId
                 ? "border-error bg-error-container"
                 : "border-outline-variant bg-surface-container"
@@ -416,7 +408,7 @@ function FinancePaymentForm({
           ) : null}
         </div>
         <div>
-          <label className="mb-[5px] block text-[11.5px] font-semibold text-on-surface-variant">
+          <label className="mb-1.25 block text-[11.5px] font-semibold text-on-surface-variant">
             Payment Amount (LKR)
           </label>
           <input
@@ -424,7 +416,7 @@ function FinancePaymentForm({
             value={values.paymentAmount}
             onChange={(event) => onChange("paymentAmount", event.target.value)}
             placeholder="0.00"
-            className={`w-full rounded-lg border px-3 py-[9px] font-mono text-[13px] text-on-background outline-none ${
+            className={`w-full rounded-lg border px-3 py-2.25 font-mono text-[13px] text-on-background outline-none ${
               errors.paymentAmount
                 ? "border-error bg-error-container"
                 : "border-outline-variant bg-surface-container"
@@ -435,13 +427,13 @@ function FinancePaymentForm({
           ) : null}
         </div>
         <div>
-          <label className="mb-[5px] block text-[11.5px] font-semibold text-on-surface-variant">
+          <label className="mb-1.25 block text-[11.5px] font-semibold text-on-surface-variant">
             Payment Method
           </label>
           <select
             value={values.paymentMethod}
             onChange={(event) => onChange("paymentMethod", event.target.value)}
-            className="w-full rounded-lg border border-outline-variant bg-surface-container px-3 py-[9px] text-[13px] text-on-background outline-none"
+            className="w-full rounded-lg border border-outline-variant bg-surface-container px-3 py-2.25 text-[13px] text-on-background outline-none"
           >
             {[defaultFinancePaymentMethod, "Cheque", "Cash", "Online"].map(
               (method) => (
@@ -453,14 +445,14 @@ function FinancePaymentForm({
           </select>
         </div>
         <div>
-          <label className="mb-[5px] block text-[11.5px] font-semibold text-on-surface-variant">
+          <label className="mb-1.25 block text-[11.5px] font-semibold text-on-surface-variant">
             Payment Date
           </label>
           <input
             type="date"
             value={values.paymentDate}
             onChange={(event) => onChange("paymentDate", event.target.value)}
-            className={`w-full rounded-lg border px-3 py-[9px] text-[13px] text-on-background outline-none ${
+            className={`w-full rounded-lg border px-3 py-2.25 text-[13px] text-on-background outline-none ${
               errors.paymentDate
                 ? "border-error bg-error-container"
                 : "border-outline-variant bg-surface-container"
@@ -471,7 +463,7 @@ function FinancePaymentForm({
           ) : null}
         </div>
         <div>
-          <label className="mb-[5px] block text-[11.5px] font-semibold text-on-surface-variant">
+          <label className="mb-1.25 block text-[11.5px] font-semibold text-on-surface-variant">
             Payment Reference
           </label>
           <input
@@ -481,7 +473,7 @@ function FinancePaymentForm({
               onChange("paymentReference", event.target.value)
             }
             placeholder="Bank reference or cheque number"
-            className={`w-full rounded-lg border px-3 py-[9px] text-[13px] text-on-background outline-none ${
+            className={`w-full rounded-lg border px-3 py-2.25 text-[13px] text-on-background outline-none ${
               errors.paymentReference
                 ? "border-error bg-error-container"
                 : "border-outline-variant bg-surface-container"
@@ -492,14 +484,14 @@ function FinancePaymentForm({
           ) : null}
         </div>
         <div>
-          <label className="mb-[5px] block text-[11.5px] font-semibold text-on-surface-variant">
+          <label className="mb-1.25 block text-[11.5px] font-semibold text-on-surface-variant">
             Reference / Notes
           </label>
           <textarea
             value={values.notes}
             onChange={(event) => onChange("notes", event.target.value)}
             placeholder="Bank ref, cheque number, notes..."
-            className="h-[70px] w-full resize-none rounded-lg border border-outline-variant bg-surface-container px-3 py-[9px] text-[13px] text-on-background outline-none placeholder:text-on-surface-muted"
+            className="h-17.5 w-full resize-none rounded-lg border border-outline-variant bg-surface-container px-3 py-2.25 text-[13px] text-on-background outline-none placeholder:text-on-surface-muted"
           />
         </div>
       </div>
@@ -531,9 +523,18 @@ function FinancePaymentForm({
 }
 
 export default function FinanceDashboardClient() {
-  const [financeState, setFinanceState] = useState<FinanceState>({
-    kind: "loading",
-  });
+  const query = useDashboardQuery("finance:overview", loadFinanceData);
+  const financeState: FinanceState =
+    query.data ??
+    (query.error
+      ? {
+          kind: "error",
+          message: getFinanceErrorMessage(
+            query.error,
+            "Finance data could not be loaded right now.",
+          ),
+        }
+      : { kind: "loading" });
   const [activeFilter, setActiveFilter] =
     useState<(typeof financeFilterTabs)[number]["value"]>("ALL");
   const [paymentFormValues, setPaymentFormValues] =
@@ -544,33 +545,22 @@ export default function FinanceDashboardClient() {
   const [isSubmittingPayment, setIsSubmittingPayment] = useState(false);
   const [paymentApiUnavailableMessage, setPaymentApiUnavailableMessage] =
     useState<string | null>(null);
-  const [invoiceDetails, setInvoiceDetails] =
-    useState<FinanceInvoiceDetails | null>(null);
-  const [isLoadingDetails, setIsLoadingDetails] = useState(false);
+  const [detailsId, setDetailsId] = useState("");
+  const loadDetails = useCallback(
+    () => getFinanceInvoice(detailsId),
+    [detailsId],
+  );
+  const detailsQuery = useDashboardQuery(
+    `finance:invoice:${detailsId}`,
+    loadDetails,
+    Boolean(detailsId),
+  );
+  const invoiceDetails = detailsId ? detailsQuery.data : undefined;
+  const isLoadingDetails = detailsQuery.loading;
   const paymentPanelRef = useRef<HTMLElement | null>(null);
 
-  useEffect(() => {
-    let active = true;
-
-    const hydrateFinancePage = async () => {
-      setFinanceState({ kind: "loading" });
-      const nextState = await loadFinanceData();
-
-      if (active) {
-        setFinanceState(nextState);
-      }
-    };
-
-    hydrateFinancePage();
-
-    return () => {
-      active = false;
-    };
-  }, []);
-
-  const retryLoad = async () => {
-    setFinanceState({ kind: "loading" });
-    setFinanceState(await loadFinanceData());
+  const retryLoad = () => {
+    void query.refresh();
   };
 
   if (financeState.kind === "error") {
@@ -664,23 +654,8 @@ export default function FinanceDashboardClient() {
   };
 
   const handleViewInvoiceDetails = (invoice: FinanceInvoice) => {
-    void (async () => {
-      setIsLoadingDetails(true);
-      setFeedback(null);
-      try {
-        setInvoiceDetails(await getFinanceInvoice(invoice.id));
-      } catch (error) {
-        setFeedback({
-          tone: "error",
-          message: getFinanceErrorMessage(
-            error,
-            "Invoice details could not be loaded right now.",
-          ),
-        });
-      } finally {
-        setIsLoadingDetails(false);
-      }
-    })();
+    setDetailsId(invoice.id);
+    setFeedback(null);
   };
 
   const handleDownloadPdf = (invoice: FinanceInvoice) => {
@@ -748,7 +723,7 @@ export default function FinanceDashboardClient() {
 
     try {
       await recordFinancePayment(paymentFormValues);
-      setFinanceState(await loadFinanceData());
+      await query.refresh();
       setPaymentFormValues(createFinancePaymentFormValues());
       setPaymentFormErrors({});
       setFeedback({
@@ -781,6 +756,38 @@ export default function FinanceDashboardClient() {
 
   return (
     <div className="space-y-5">
+      {query.error ? (
+        <FinanceFeedbackBanner
+          feedback={{
+            tone: "error",
+            message: "Refresh failed. Showing previously loaded invoice data.",
+          }}
+        />
+      ) : null}
+      {query.error ? (
+        <button className="text-sm text-primary underline" onClick={retryLoad}>
+          Retry refresh
+        </button>
+      ) : null}
+      {detailsQuery.error && detailsId ? (
+        <FinanceFeedbackBanner
+          feedback={{
+            tone: "error",
+            message: getFinanceErrorMessage(
+              detailsQuery.error,
+              "Invoice details could not be refreshed.",
+            ),
+          }}
+        />
+      ) : null}
+      {detailsQuery.error && detailsId ? (
+        <button
+          className="text-sm text-primary underline"
+          onClick={() => void detailsQuery.refresh()}
+        >
+          Retry invoice details
+        </button>
+      ) : null}
       {feedback ? <FinanceFeedbackBanner feedback={feedback} /> : null}
       {isLoadingDetails ? (
         <section
@@ -814,7 +821,7 @@ export default function FinanceDashboardClient() {
             </div>
             <button
               type="button"
-              onClick={() => setInvoiceDetails(null)}
+              onClick={() => setDetailsId("")}
               className="rounded-lg border border-outline-variant px-3 py-1.5 text-xs font-semibold text-on-surface-variant"
             >
               Close

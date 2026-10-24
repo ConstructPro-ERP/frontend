@@ -7,12 +7,12 @@ import {
   CheckCircle2,
   FolderKanban,
   Info,
-  Link as LinkIcon,
   Loader2,
   User,
   X,
 } from "lucide-react";
 import { convertQuotationToProject } from "@/services/projectConversionApi";
+import ProjectSelectDropdown from "@/components/dashboard/quotations/ProjectSelectDropdown";
 import { isUuid } from "@/lib/projectRules";
 import { getQuotationById } from "@/services/quotationsApi";
 import type { ConvertToProjectInput, Quotation } from "@/types/quotation";
@@ -42,7 +42,9 @@ export default function ConvertToProjectModal({
   onSuccess,
   onAlreadyConverted,
 }: ConvertToProjectModalProps) {
-  const [mode, setMode] = useState<"new" | "link">("new");
+  const [mode, setMode] = useState<"new" | "link">(
+    quotation.projectId ? "link" : "new",
+  );
 
   // Form fields
   const [projectName, setProjectName] = useState(() =>
@@ -57,7 +59,9 @@ export default function ConvertToProjectModal({
   });
   const [budget, setBudget] = useState<number>(quotation.totalAmount);
   const [projectManagerId, setProjectManagerId] = useState("");
-  const [targetProjectId, setTargetProjectId] = useState("");
+  const [targetProjectId, setTargetProjectId] = useState(
+    quotation.projectId ?? "",
+  );
 
   const [validationError, setValidationError] = useState<string | null>(null);
   const [apiError, setApiError] = useState<string | null>(null);
@@ -76,9 +80,18 @@ export default function ConvertToProjectModal({
     setValidationError(null);
     setApiError(null);
 
+    if (!["PENDING_APPROVAL", "APPROVED"].includes(quotation.status)) {
+      setValidationError(
+        "Only pending approval or approved quotations can be converted.",
+      );
+      return;
+    }
+
     let payload: ConvertToProjectInput = {};
 
-    if (mode === "new") {
+    if (quotation.projectId) {
+      payload = { targetProjectId: quotation.projectId };
+    } else if (mode === "new") {
       if (!projectName.trim()) {
         setValidationError("Project name is required.");
         return;
@@ -115,7 +128,7 @@ export default function ConvertToProjectModal({
       };
     } else {
       if (!isUuid(targetProjectId.trim())) {
-        setValidationError("A valid target project UUID is required.");
+        setValidationError("Select an existing project before converting.");
         return;
       }
 
@@ -174,7 +187,7 @@ export default function ConvertToProjectModal({
     >
       <div
         ref={modalRef}
-        className="w-full max-w-xl rounded-2xl border border-outline-variant bg-surface-container-lowest shadow-2xl overflow-hidden"
+        className="w-full max-w-xl rounded-2xl border border-outline-variant bg-surface-container-lowest shadow-2xl max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -226,8 +239,10 @@ export default function ConvertToProjectModal({
           <div className="flex rounded-lg bg-surface-container p-1 text-xs">
             <button
               type="button"
+              disabled={isSubmitting || !!quotation.projectId}
               onClick={() => {
                 setMode("new");
+                setTargetProjectId("");
                 setValidationError(null);
               }}
               className={`flex-1 py-1.5 font-medium rounded-md transition ${
@@ -240,6 +255,7 @@ export default function ConvertToProjectModal({
             </button>
             <button
               type="button"
+              disabled={isSubmitting || !!quotation.projectId}
               onClick={() => {
                 setMode("link");
                 setValidationError(null);
@@ -356,24 +372,27 @@ export default function ConvertToProjectModal({
                   project entity.
                 </span>
               </div>
-              <div>
-                <label className="mb-1 flex items-center gap-1 text-xs font-bold uppercase tracking-wider text-on-surface-variant">
-                  <LinkIcon size={13} />
-                  Target Project ID <span className="text-error">*</span>
-                </label>
-                <input
-                  type="text"
-                  aria-label="Target project ID"
+              {quotation.projectId ? (
+                <div className="text-xs text-on-surface-variant">
+                  This quotation is already linked. Its project will be
+                  preserved.
+                  <a
+                    className="block text-primary underline"
+                    href={`/dashboard/projects/${encodeURIComponent(quotation.projectId)}`}
+                  >
+                    Linked project: {quotation.projectId}
+                  </a>
+                </div>
+              ) : (
+                <ProjectSelectDropdown
                   value={targetProjectId}
                   disabled={isSubmitting}
-                  onChange={(e) => {
-                    setTargetProjectId(e.target.value);
+                  onChange={(id) => {
+                    setTargetProjectId(id);
                     setValidationError(null);
                   }}
-                  placeholder="e.g. proj-2026-009 or UUID"
-                  className="w-full rounded-lg border border-outline-variant bg-surface-container px-3 py-2 text-xs text-on-background outline-none focus:border-primary"
                 />
-              </div>
+              )}
             </div>
           )}
 
@@ -389,7 +408,10 @@ export default function ConvertToProjectModal({
             </button>
             <button
               type="submit"
-              disabled={isSubmitting}
+              disabled={
+                isSubmitting ||
+                !["PENDING_APPROVAL", "APPROVED"].includes(quotation.status)
+              }
               className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-on-primary hover:bg-primary-hover transition disabled:cursor-not-allowed disabled:opacity-60"
             >
               {isSubmitting ? (

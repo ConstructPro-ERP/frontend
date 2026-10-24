@@ -267,7 +267,7 @@ export default function ProjectCalendarSection({
                     key={event.id}
                     className="rounded-lg border border-outline-variant p-4"
                   >
-                    <h4 className="break-words font-semibold">
+                    <h4 className="wrap-break-word font-semibold">
                       {event.summary || "Untitled event"}
                     </h4>
                     <p className="mt-1 text-xs text-primary">
@@ -276,12 +276,12 @@ export default function ProjectCalendarSection({
                         : "All day"}
                     </p>
                     {event.location && (
-                      <p className="mt-2 break-words text-sm text-on-surface-muted">
+                      <p className="mt-2 wrap-break-word text-sm text-on-surface-muted">
                         {event.location}
                       </p>
                     )}
                     {event.description && (
-                      <p className="mt-2 whitespace-pre-wrap break-words text-sm text-on-surface-muted">
+                      <p className="mt-2 whitespace-pre-wrap wrap-break-word text-sm text-on-surface-muted">
                         {event.description}
                       </p>
                     )}

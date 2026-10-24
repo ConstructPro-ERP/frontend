@@ -1,15 +1,16 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useRouter } from "next/navigation";
+import { useDashboardQuery } from "@/hooks/useDashboardQuery";
 import { Plus, RefreshCw, Search, ShieldCheck } from "lucide-react";
 import type { AppDispatch, RootState } from "@/store";
 import { loginSuccess, logout } from "@/store/slices/authSlice";
 import { clearTokens } from "@/lib/token";
 import { ApiError } from "@/lib/ApiError";
 import { normalizeAuthUser } from "@/services/googleAuth";
-import { getRoles, type RoleOption } from "@/services/roles";
+import { getRoles } from "@/services/roles";
 import {
   listUsers,
   createUser,
@@ -43,7 +44,7 @@ function roleTone(role?: string) {
     : role === "SALES_MANAGER"
       ? "green"
       : role === "PROJECT_MANAGER"
-        ? "purple"
+        ? "blue"
         : ["ACCOUNTANT", "FINANCE"].includes(role ?? "")
           ? "amber"
           : "blue";
@@ -93,12 +94,26 @@ function UsersDirectory() {
   const currentUser = useSelector((state: RootState) => state.auth.user)!;
   const dispatch = useDispatch<AppDispatch>();
   const router = useRouter();
-  const [users, setUsers] = useState<ManagedUser[]>([]);
-  const [roles, setRoles] = useState<RoleOption[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [usersError, setUsersError] = useState("");
-  const [rolesError, setRolesError] = useState("");
-  const [revision, setRevision] = useState(0);
+  const usersQuery = useDashboardQuery("users:directory", listUsers);
+  const rolesQuery = useDashboardQuery("users:roles", getRoles);
+  const users = usersQuery.data ?? [];
+  const roles = rolesQuery.data ?? [];
+  const loading = usersQuery.loading;
+  const usersError =
+    usersQuery.data === undefined && usersQuery.error
+      ? message(usersQuery.error)
+      : "";
+  const rolesError =
+    rolesQuery.data === undefined && rolesQuery.error
+      ? message(rolesQuery.error)
+      : "";
+  const refreshError =
+    (usersQuery.data !== undefined && usersQuery.error
+      ? message(usersQuery.error)
+      : "") ||
+    (rolesQuery.data !== undefined && rolesQuery.error
+      ? message(rolesQuery.error)
+      : "");
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("ALL");
   const [page, setPage] = useState(1);
@@ -110,40 +125,9 @@ function UsersDirectory() {
   const mutationLock = useRef(false);
   const editorRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    let active = true;
-    async function load() {
-      const [directory, catalog] = await Promise.allSettled([
-        listUsers(),
-        getRoles(),
-      ]);
-      if (!active) return;
-      if (directory.status === "fulfilled") {
-        setUsers(directory.value);
-        setUsersError("");
-      } else {
-        setUsers([]);
-        setUsersError(message(directory.reason));
-      }
-      if (catalog.status === "fulfilled") {
-        setRoles(catalog.value);
-        setRolesError("");
-      } else {
-        setRoles([]);
-        setRolesError(message(catalog.reason));
-      }
-      setLoading(false);
-    }
-    void load();
-    return () => {
-      active = false;
-    };
-  }, [revision]);
-
   function refresh() {
-    setLoading(true);
     setFeedback("");
-    setRevision((value) => value + 1);
+    void Promise.all([usersQuery.refresh(), rolesQuery.refresh()]);
   }
   const filtered = filterUsers(users, search, filter);
   const totalPages = Math.max(1, Math.ceil(filtered.length / 10));
@@ -204,10 +188,12 @@ function UsersDirectory() {
       const result = creating
         ? await createUser(input)
         : await updateUser(selected!.id, input);
-      setUsers((items) =>
+      usersQuery.setData((items) =>
         creating
-          ? [result, ...items]
-          : items.map((item) => (item.id === result.id ? result : item)),
+          ? [result, ...(items ?? [])]
+          : (items ?? []).map((item) =>
+              item.id === result.id ? result : item,
+            ),
       );
       setSelectedId(result.id);
       if (creating) {
@@ -235,8 +221,8 @@ function UsersDirectory() {
         await deactivateUser(statusTarget.id);
         result = { ...statusTarget, status: "INACTIVE" };
       } else result = await updateUser(statusTarget.id, { status: "ACTIVE" });
-      setUsers((items) =>
-        items.map((item) => (item.id === result.id ? result : item)),
+      usersQuery.setData((items) =>
+        (items ?? []).map((item) => (item.id === result.id ? result : item)),
       );
       setFeedback(
         `Account ${result.status === "ACTIVE" ? "activated" : "deactivated"} successfully.`,
@@ -280,6 +266,12 @@ function UsersDirectory() {
         <p role="status" className={styles.success}>
           {feedback}
         </p>
+      )}
+      {refreshError && (
+        <div role="status" className={styles.error}>
+          Could not refresh the latest data: {refreshError} Existing data is
+          still shown. <button onClick={refresh}>Retry</button>
+        </div>
       )}
       {rolesError && (
         <p role="alert" className={styles.error}>

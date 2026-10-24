@@ -1,5 +1,6 @@
 import { normalizeQuotationRecord } from "@/components/dashboard/quotations/quotationUtils";
 import apiClient from "@/lib/axios";
+import { dashboardQueryCache } from "@/lib/dashboardQueryCache";
 import type {
   ConvertToProjectInput,
   ConvertToProjectResponse,
@@ -14,12 +15,15 @@ export async function convertQuotationToProject(
   quotationId: string,
   payload: ConvertToProjectInput,
 ): Promise<ConvertToProjectResponse> {
+  // Conversion creates or links a project; do not replay an ambiguous network/5xx failure.
+  const requestOptions = { timeout: 15000, retryCount: 3 };
   const response = await apiClient.patch<ConvertToProjectResponse | Quotation>(
     `/quotations/${quotationId}/approve`,
     payload,
-    { timeout: 15000 },
+    requestOptions,
   );
 
+  dashboardQueryCache.invalidate();
   const data = response.data;
 
   // Do not fabricate project linkage when the backend returns partial data.

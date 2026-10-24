@@ -3,6 +3,7 @@ vi.mock("@/lib/axios", () => ({
   default: { get: vi.fn(), post: vi.fn(), patch: vi.fn(), put: vi.fn() },
 }));
 import client from "@/lib/axios";
+import { dashboardQueryCache } from "@/lib/dashboardQueryCache";
 import * as api from "@/services/quotationsApi";
 import { convertQuotationToProject } from "@/services/projectConversionApi";
 const raw = {
@@ -120,7 +121,7 @@ describe("Quotation shared-client API contracts", () => {
     expect(client.patch).toHaveBeenCalledWith(
       "/quotations/q/approve",
       { targetProjectId: "p" },
-      { timeout: 15000 },
+      { timeout: 15000, retryCount: 3 },
     );
   });
   it.each([
@@ -158,4 +159,71 @@ it("rejects a malformed detail response instead of inventing an actionable ID", 
   await expect(api.getQuotationById("q")).rejects.toThrow(
     "could not be verified",
   );
+});
+
+it.each([
+  "create",
+  "update",
+  "approve",
+  "reject",
+  "revise",
+  "submit",
+  "convert",
+])(
+  "invalidates cached quotation and dashboard responses after %s",
+  async (action) => {
+    dashboardQueryCache.clear();
+    const key = "quotation-cache-regression";
+    await dashboardQueryCache.fetch(key, async () => "cached data");
+    vi.mocked(client.post).mockResolvedValue({ data: raw } as never);
+    vi.mocked(client.put).mockResolvedValue({ data: raw } as never);
+    vi.mocked(client.patch).mockResolvedValue({
+      data:
+        action === "convert"
+          ? {
+              quotation: { ...raw, status: "CONVERTED", projectId: "project" },
+              projectId: "project",
+              projectStatus: "ACTIVE",
+            }
+          : raw,
+    } as never);
+    switch (action) {
+      case "create":
+        await api.createQuotation({ leadId: "l", items: [] });
+        break;
+      case "update":
+        await api.updateQuotation("q", { notes: "Changed" });
+        break;
+      case "approve":
+        await api.approveQuotation("q");
+        break;
+      case "reject":
+        await api.rejectQuotation("q", { reason: "Change cost" });
+        break;
+      case "revise":
+        await api.reviseQuotation("q");
+        break;
+      case "submit":
+        await api.submitQuotation("q");
+        break;
+      case "convert":
+        await convertQuotationToProject("q", {});
+        break;
+    }
+    expect(dashboardQueryCache.snapshot(key).updatedAt).toBe(0);
+    expect(dashboardQueryCache.snapshot(key).data).toBe("cached data");
+  },
+);
+
+it("keeps cached data fresh when a quotation mutation is rejected", async () => {
+  dashboardQueryCache.clear();
+  await dashboardQueryCache.fetch(
+    "quotation-rejected-write",
+    async () => "cached",
+  );
+  vi.mocked(client.patch).mockRejectedValue(new Error("Rejected"));
+  await expect(api.approveQuotation("q")).rejects.toThrow("Rejected");
+  expect(
+    dashboardQueryCache.snapshot("quotation-rejected-write").updatedAt,
+  ).toBeGreaterThan(0);
 });

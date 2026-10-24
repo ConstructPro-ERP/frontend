@@ -31,10 +31,10 @@
   --color-on-hero-subtle: var(--color-blue-200);
 
   /* --- Auth / Main Action Blue: closest Tailwind match for the UI design button --- */
-  --color-action: var(--color-indigo-500);
-  --color-action-hover: var(--color-indigo-600);
-  --color-action-soft: var(--color-indigo-50);
-  --color-action-container: var(--color-indigo-100);
+  --color-action: var(--color-blue-700);
+  --color-action-hover: var(--color-blue-800);
+  --color-action-soft: var(--color-blue-50);
+  --color-action-container: var(--color-blue-100);
   --color-on-action: var(--color-white);
 
   /* --- Light Surfaces: no dark theme surfaces are used in this project --- */

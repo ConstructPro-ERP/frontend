@@ -124,7 +124,7 @@ The aesthetic is characterized by a "Glass-on-Steel" feel: ultra-clean white sur
 
 The color system uses a high-fidelity "Fidelity" variant of Material 3 principles, optimized for professional software.
 
-- **Primary & Secondary:** Deep indigos and navy blues serve as the foundation, used for primary actions, branding, and active navigational states.
+- **Primary & Secondary:** Deep blues and navy blues serve as the foundation, used for primary actions, branding, and active navigational states.
 - **Surface Palette:** The background utilizes a cool slate-grey (`#F1F5F9`) to reduce eye strain, while cards and containers use pure white (`#FFFFFF`) to pop against the background.
 - **Functional Accents:** A specific "Risk" palette is defined for operational statuses: Emerald for low risk, Amber for medium, and Deep Red for high-risk alerts.
 - **Glass Effects:** Borders for translucent elements use a soft light grey (`#E2E8F0`) to define edges against varied backgrounds.

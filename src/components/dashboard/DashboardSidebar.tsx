@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { ChevronDown, LogOut, Settings, X } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import type { AppDispatch, RootState } from "@/store";
 import { dashboardNavItems } from "@/components/dashboard/dashboardConfig";
@@ -36,6 +36,7 @@ export default function DashboardSidebar({
   const dispatch = useDispatch<AppDispatch>();
   const sections = ["Main", "Finance", "Management"] as const;
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
+  const accountMenuRef = useRef<HTMLDivElement>(null);
   const { user, isLoading } = useSelector((state: RootState) => state.auth);
   const visibleItems = dashboardNavItems.filter((item) =>
     canAccessDashboardPath(user?.role, item.href),
@@ -58,6 +59,24 @@ export default function DashboardSidebar({
         : "No role assigned",
   };
 
+  useEffect(() => {
+    if (!accountMenuOpen) return;
+
+    const handleOutsidePointerDown = (event: PointerEvent) => {
+      if (
+        event.target instanceof Node &&
+        !accountMenuRef.current?.contains(event.target)
+      ) {
+        setAccountMenuOpen(false);
+      }
+    };
+
+    document.addEventListener("pointerdown", handleOutsidePointerDown);
+    return () => {
+      document.removeEventListener("pointerdown", handleOutsidePointerDown);
+    };
+  }, [accountMenuOpen]);
+
   const handleSignOut = () => {
     clearTokens();
     dispatch(logout());
@@ -79,7 +98,7 @@ export default function DashboardSidebar({
       />
 
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex h-dvh max-h-dvh w-[240px] flex-col border-r border-outline-variant bg-surface-container-lowest shadow-level-2 transition-transform duration-200 ease-out lg:inset-y-0 lg:left-0 lg:z-50 lg:translate-x-0 lg:shadow-none ${
+        className={`fixed inset-y-0 left-0 z-50 flex h-dvh max-h-dvh w-60 flex-col border-r border-outline-variant bg-surface-container-lowest shadow-level-2 transition-transform duration-200 ease-out lg:inset-y-0 lg:left-0 lg:z-50 lg:translate-x-0 lg:shadow-none ${
           mobileOpen ? "translate-x-0" : "-translate-x-full"
         }`}
         aria-label="Dashboard sidebar"
@@ -139,7 +158,7 @@ export default function DashboardSidebar({
                         <Link
                           key={item.href}
                           href={item.href}
-                          className={`relative mb-px flex items-center gap-[9px] rounded-lg px-2.5 py-2 text-[13.5px] font-medium transition ${
+                          className={`relative mb-px flex items-center gap-2.25 rounded-lg px-2.5 py-2 text-[13.5px] font-medium transition ${
                             active
                               ? "bg-primary-soft font-semibold text-primary"
                               : "text-on-surface-variant hover:bg-surface-container hover:text-on-background"
@@ -149,7 +168,7 @@ export default function DashboardSidebar({
                         >
                           {active ? (
                             <span
-                              className="absolute left-0 top-1/2 h-[18px] w-[3px] -translate-y-1/2 rounded-r-[3px] bg-primary"
+                              className="absolute left-0 top-1/2 h-4.5 w-0.75 -translate-y-1/2 rounded-r-[3px] bg-primary"
                               aria-hidden="true"
                             />
                           ) : null}
@@ -164,7 +183,7 @@ export default function DashboardSidebar({
         </nav>
 
         <div className="border-t border-outline-variant p-2.5">
-          <div className="relative">
+          <div ref={accountMenuRef} className="relative">
             <button
               type="button"
               className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left transition hover:bg-surface-container"

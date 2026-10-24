@@ -52,7 +52,7 @@ test("analytics dashboard keeps the prototype KPI and section wording", () => {
     headerSource,
     /Powered by RAG · LangChain · Last analysed 2 hours ago/,
   );
-  assert.match(headerSource, /Search analytics\.\.\./);
+  assert.doesNotMatch(headerSource, /Search analytics\.\.\.|searchPlaceholder/);
 });
 
 test("analytics dashboard client includes loading, empty, and error states", () => {

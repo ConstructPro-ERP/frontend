@@ -35,3 +35,17 @@ test("missing roles and unknown routes fail closed, nested routes inherit permis
   assert.equal(allowed("ACCOUNTANT", "/dashboard/leads/123"), false);
   assert.equal(allowed("ADMIN", "/dashboard/users-other"), false);
 });
+
+test("client accounts never reach staff dashboard routes", () => {
+  for (const role of ["CLIENT", "CLIENT_PORTAL_USER"]) {
+    for (const path of [
+      "/dashboard",
+      "/dashboard/documents",
+      "/dashboard/projects",
+      "/dashboard/quotations",
+      "/dashboard/users",
+    ]) {
+      assert.equal(allowed(role, path), false, `${role} ${path}`);
+    }
+  }
+});

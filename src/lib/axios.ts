@@ -16,6 +16,7 @@ import { API_URL } from "./apiConfig";
 declare module "axios" {
   interface AxiosRequestConfig {
     skipAuthRefresh?: boolean;
+    skipNetworkRetry?: boolean;
   }
 }
 
@@ -52,10 +53,13 @@ axiosInstance.interceptors.response.use(
 
     // Retry Logic for Network / 5xx Errors
     if (
-      !error.response ||
-      (status >= 500 && status < 600) ||
-      error.code === "ECONNABORTED" ||
-      error.message === "Network Error"
+      !originalRequest?.signal?.aborted &&
+      error.code !== "ERR_CANCELED" &&
+      !originalRequest?.skipNetworkRetry &&
+      (!error.response ||
+        (status >= 500 && status < 600) ||
+        error.code === "ECONNABORTED" ||
+        error.message === "Network Error")
     ) {
       originalRequest.retryCount = originalRequest.retryCount || 0;
       const maxRetries = 3;

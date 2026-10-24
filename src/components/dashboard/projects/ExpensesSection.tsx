@@ -39,8 +39,8 @@ export default function ExpensesSection({
   const summary = useProjectData(loadSummary, revision);
   const input = (v: Record<string, string>): ExpenseInput => ({
     amount: v.amount.trim(),
-    category: v.category.trim(),
-    description: v.description?.trim() ?? "",
+    category: v.category?.trim() || null,
+    description: v.description?.trim() || null,
     expenseDate: `${v.date}T00:00:00.000Z`,
   });
   return (
@@ -117,15 +117,14 @@ export default function ExpensesSection({
           {
             name: "category",
             label: "Category",
-            required: true,
-            maxLength: 200,
+            maxLength: 100,
           },
           { name: "date", label: "Expense date", type: "date", required: true },
           {
             name: "description",
             label: "Description",
             type: "textarea",
-            maxLength: 2000,
+            maxLength: 1000,
           },
         ]}
         initial={(item) => ({
@@ -140,8 +139,8 @@ export default function ExpensesSection({
         remove={deleteExpense}
         filters={[
           { name: "category", label: "Category" },
-          { name: "startDate", label: "From date", type: "date" },
-          { name: "endDate", label: "To date", type: "date" },
+          { name: "fromDate", label: "From date", type: "date" },
+          { name: "toDate", label: "To date", type: "date" },
         ]}
         columns={[
           {

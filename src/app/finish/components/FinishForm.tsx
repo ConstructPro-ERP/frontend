@@ -4,12 +4,16 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { CheckCircle2 } from "lucide-react";
 import AuthButton from "@/components/ui/AuthButton";
+import { useSelector } from "react-redux";
+import type { RootState } from "@/store";
+import { homePathForRole } from "@/lib/portalAccess";
 
 export default function FinishForm() {
   const router = useRouter();
+  const user = useSelector((state: RootState) => state.auth.user);
 
   const handleContinue = () => {
-    router.push("/modules");
+    router.push(homePathForRole(user?.role));
   };
 
   return (

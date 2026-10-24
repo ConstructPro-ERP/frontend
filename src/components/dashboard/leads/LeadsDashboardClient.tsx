@@ -54,7 +54,7 @@ const statuses: ("All Leads" | LeadStatus)[] = [
 const avatarStyles = [
   "border-blue-200 text-blue-700",
   "border-emerald-200 text-emerald-700",
-  "border-violet-200 text-violet-700",
+  "border-blue-200 text-blue-700",
   "border-amber-200 text-amber-700",
   "border-red-200 text-red-700",
   "border-cyan-200 text-cyan-700",
@@ -233,7 +233,7 @@ function LeadModal({
   };
   return (
     <div
-      className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/45 p-4"
+      className="fixed inset-0 z-70 flex items-center justify-center bg-slate-950/45 p-4"
       role="dialog"
       aria-modal="true"
       aria-labelledby="capture-lead-title"
@@ -419,7 +419,7 @@ function Field({
     <div className="min-w-0">
       <p className="text-[11px] text-on-surface-muted">{label}</p>
       <p
-        className={`mt-0.5 break-words text-xs font-medium ${accent ? "font-mono text-primary" : ""}`}
+        className={`mt-0.5 wrap-break-word text-xs font-medium ${accent ? "font-mono text-primary" : ""}`}
       >
         {value}
       </p>
@@ -678,7 +678,7 @@ function DetailPanel({
 }) {
   return (
     <aside className="overflow-hidden rounded-xl border border-outline-variant bg-white shadow-level-1">
-      <div className="relative overflow-hidden bg-gradient-to-br from-blue-700 to-slate-900 p-5 text-white">
+      <div className="relative overflow-hidden bg-linear-to-br from-blue-700 to-slate-900 p-5 text-white">
         <div className="absolute -right-8 -top-8 h-32 w-32 rounded-full bg-white/5" />
         <div className="flex h-12 w-12 items-center justify-center rounded-full border border-blue-200 bg-white text-base font-bold text-blue-700">
           {initials(lead.customerName)}
@@ -747,7 +747,7 @@ function DetailPanel({
                     <MessageSquareText size={13} />
                   </div>
                   <div>
-                    <p className="whitespace-pre-wrap break-words text-xs font-medium leading-5">
+                    <p className="whitespace-pre-wrap wrap-break-word text-xs font-medium leading-5">
                       {activity.content}
                     </p>
                     <p className="text-[11px] text-on-surface-muted">
@@ -770,7 +770,7 @@ function DetailPanel({
             Assigned to
           </h3>
           <div className="flex items-center gap-2.5">
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-blue-600 to-blue-800 text-[11px] font-bold text-white">
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-linear-to-br from-blue-600 to-blue-800 text-[11px] font-bold text-white">
               {initials(lead.assignedTo?.fullName || "")}
             </div>
             <div>
@@ -1041,7 +1041,7 @@ export default function LeadsDashboardClient() {
             icon={UserRound}
             value={String(leads.filter((lead) => lead.status === "NEW").length)}
             label="New Leads"
-            tone="bg-violet-50 text-violet-600"
+            tone="bg-blue-50 text-blue-600"
           />
         </section>
       )}
@@ -1059,7 +1059,7 @@ export default function LeadsDashboardClient() {
           ))}
         </div>
         <div className="flex flex-1 flex-wrap items-center gap-2 xl:justify-end">
-          <label className="flex h-9 min-w-[190px] flex-1 items-center gap-2 rounded-lg border border-outline-variant bg-white px-3 xl:max-w-[260px]">
+          <label className="flex h-9 min-w-47.5 flex-1 items-center gap-2 rounded-lg border border-outline-variant bg-white px-3 xl:max-w-65">
             <Search size={14} className="text-on-surface-muted" />
             <input
               value={query}
@@ -1101,7 +1101,7 @@ export default function LeadsDashboardClient() {
               {[1, 2, 3, 4].map((item) => (
                 <div
                   key={item}
-                  className="flex h-[66px] animate-pulse items-center gap-3 rounded-lg bg-surface-container px-3"
+                  className="flex h-16.5 animate-pulse items-center gap-3 rounded-lg bg-surface-container px-3"
                 >
                   <div className="size-10 rounded-full bg-slate-200" />
                   <div className="flex-1 space-y-2">

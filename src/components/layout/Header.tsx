@@ -12,6 +12,7 @@ import { clearTokens } from "@/lib/token";
 import { Menu, X } from "lucide-react";
 import { dashboardNavItems } from "@/components/dashboard/dashboardConfig";
 import { canAccessDashboardPath } from "@/lib/dashboardAccess";
+import { canAccessPortal } from "@/lib/portalAccess";
 
 const navLinks = [
   { label: "Overview", href: "/" },
@@ -32,9 +33,14 @@ export default function Header() {
   const { isAuthenticated, user } = useSelector(
     (state: RootState) => state.auth,
   );
-  const workspace = dashboardNavItems.find((item) =>
-    canAccessDashboardPath(user?.role, item.href),
-  );
+  const workspaceLabel = canAccessPortal(user?.role)
+    ? "Client portal"
+    : "Dashboard";
+  const workspace = canAccessPortal(user?.role)
+    ? { href: "/portal" }
+    : dashboardNavItems.find((item) =>
+        canAccessDashboardPath(user?.role, item.href),
+      );
 
   const handleSignOut = () => {
     dispatch(logout());
@@ -66,7 +72,7 @@ export default function Header() {
 
         {/* Desktop Nav Links */}
         <nav
-          className="hidden md:flex items-center gap-8"
+          className="hidden lg:flex items-center gap-8"
           aria-label="Primary navigation"
         >
           {navLinks.map((link) => {
@@ -97,7 +103,7 @@ export default function Header() {
         </nav>
 
         {/* Desktop CTA Buttons */}
-        <div className="hidden md:flex items-center gap-3">
+        <div className="hidden lg:flex items-center gap-3">
           {isAuthenticated ? (
             <>
               {workspace && (
@@ -105,7 +111,7 @@ export default function Header() {
                   href={workspace.href}
                   className="text-sm font-semibold text-primary px-4 py-2 rounded-lg hover:bg-surface-container transition-colors duration-200"
                 >
-                  Dashboard
+                  {workspaceLabel}
                 </Link>
               )}
               <button
@@ -137,8 +143,10 @@ export default function Header() {
         {/* Mobile Menu Toggle */}
         <button
           type="button"
-          className="md:hidden p-2 rounded-lg text-on-surface-variant hover:bg-surface-container transition-colors"
+          className="lg:hidden p-2 rounded-lg text-on-surface-variant hover:bg-surface-container transition-colors"
           aria-label={mobileOpen ? "Close menu" : "Open menu"}
+          aria-expanded={mobileOpen}
+          aria-controls="public-mobile-navigation"
           onClick={() => setMobileOpen((prev) => !prev)}
         >
           {mobileOpen ? <X size={20} /> : <Menu size={20} />}
@@ -147,8 +155,9 @@ export default function Header() {
 
       {/* Mobile Dropdown Menu */}
       {mobileOpen && (
-        <div className="absolute top-[72px] left-0 w-full bg-surface-container-lowest border-b border-outline-variant shadow-level-1 md:hidden">
+        <div className="absolute top-[72px] left-0 w-full bg-surface-container-lowest border-b border-outline-variant shadow-level-1 lg:hidden">
           <nav
+            id="public-mobile-navigation"
             className="flex flex-col px-6 py-4 gap-4"
             aria-label="Mobile navigation"
           >
@@ -182,13 +191,15 @@ export default function Header() {
             <div className="flex flex-col gap-2">
               {isAuthenticated ? (
                 <>
-                  <Link
-                    href="/"
-                    onClick={() => setMobileOpen(false)}
-                    className="text-sm font-semibold text-primary text-left py-1"
-                  >
-                    Dashboard
-                  </Link>
+                  {workspace && (
+                    <Link
+                      href={workspace.href}
+                      onClick={() => setMobileOpen(false)}
+                      className="text-sm font-semibold text-primary text-left py-1"
+                    >
+                      {workspaceLabel}
+                    </Link>
+                  )}
                   <button
                     type="button"
                     onClick={() => {
