@@ -1,5 +1,9 @@
 # ConstructPro Frontend
 
+[![CI](https://github.com/ConstructPro-ERP/frontend/actions/workflows/ci.yml/badge.svg?branch=develop)](https://github.com/ConstructPro-ERP/frontend/actions/workflows/ci.yml)
+
+**Live application:** https://construct-pro-teal.vercel.app/  
+**API documentation (Swagger):** https://construct-pro-api-gateway.vercel.app/api/docs
 
 ## Overview
 
@@ -61,10 +65,10 @@ The frontend consumes backend REST APIs and provides role-based interfaces for a
 Before running the frontend locally, ensure the following software is installed:
 
 | Software | Version |
-|-----------|-----------|
-| Node.js | 22+ |
-| npm | Latest |
-| Git | Latest |
+| -------- | ------- |
+| Node.js  | 22+     |
+| npm      | Latest  |
+| Git      | Latest  |
 
 ### Verify Installation
 
@@ -81,7 +85,7 @@ git --version
 Clone the repository:
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/ConstructPro-ERP/frontend.git
 cd frontend
 ```
 
@@ -102,8 +106,6 @@ Example:
 ```env
 NEXT_PUBLIC_API_URL=http://localhost:4000/api
 ```
-
-> Only example values should be committed. Never commit secrets or production configuration.
 
 Google login uses the backend redirect endpoint `/auth/google`. See [Google login setup](docs/google-login.md) for callback configuration and [the file guide](docs/project-structure.md) for the architecture and each source file's responsibility.
 
@@ -220,13 +222,13 @@ fix/<ticket-id>-<slug>
 
 ## Related Repositories
 
-| Repository | Purpose |
-|------------|----------|
-| frontend | Next.js frontend application |
-| backend | NestJS backend API |
-| infra | Infrastructure and CI/CD configuration |
-| documents | SRS, SDS, ADRs, and project documentation |
-| test | Integration and end-to-end testing |
+| Repository | Purpose                                   |
+| ---------- | ----------------------------------------- |
+| frontend   | Next.js frontend application              |
+| backend    | NestJS backend API                        |
+| infra      | Infrastructure and CI/CD configuration    |
+| documents  | SRS, SDS, ADRs, and project documentation |
+| test       | Integration and end-to-end testing        |
 
 ---
 
@@ -271,27 +273,27 @@ Do not create another Axios instance or use raw Axios/fetch for backend requests
 Changes to that client require explicit user approval; preserve its interceptors,
 refresh workflows, retry policies, and standardized error handling.
 
-| Command | Purpose |
-| --- | --- |
-| `npm run typecheck` | Check TypeScript without emitting files |
-| `npm test` | Run Node-based tests in `test/*.test.mjs` |
-| `npm run test:coverage` | Run those tests with scoped coverage thresholds |
-| `npm run test:quotation-quality` | Run quotation Vitest tests with coverage |
-| `npm run format` | Rewrite formatting with Prettier |
+| Command                          | Purpose                                         |
+| -------------------------------- | ----------------------------------------------- |
+| `npm run typecheck`              | Check TypeScript without emitting files         |
+| `npm test`                       | Run Node-based tests in `test/*.test.mjs`       |
+| `npm run test:coverage`          | Run those tests with scoped coverage thresholds |
+| `npm run test:quotation-quality` | Run quotation Vitest tests with coverage        |
+| `npm run format`                 | Rewrite formatting with Prettier                |
 
 The Node test runner transpiles selected dashboard and analytics modules and mocks
 their API client. Its coverage does not represent the whole application. Browser
 workflows live in the separate `tests` repository.
 
-| Path | Responsibility |
-| --- | --- |
-| `src/app/` | App Router pages and layouts |
-| `src/components/` | Dashboard features, layouts, and shared UI |
-| `src/services/` | API operations |
-| `src/lib/` | API configuration, errors, tokens, and domain helpers |
-| `src/providers/`, `src/store/` | Authentication and Redux state |
-| `src/types/` | Shared TypeScript contracts |
-| `test/`, `docs/` | Tests and feature documentation |
+| Path                           | Responsibility                                        |
+| ------------------------------ | ----------------------------------------------------- |
+| `src/app/`                     | App Router pages and layouts                          |
+| `src/components/`              | Dashboard features, layouts, and shared UI            |
+| `src/services/`                | API operations                                        |
+| `src/lib/`                     | API configuration, errors, tokens, and domain helpers |
+| `src/providers/`, `src/store/` | Authentication and Redux state                        |
+| `src/types/`                   | Shared TypeScript contracts                           |
+| `test/`, `docs/`               | Tests and feature documentation                       |
 
 [Frontend CI](.github/workflows/ci.yml) delegates to
 `ConstructPro-ERP/infra/.github/workflows/frontend-ci.yml@v1`.
