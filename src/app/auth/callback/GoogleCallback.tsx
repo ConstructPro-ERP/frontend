@@ -12,7 +12,6 @@ import {
 } from "@/store/slices/authSlice";
 import { clearTokens, setAccessToken, setRefreshToken } from "@/lib/token";
 import { completeGoogleLogin } from "@/services/googleAuth";
-import { needsRoleSelection } from "@/services/roles";
 import { homePathForRole } from "@/lib/portalAccess";
 
 export default function GoogleCallback() {
@@ -42,11 +41,7 @@ export default function GoogleCallback() {
         setAccessToken(accessToken);
         setRefreshToken(refreshToken);
         dispatch(loginSuccess({ user }));
-        router.replace(
-          needsRoleSelection(user)
-            ? "/auth/select-role"
-            : homePathForRole(user.role),
-        );
+        router.replace(homePathForRole(user.role));
       })
       .catch(() => {
         if (!active) return;

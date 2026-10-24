@@ -1065,6 +1065,7 @@ export default function LeadsDashboardClient() {
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder="Search leads..."
+              aria-label="Filter leads by name, email or phone"
               className="w-full bg-transparent text-xs outline-none"
             />
           </label>

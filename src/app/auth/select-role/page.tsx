@@ -1,15 +1,5 @@
-import AuthLayout from "@/components/ui/AuthLayout";
-import RoleSelection from "./RoleSelection";
+import { redirect } from "next/navigation";
 
-export const metadata = {
-  title: "Choose your role | ConstructPro ERP",
-  robots: { index: false, follow: false },
-};
-
-export default function SelectRolePage() {
-  return (
-    <AuthLayout>
-      <RoleSelection />
-    </AuthLayout>
-  );
+export default function LegacyRolePage() {
+  redirect("/modules");
 }
