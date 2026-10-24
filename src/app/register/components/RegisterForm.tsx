@@ -1,6 +1,6 @@
 "use client";
 // src/app/register/components/RegisterForm.tsx
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import GoogleLoginButton from "@/components/ui/GoogleLoginButton";
 import { useForm } from "react-hook-form";
@@ -10,11 +10,11 @@ import { Mail, Lock } from "lucide-react";
 import AuthInput from "@/components/ui/AuthInput";
 import AuthButton from "@/components/ui/AuthButton";
 import AuthCheckbox from "@/components/ui/AuthCheckbox";
-import apiClient from "@/lib/axios";
+import { registerAccount } from "@/services/registration";
+import { useDispatch } from "react-redux";
+import { loginSuccess } from "@/store/slices/authSlice";
+import { clearTokens, setAccessToken, setRefreshToken } from "@/lib/token";
 import { useRouter } from "next/navigation";
-import { getRoles, type RoleOption } from "@/services/roles";
-import type { RegisterCredentials } from "@/types/auth";
-import { roleLabel } from "@/lib/userManagement";
 
 const registerSchema = z.object({
   email: z
@@ -26,7 +26,6 @@ const registerSchema = z.object({
     .min(8, "Password must be at least 8 characters")
     .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
     .regex(/[0-9]/, "Password must contain at least one number"),
-  roleId: z.string().min(1, "Please select a role"),
   agreeToTerms: z.boolean().refine((val) => val === true, {
     message: "You must agree with the terms & conditions",
   }),
@@ -36,66 +35,25 @@ type RegisterFormValues = z.infer<typeof registerSchema>;
 
 export default function RegisterForm() {
   const router = useRouter();
+  const dispatch = useDispatch();
   const [serverError, setServerError] = useState<string | null>(null);
-  const [roles, setRoles] = useState<RoleOption[]>([]);
-  const [rolesLoading, setRolesLoading] = useState(true);
-  const [rolesError, setRolesError] = useState<string | null>(null);
-  const [rolesAttempt, setRolesAttempt] = useState(0);
-
-  useEffect(() => {
-    let active = true;
-    async function loadRoles() {
-      setRolesLoading(true);
-      setRolesError(null);
-      try {
-        const options = await getRoles();
-        if (!active) return;
-        setRoles(options);
-        if (options.length === 0) {
-          setRolesError("No roles are available. Please try again later.");
-        }
-      } catch {
-        if (active) {
-          setRolesError("Unable to load roles. Please try again.");
-        }
-      } finally {
-        if (active) setRolesLoading(false);
-      }
-    }
-    void loadRoles();
-    return () => {
-      active = false;
-    };
-  }, [rolesAttempt]);
-
   const {
     register,
     handleSubmit,
-    setError,
     formState: { errors, isSubmitting },
   } = useForm<RegisterFormValues>({
     resolver: zodResolver(registerSchema),
-    defaultValues: { agreeToTerms: false, roleId: "" },
+    defaultValues: { agreeToTerms: false },
   });
 
   const onSubmit = async (data: RegisterFormValues) => {
     setServerError(null);
-    if (
-      rolesLoading ||
-      rolesError ||
-      !roles.some((role) => role.id === data.roleId)
-    ) {
-      setError("roleId", { message: "Please select an available role" });
-      return;
-    }
     try {
-      const credentials: RegisterCredentials = {
-        username: data.email,
-        email: data.email,
-        password: data.password,
-        roleId: data.roleId,
-      };
-      await apiClient.post("/auth/register", credentials);
+      const { user, accessToken, refreshToken } = await registerAccount(data);
+      clearTokens();
+      setAccessToken(accessToken);
+      setRefreshToken(refreshToken);
+      dispatch(loginSuccess({ user }));
       router.push("/finish");
     } catch (err: unknown) {
       const message =
@@ -157,61 +115,6 @@ export default function RegisterForm() {
           {...register("password")}
         />
 
-        <div className="flex flex-col gap-1.5">
-          <label
-            htmlFor="register-role"
-            className="text-sm font-semibold text-on-surface-variant"
-          >
-            Role
-          </label>
-          <select
-            id="register-role"
-            {...register("roleId")}
-            disabled={rolesLoading || !!rolesError || isSubmitting}
-            aria-required="true"
-            aria-invalid={!!errors.roleId || !!rolesError}
-            aria-describedby={
-              rolesError || errors.roleId ? "register-role-error" : undefined
-            }
-            className={`w-full py-3 px-4 bg-transparent text-sm text-on-background border-0 border-b-2 outline-none transition-colors disabled:opacity-60 disabled:cursor-not-allowed ${
-              errors.roleId || rolesError
-                ? "border-error focus:border-error-hover"
-                : "border-outline-variant hover:border-outline focus:border-action"
-            }`}
-          >
-            <option value="" disabled>
-              {rolesLoading ? "Loading roles..." : "Select a role"}
-            </option>
-            {roles.map((role) => (
-              <option
-                key={role.id}
-                value={role.id}
-                className="bg-surface-container-lowest"
-              >
-                {roleLabel(role.roleName)}
-              </option>
-            ))}
-          </select>
-          {(rolesError || errors.roleId) && (
-            <p
-              id="register-role-error"
-              role="alert"
-              className="text-xs text-error mt-0.5"
-            >
-              {rolesError || errors.roleId?.message}
-            </p>
-          )}
-          {rolesError && (
-            <button
-              type="button"
-              className="self-start text-sm font-semibold text-action hover:text-action-hover"
-              onClick={() => setRolesAttempt((attempt) => attempt + 1)}
-            >
-              Retry loading roles
-            </button>
-          )}
-        </div>
-
         {/* Terms & conditions */}
         <div>
           <AuthCheckbox
@@ -233,7 +136,6 @@ export default function RegisterForm() {
             type="submit"
             variant="primary"
             isLoading={isSubmitting}
-            disabled={rolesLoading || !!rolesError || roles.length === 0}
             className="w-full"
           >
             Sign Up

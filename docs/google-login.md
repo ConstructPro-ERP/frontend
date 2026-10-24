@@ -4,17 +4,17 @@ The frontend uses the existing backend OAuth redirect flow. No frontend Google S
 
 1. The shared Google button on `/login` and `/register` navigates to `http://localhost:4000/api/auth/google` by default.
 2. The gateway calls auth-service internally and relays its redirect to Google. Google returns to the gateway callback, which calls auth-service internally to exchange the code.
-3. The backend redirects to `${FRONTEND_URL}/auth/callback#token=<accessToken>`.
+3. The backend redirects to `${FRONTEND_URL}/auth/callback#token=<accessToken>&refreshToken=<refreshToken>`.
 4. The callback removes the fragment from browser history and verifies the token using `GET /auth/me` with an explicit Bearer header. It cannot refresh with a previous user's credentials.
-5. After verification, it clears old tokens, saves the access token and updates Redux. Users with an assigned role proceed to `/modules`. Users with role `user` or `null` proceed to `/auth/select-role` to choose a role.
+5. After verification, the callback replaces both stored tokens, updates Redux, and continues directly to `/modules`.
 
-## Role selection
+## Signup roles and sessions
 
-- The dropdown loads the `data` array from `GET /auth/roles`, retaining backend IDs, role names, and nullable descriptions. No role-request or approval APIs are called.
-- **Save role and continue** sends `{ roleId }` to the existing `PATCH /users/:id` route, then reloads `GET /auth/me`. Redux permissions update only after the backend confirms the selected role for the same user.
-- **Backend limitation:** the current gateway restricts `PATCH /users/:id` to `ADMIN`. An unassigned Google user will receive a permission error until the backend provides an authorized onboarding assignment path. The roles-list GET endpoint alone cannot save a selection. The frontend does not bypass that restriction.
-- `CLIENT_PORTAL_USER` is accepted by profile validation. Existing assigned users retain their backend role and skip selection.
-- The old `/auth/role-request` page redirects to `/auth/select-role` for bookmarked links.
+- Email signup resolves the `CLIENT_PORTAL_USER` ID from `GET /auth/roles` and sends it to registration. There is no role dropdown. The backend rejects other roles on public registration.
+- Email signup saves the returned access and refresh tokens after verifying the account through `GET /auth/me`. The completion screen continues into the application without another login.
+- The backend assigns `CLIENT_PORTAL_USER` to new Google accounts and returning accounts whose role is missing. Existing assigned roles are preserved.
+- The role-selection UI has been removed. Legacy `/auth/select-role` and `/auth/role-request` links redirect to `/modules`.
+- Deploy the auth-service changes together with the frontend. The role catalog must contain `CLIENT_PORTAL_USER`; missing configuration fails signup rather than creating an unassigned Google account.
 
 ## Configuration
 
@@ -41,8 +41,8 @@ The gateway disables automatic redirect following, relays only approved Google/f
 
 ## Existing backend limits
 
-- Google callbacks currently issue only an access token. Google sessions cannot refresh automatically; users must sign in again when it expires. Never retain an earlier account's refresh token.
-- New Google users may have role `user` or `null`. The frontend preserves these values and does not assign elevated permissions.
+- Google callbacks issue access and refresh tokens. Both credentials replace any previous account session.
+- Role assignment is persisted by auth-service; frontend profile normalization preserves the backend role.
 - OAuth state validation and handling Google consent denial before redirecting back are backend responsibilities. The inspected Passport strategy does not configure OAuth state protection; this requires backend hardening before production. The frontend cannot validate an OAuth state value that the backend does not issue and return.
 - Dashboard route protection and several sidebar actions are existing separate gaps; the frontend UI is not an authorization boundary. APIs must enforce access control.
 
@@ -50,6 +50,6 @@ The gateway disables automatic redirect following, relays only approved Google/f
 
 Run `npm test`, `npm run lint`, `npx tsc --noEmit`, and `npm run build`.
 
-With the backend services running and Google configured, click Google on each auth page. Confirm assigned accounts reach `/modules` and unassigned accounts reach `/auth/select-role`. Confirm the dropdown matches `/auth/roles`. With an authorized assignment endpoint, save a role and confirm `/auth/me` returns it before proceeding. Verify denied assignments leave permissions unchanged and display an error. Also test a missing callback fragment, an expired token, browser Back from consent, and backend unavailability. The callback must display a retry link on failure and must remove its fragment immediately.
+With the backend services running and Google configured, sign up through email and Google. Confirm no role selector appears, the saved role is `CLIENT_PORTAL_USER`, and the account reaches the application without another login. Reload to verify session restoration. Confirm returning assigned Google users retain their roles. Test missing callback credentials, expired tokens, consent cancellation, and backend unavailability.
 
 Automated tests exercise callback parsing, profile normalization, backend verification failures, and prevention of refresh with a previous account. Live Google consent requires a configured backend and a real browser account.

@@ -12,7 +12,6 @@ import {
 } from "@/store/slices/authSlice";
 import { clearTokens, setAccessToken, setRefreshToken } from "@/lib/token";
 import { completeGoogleLogin } from "@/services/googleAuth";
-import { needsRoleSelection } from "@/services/roles";
 
 export default function GoogleCallback() {
   const dispatch = useDispatch<AppDispatch>();
@@ -41,9 +40,7 @@ export default function GoogleCallback() {
         setAccessToken(accessToken);
         setRefreshToken(refreshToken);
         dispatch(loginSuccess({ user }));
-        router.replace(
-          needsRoleSelection(user) ? "/auth/select-role" : "/modules",
-        );
+        router.replace("/modules");
       })
       .catch(() => {
         if (!active) return;
