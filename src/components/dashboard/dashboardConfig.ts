@@ -63,14 +63,17 @@ export const dashboardNavItems: DashboardNavItem[] = [
 
 export type DashboardPageConfig = {
   title: string;
-  description: string;
+  // Static description for pages that do not use a personalized greeting.
+  description?: string;
+  // The shared header generates a live date and personalized greeting.
+  useGreeting?: boolean;
   breadcrumbs?: { label: string; href?: string }[];
 };
 
 export const dashboardPageConfigs: Record<string, DashboardPageConfig> = {
   "/dashboard": {
     title: "Dashboard",
-    description: "Sunday, 12 April 2026 · Good morning, Admin",
+    useGreeting: true,
     breadcrumbs: [{ label: "Dashboard" }],
   },
   "/dashboard/users": {
@@ -91,7 +94,7 @@ export const dashboardPageConfigs: Record<string, DashboardPageConfig> = {
   },
   "/dashboard/quotations": {
     title: "Quotations",
-    description: "Sunday, 12 April 2026 · Good morning, Admin",
+    useGreeting: true,
     breadcrumbs: [
       { label: "Dashboard", href: "/dashboard" },
       { label: "Quotations" },
@@ -99,7 +102,7 @@ export const dashboardPageConfigs: Record<string, DashboardPageConfig> = {
   },
   "/dashboard/projects": {
     title: "Projects",
-    description: "Sunday, 12 April 2026 · Good morning, Admin",
+    useGreeting: true,
     breadcrumbs: [
       { label: "Dashboard", href: "/dashboard" },
       { label: "Projects" },
@@ -107,7 +110,7 @@ export const dashboardPageConfigs: Record<string, DashboardPageConfig> = {
   },
   "/dashboard/documents": {
     title: "Documents",
-    description: "Sunday, 12 April 2026 · Good morning, Admin",
+    useGreeting: true,
     breadcrumbs: [
       { label: "Dashboard", href: "/dashboard" },
       { label: "Documents" },
@@ -115,7 +118,7 @@ export const dashboardPageConfigs: Record<string, DashboardPageConfig> = {
   },
   "/dashboard/finance": {
     title: "Invoices & Payments",
-    description: "LKR 6.8M outstanding · 5 overdue invoices",
+    description: "Track invoices, payments, and outstanding balances",
     breadcrumbs: [
       { label: "Dashboard", href: "/dashboard" },
       { label: "Finance" },
@@ -123,7 +126,7 @@ export const dashboardPageConfigs: Record<string, DashboardPageConfig> = {
   },
   "/dashboard/analytics": {
     title: "Analytics & AI Risk Prediction",
-    description: "Powered by RAG · LangChain · Last analysed 2 hours ago",
+    description: "Project performance and AI risk insights",
     breadcrumbs: [
       { label: "Dashboard", href: "/dashboard" },
       { label: "Analytics" },

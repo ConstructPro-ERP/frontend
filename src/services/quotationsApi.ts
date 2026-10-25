@@ -78,10 +78,10 @@ export async function listQuotations(
   if (Array.isArray(data)) {
     return {
       items: normalizeQuotations(data),
-      total: data.length,
-      page: 1,
-      limit: data.length,
-      totalPages: 1,
+      total: response.meta?.total ?? data.length,
+      page: response.meta?.page ?? 1,
+      limit: response.meta?.limit ?? data.length,
+      totalPages: response.meta?.totalPages ?? 1,
     };
   }
 

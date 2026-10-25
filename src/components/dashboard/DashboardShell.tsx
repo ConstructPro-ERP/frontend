@@ -69,10 +69,7 @@ export default function DashboardShell({
           Skip to main content
         </a>
 
-        <DashboardHeader
-          onOpenSidebar={() => setMobileOpen(true)}
-          isHome={isHome}
-        />
+        <DashboardHeader onOpenSidebar={() => setMobileOpen(true)} />
 
         <main
           id="dashboard-main-content"

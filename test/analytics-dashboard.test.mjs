@@ -48,10 +48,8 @@ test("analytics dashboard keeps the prototype KPI and section wording", () => {
   assert.match(utilsSource, /Performance Metrics/);
   assert.match(utilsSource, /AI Risk Predictions/);
   assert.match(headerSource, /Analytics & AI Risk Prediction/);
-  assert.match(
-    headerSource,
-    /Powered by RAG · LangChain · Last analysed 2 hours ago/,
-  );
+  assert.match(headerSource, /Project performance and AI risk insights/);
+  assert.doesNotMatch(headerSource, /Last analysed 2 hours ago/);
   assert.doesNotMatch(headerSource, /Search analytics\.\.\.|searchPlaceholder/);
 });
 

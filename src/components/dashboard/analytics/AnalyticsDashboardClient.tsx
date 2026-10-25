@@ -4,7 +4,8 @@ import { useState } from "react";
 import { useDashboardQuery } from "@/hooks/useDashboardQuery";
 import { useSelector } from "react-redux";
 import { Play, RefreshCcw, Radar } from "lucide-react";
-import type { RootState } from "@/store";
+import { store, type RootState } from "@/store";
+import { dashboardQueryCache } from "@/lib/dashboardQueryCache";
 import {
   canRunAiForecasting,
   getAiPredictionErrorMessage,
@@ -755,10 +756,38 @@ export default function AnalyticsDashboardClient() {
     setPrediction(null);
     setIsRunningAnalysis(true);
 
+    const requestingSession = store.getState().auth;
+
     try {
       const result = await getProjectRiskPrediction(effectiveSelectedProjectId);
+
+      // Ignore results from a session that changed during the request.
+      if (
+        store.getState().auth.sessionVersion !==
+        requestingSession.sessionVersion
+      ) {
+        return;
+      }
+
       const aiRiskItem = mapPredictionToRiskItem(result);
       setPrediction(result);
+
+      if (
+        requestingSession.user &&
+        typeof result.generatedAt === "string" &&
+        Number.isFinite(Date.parse(result.generatedAt))
+      ) {
+        const analysisKey = JSON.stringify([
+          requestingSession.user.id,
+          requestingSession.user.role,
+          "analytics:latest-run",
+        ]);
+
+        dashboardQueryCache.setData<string>(
+          analysisKey,
+          () => result.generatedAt,
+        );
+      }
 
       if (aiRiskItem) {
         setAnalyticsState((currentState) => {
@@ -795,6 +824,13 @@ export default function AnalyticsDashboardClient() {
           : `Analysis completed for ${result.projectName}, but more historical data is needed for a confident prediction.`,
       });
     } catch (error) {
+      if (
+        store.getState().auth.sessionVersion !==
+        requestingSession.sessionVersion
+      ) {
+        return;
+      }
+
       setFeedback({
         tone: isAnalyticsUnavailableError(error) ? "info" : "error",
         message: getAiPredictionErrorMessage(error),

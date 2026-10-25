@@ -3,7 +3,6 @@
 import { useCallback, useRef, useState, type RefObject } from "react";
 import { useDashboardQuery } from "@/hooks/useDashboardQuery";
 import { Check, Download, Eye, Plus, RefreshCcw } from "lucide-react";
-import apiClient from "@/lib/axios";
 import {
   getFinanceErrorMessage,
   getFinanceInvoice,
@@ -33,6 +32,11 @@ import {
   normalizeSummary,
   validateFinancePaymentForm,
 } from "@/components/dashboard/finance/financeUtils";
+import { useSelector } from "react-redux";
+import type { RootState } from "@/store";
+import { dashboardQueryCache } from "@/lib/dashboardQueryCache";
+import { getDashboardSummary } from "@/services/dashboardApi";
+import type { User } from "@/types/auth";
 
 type FinanceState =
   | {
@@ -87,15 +91,25 @@ function normalizeFinanceSummaryFromAnalytics(
   );
 }
 
-async function loadFinanceData(): Promise<
-  Extract<FinanceState, { kind: "ready" | "empty" }>
-> {
-  const [invoices, summaryResponse] = await Promise.all([
+async function loadFinanceData(
+  user: User | null,
+): Promise<Extract<FinanceState, { kind: "ready" | "empty" }>> {
+  if (!user) {
+    throw new Error("Authentication is required to load finance data.");
+  }
+
+  const summaryKey = JSON.stringify([user.id, user.role, "home:summary"]);
+
+  // Share the dashboard summary request with the header.
+  const [invoices, analyticsSummary] = await Promise.all([
     listFinanceInvoices(),
-    apiClient.get<unknown>("/analytics/dashboard/summary").catch(() => null),
+    dashboardQueryCache
+      .fetch(summaryKey, getDashboardSummary)
+      .catch(() => null),
   ]);
-  const summary = summaryResponse
-    ? normalizeFinanceSummaryFromAnalytics(summaryResponse.data, invoices)
+
+  const summary = analyticsSummary
+    ? normalizeFinanceSummaryFromAnalytics(analyticsSummary, invoices)
     : normalizeSummary({}, invoices);
 
   if (invoices.length === 0 && summary.outstandingBalance === 0) {
@@ -523,7 +537,11 @@ function FinancePaymentForm({
 }
 
 export default function FinanceDashboardClient() {
-  const query = useDashboardQuery("finance:overview", loadFinanceData);
+  const user = useSelector((state: RootState) => state.auth.user);
+
+  const loadFinanceForUser = useCallback(() => loadFinanceData(user), [user]);
+
+  const query = useDashboardQuery("finance:overview", loadFinanceForUser);
   const financeState: FinanceState =
     query.data ??
     (query.error

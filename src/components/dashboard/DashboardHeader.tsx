@@ -11,13 +11,21 @@ import {
 } from "react";
 import { useSelector } from "react-redux";
 import { dashboardPageConfigs } from "@/components/dashboard/dashboardConfig";
-import { getDashboardActivity } from "@/services/dashboardApi";
+import { formatAnalyticsCompactCurrency } from "@/components/dashboard/analytics/analyticsUtils";
+import {
+  useDashboardQuery,
+  useDashboardSnapshot,
+} from "@/hooks/useDashboardQuery";
+import { canAccessDashboardPath } from "@/lib/dashboardAccess";
+import {
+  getDashboardActivity,
+  getDashboardSummary,
+} from "@/services/dashboardApi";
 import type { DashboardActivity } from "@/types/dashboard";
 import type { RootState } from "@/store";
 
 type DashboardHeaderProps = {
   onOpenSidebar: () => void;
-  isHome?: boolean;
 };
 
 function subscribeClock(listener: () => void) {
@@ -48,7 +56,6 @@ function getPageConfig(pathname: string) {
 
 export default function DashboardHeader({
   onOpenSidebar,
-  isHome,
 }: DashboardHeaderProps) {
   const pathname = usePathname();
   const pageConfig = getPageConfig(pathname);
@@ -65,6 +72,69 @@ export default function DashboardHeader({
     clockLabel,
     () => "Welcome",
   );
+
+  // Prefer the authenticated user's first name for a natural greeting.
+  // Fall back to another available identity instead of a hardcoded role.
+  const displayName =
+    user?.firstName?.trim() || user?.lastName?.trim() || user?.email || null;
+
+  const isFinancePage = pathname === "/dashboard/finance";
+  const isAnalyticsPage = pathname === "/dashboard/analytics";
+
+  const canViewFinance =
+    Boolean(user) && canAccessDashboardPath(user?.role, pathname);
+
+  // Reuse the existing user-scoped dashboard summary cache.
+  const financeSummaryQuery = useDashboardQuery(
+    "home:summary",
+    getDashboardSummary,
+    isFinancePage && canViewFinance,
+  );
+
+  const latestAnalysis = useDashboardSnapshot<string>("analytics:latest-run");
+
+  // Only designated pages use the personalized greeting.
+  // Other pages continue displaying their configured description.
+  let subtitle = pageConfig.useGreeting
+    ? `${dateLabel}${displayName ? `, ${displayName}` : ""}`
+    : (pageConfig.description ?? "");
+
+  if (isFinancePage && canViewFinance) {
+    const summary = financeSummaryQuery.data;
+
+    if (summary) {
+      const outstanding = formatAnalyticsCompactCurrency(
+        summary.revenue.outstandingBalance,
+      );
+      const overdueCount = summary.invoices.overdueCount;
+
+      subtitle =
+        `${outstanding} outstanding · ` +
+        `${overdueCount} overdue ` +
+        `${overdueCount === 1 ? "invoice" : "invoices"}`;
+
+      if (financeSummaryQuery.error) {
+        subtitle += " · Data may be outdated";
+      }
+    } else if (financeSummaryQuery.error) {
+      subtitle = "Finance figures are temporarily unavailable";
+    } else {
+      subtitle = "Loading finance summary…";
+    }
+  }
+
+  if (isAnalyticsPage) {
+    const generatedAt = latestAnalysis.data;
+
+    if (generatedAt && Number.isFinite(Date.parse(generatedAt))) {
+      const analysedAt = new Intl.DateTimeFormat("en-LK", {
+        dateStyle: "medium",
+        timeStyle: "short",
+      }).format(new Date(generatedAt));
+
+      subtitle = `AI risk insights · Last analysed ${analysedAt}`;
+    }
+  }
 
   const loadNotifications = useCallback(async () => {
     setNotificationsLoading(true);
@@ -118,11 +188,7 @@ export default function DashboardHeader({
             <h1 className="truncate text-[17px] font-bold tracking-[-0.3px] text-on-background">
               {pageConfig.title}
             </h1>
-            <p className="mt-0.5 text-xs text-on-surface-muted">
-              {isHome
-                ? `${dateLabel}${user?.firstName ? `, ${user.firstName}` : ""}`
-                : pageConfig.description}
-            </p>
+            <p className="mt-0.5 text-xs text-on-surface-muted">{subtitle}</p>
           </div>
         </div>
 
