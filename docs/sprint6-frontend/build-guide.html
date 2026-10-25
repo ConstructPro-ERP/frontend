@@ -1,0 +1,1379 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Sprint 6 Frontend Build Guide — ConstructPro ERP</title>
+    <style>
+      :root {
+        --bg: #eceef2;
+        --surface: #ffffff;
+        --text: #171b21;
+        --text-muted: #57646f;
+        --accent: #1d3f5e;
+        --accent-soft: #e4ecf3;
+        --flag: #b8631c;
+        --flag-soft: #f7e7d1;
+        --rule: #c7cfd6;
+        --ok: #3f7d52;
+        --danger: #b23a34;
+        --font-display:
+          "Segoe UI Semibold", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+        --font-body:
+          "Segoe UI", ui-sans-serif, system-ui, -apple-system, sans-serif;
+        --font-mono:
+          ui-monospace, "Cascadia Code", "Consolas", "SFMono-Regular", Menlo,
+          monospace;
+      }
+
+      :root[data-theme="dark"] {
+        --bg: #12161c;
+        --surface: #1a2029;
+        --text: #e7ebef;
+        --text-muted: #9aa7b2;
+        --accent: #86b7dd;
+        --accent-soft: #1e2e3d;
+        --flag: #e2a159;
+        --flag-soft: #3a2c1b;
+        --rule: #2b333c;
+        --ok: #6fbf86;
+        --danger: #e2726b;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        :root:not([data-theme="light"]) {
+          --bg: #12161c;
+          --surface: #1a2029;
+          --text: #e7ebef;
+          --text-muted: #9aa7b2;
+          --accent: #86b7dd;
+          --accent-soft: #1e2e3d;
+          --flag: #e2a159;
+          --flag-soft: #3a2c1b;
+          --rule: #2b333c;
+          --ok: #6fbf86;
+          --danger: #e2726b;
+        }
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        background: var(--bg);
+        color: var(--text);
+        font-family: var(--font-body);
+        line-height: 1.6;
+        -webkit-font-smoothing: antialiased;
+      }
+
+      .doc {
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 56px 24px 96px;
+      }
+
+      .doc-header {
+        border-left: 4px solid var(--accent);
+        padding-left: 20px;
+        margin-bottom: 8px;
+      }
+
+      .eyebrow {
+        font-family: var(--font-display);
+        font-size: 11.5px;
+        font-weight: 700;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: var(--flag);
+      }
+
+      h1 {
+        font-family: var(--font-display);
+        font-size: 30px;
+        font-weight: 700;
+        letter-spacing: -0.01em;
+        text-wrap: balance;
+        margin: 6px 0 4px;
+        color: var(--text);
+      }
+
+      .subtitle {
+        color: var(--text-muted);
+        font-size: 14.5px;
+        margin: 0;
+      }
+
+      .meta-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin: 22px 0 0;
+        padding-left: 24px;
+      }
+
+      .meta-chip {
+        font-family: var(--font-mono);
+        font-size: 11.5px;
+        color: var(--text-muted);
+        background: var(--surface);
+        border: 1px solid var(--rule);
+        border-radius: 6px;
+        padding: 4px 9px;
+      }
+
+      h2 {
+        font-family: var(--font-display);
+        font-size: 20px;
+        font-weight: 700;
+        margin: 52px 0 6px;
+        padding-left: 20px;
+        border-left: 4px solid var(--accent);
+        color: var(--text);
+      }
+
+      h2 .h2-index {
+        color: var(--accent);
+        font-variant-numeric: tabular-nums;
+        margin-right: 8px;
+      }
+
+      h3 {
+        font-family: var(--font-display);
+        font-size: 15px;
+        font-weight: 700;
+        margin: 30px 0 10px;
+        color: var(--text);
+      }
+
+      p {
+        margin: 12px 0;
+        max-width: 66ch;
+        color: var(--text);
+      }
+      .doc > p,
+      .doc > ul,
+      .doc > ol {
+        padding-left: 24px;
+      }
+      ul,
+      ol {
+        max-width: 66ch;
+        padding-left: 24px;
+        margin: 12px 0 12px 20px;
+      }
+      li {
+        margin: 5px 0;
+      }
+      strong {
+        color: var(--text);
+      }
+      code:not(pre code) {
+        font-family: var(--font-mono);
+        font-size: 0.88em;
+        background: var(--accent-soft);
+        padding: 1px 5px;
+        border-radius: 4px;
+      }
+
+      a {
+        color: var(--accent);
+      }
+
+      .callout {
+        margin: 18px 24px;
+        padding: 14px 18px;
+        border-left: 3px solid var(--flag);
+        background: var(--flag-soft);
+        border-radius: 0 8px 8px 0;
+      }
+      .callout .callout-label {
+        font-family: var(--font-display);
+        font-size: 10.5px;
+        font-weight: 700;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--flag);
+        display: block;
+        margin-bottom: 6px;
+      }
+      .callout p {
+        margin: 4px 0;
+        max-width: 62ch;
+      }
+
+      .block {
+        margin: 18px 24px 26px;
+        border: 1px solid var(--rule);
+        border-radius: 10px;
+        overflow: hidden;
+        background: var(--surface);
+      }
+      .block-bar {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 14px;
+        font-family: var(--font-display);
+        font-size: 10.5px;
+        font-weight: 700;
+        letter-spacing: 0.13em;
+        text-transform: uppercase;
+        border-bottom: 1px solid var(--rule);
+      }
+      .block--issue .block-bar {
+        background: var(--accent-soft);
+        color: var(--accent);
+      }
+      .block--prompt .block-bar {
+        background: var(--flag-soft);
+        color: var(--flag);
+      }
+      .block--commit .block-bar {
+        background: var(--accent-soft);
+        color: var(--accent);
+      }
+      .block--pr .block-bar {
+        background: var(--flag-soft);
+        color: var(--flag);
+      }
+      .block-bar .dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: currentColor;
+      }
+      .block-body {
+        overflow-x: auto;
+      }
+      pre {
+        margin: 0;
+        padding: 16px 18px;
+        font-family: var(--font-mono);
+        font-size: 12.3px;
+        line-height: 1.62;
+        white-space: pre-wrap;
+        word-break: break-word;
+        color: var(--text);
+      }
+      .block--terminal {
+        background: var(--text);
+      }
+      .block--terminal .block-bar {
+        background: transparent;
+        color: var(--ok);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+      }
+      .block--terminal pre {
+        color: #d7ffe0;
+        background: transparent;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 16px 24px;
+        max-width: calc(800px - 48px);
+        font-size: 13px;
+      }
+      .table-wrap {
+        overflow-x: auto;
+        margin: 16px 24px;
+      }
+      .table-wrap table {
+        margin: 0;
+        min-width: 560px;
+      }
+      th,
+      td {
+        text-align: left;
+        padding: 9px 12px;
+        border-bottom: 1px solid var(--rule);
+        vertical-align: top;
+      }
+      th {
+        font-family: var(--font-display);
+        font-size: 10.5px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--text-muted);
+        background: var(--accent-soft);
+      }
+      td.mono {
+        font-family: var(--font-mono);
+        font-size: 12px;
+      }
+
+      .checklist {
+        list-style: none;
+        padding-left: 24px;
+        margin: 14px 24px;
+      }
+      .checklist li {
+        position: relative;
+        padding-left: 26px;
+        margin: 8px 0;
+        font-size: 13.5px;
+      }
+      .checklist li::before {
+        content: "";
+        position: absolute;
+        left: 0;
+        top: 3px;
+        width: 15px;
+        height: 15px;
+        border: 1.5px solid var(--ok);
+        border-radius: 4px;
+      }
+
+      hr {
+        border: none;
+        border-top: 1px solid var(--rule);
+        margin: 48px 24px;
+      }
+
+      .toc {
+        margin: 26px 24px 0;
+        padding: 16px 18px;
+        background: var(--surface);
+        border: 1px solid var(--rule);
+        border-radius: 10px;
+        font-size: 13px;
+      }
+      .toc-title {
+        font-family: var(--font-display);
+        font-size: 10.5px;
+        font-weight: 700;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--text-muted);
+        margin-bottom: 8px;
+      }
+      .toc ol {
+        margin: 0;
+        padding-left: 18px;
+      }
+      .toc li {
+        margin: 4px 0;
+      }
+      .toc a {
+        text-decoration: none;
+        color: var(--text);
+      }
+      .toc a:hover {
+        color: var(--accent);
+      }
+
+      .tag {
+        display: inline-block;
+        font-family: var(--font-mono);
+        font-size: 11px;
+        padding: 2px 8px;
+        border-radius: 5px;
+        background: var(--accent-soft);
+        color: var(--accent);
+        margin-right: 6px;
+      }
+
+      footer.doc-footer {
+        margin: 60px 24px 0;
+        padding-top: 18px;
+        border-top: 1px solid var(--rule);
+        color: var(--text-muted);
+        font-size: 12px;
+      }
+
+      @media (max-width: 640px) {
+        .doc {
+          padding: 36px 14px 72px;
+        }
+        h2,
+        .meta-row,
+        .doc > p,
+        .doc > ul,
+        .doc > ol {
+          padding-left: 14px;
+        }
+        .block,
+        .callout,
+        table,
+        .table-wrap,
+        .checklist,
+        .toc {
+          margin-left: 0;
+          margin-right: 0;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="doc">
+      <div class="doc-header">
+        <span class="eyebrow"
+          >ConstructPro ERP · frontend repo · Person 2 (Minindu)</span
+        >
+        <h1>Sprint 6 — Frontend Build Guide</h1>
+        <p class="subtitle">
+          Quotation Generation UI &amp; Project Conversion UI — wiring the
+          Sprint 6 backend (quotation-service) into the Next.js dashboard.
+        </p>
+      </div>
+      <div class="meta-row">
+        <span class="meta-chip">repo: frontend</span>
+        <span class="meta-chip">base branch: develop</span>
+        <span class="meta-chip"
+          >stack: Next.js 16 App Router · Redux Toolkit · Tailwind v4</span
+        >
+        <span class="meta-chip">covers: UC-03 / FR-003 · UC-04 / FR-004</span>
+      </div>
+
+      <div class="toc">
+        <div class="toc-title">On this page</div>
+        <ol>
+          <li>
+            <a href="#read-first"
+              >Read this first — what I found in your repo</a
+            >
+          </li>
+          <li><a href="#own">What you own on the frontend (two issues)</a></li>
+          <li><a href="#orientation">Step 0 — orientation prompt</a></li>
+          <li><a href="#issue-1">Issue #1 — Quotation Generation UI</a></li>
+          <li>
+            <a href="#issue-2"
+              >Issue #2 — Quotation Approval &amp; Project Conversion UI</a
+            >
+          </li>
+          <li><a href="#fixit">Fix-it prompts</a></li>
+          <li><a href="#demo">Demo script</a></li>
+          <li><a href="#dod">Final Definition-of-Done checklist</a></li>
+        </ol>
+      </div>
+
+      <h2 id="read-first"><span class="h2-index">01</span>Read this first</h2>
+      <p>
+        I read your actual <code>frontend</code> repo before writing any of this
+        (not just the backend PDFs), because the prompts below only work if they
+        match your real files. Four things are different from the backend
+        guide's assumptions:
+      </p>
+
+      <div class="callout">
+        <span class="callout-label">Finding — no list endpoints yet</span>
+        <p>
+          The backend Sprint 6 guide only built <code>POST /quotations</code>,
+          <code>GET /quotations/:id</code>, and
+          <code>PATCH /quotations/:id/approve</code>. There is no
+          <code>GET /quotations</code> (list) or
+          <code>GET /projects</code> (list) endpoint documented anywhere. Both
+          issues below are scoped around that reality instead of pretending a
+          list endpoint exists.
+        </p>
+      </div>
+
+      <div class="callout">
+        <span class="callout-label"
+          >Finding — one established UI pattern to copy</span
+        >
+        <p>
+          <code
+            >src/components/dashboard/finance/FinanceDashboardClient.tsx</code
+          >
+          + <code>financeUtils.ts</code> is the only fully-built dashboard
+          feature in the repo (Quotations, Projects, Leads are still
+          <code>DashboardPlaceholderPage</code> stubs). It already solves: a
+          5-state loading machine (loading / ready / empty / unavailable /
+          error), a preview-data fallback when the API is down, form validation,
+          and calling <code>apiClient</code> from <code>@/lib/axios</code>. Both
+          prompts below tell Claude Code to mirror this file exactly rather than
+          inventing a new pattern.
+        </p>
+      </div>
+
+      <div class="callout">
+        <span class="callout-label"
+          >Finding — no frontend RBAC pattern exists yet</span
+        >
+        <p>
+          <code>src/types/auth.ts</code> types <code>User.role</code> as
+          <code>"ADMIN" | "MANAGER" | "CLIENT"</code> — coarser than the
+          backend's seeded roles (<code>SALES_MANAGER</code>,
+          <code>PROJECT_MANAGER</code>, <code>ACCOUNTANT</code>,
+          <code>CLIENT_PORTAL_USER</code>). No existing dashboard page hides
+          actions by role today. Confirm with your backend teammate what role
+          string the JWT actually puts in <code>/auth/me</code> before wiring
+          any client-side show/hide logic — otherwise a button that should show
+          for Sales Manager may never appear.
+        </p>
+      </div>
+
+      <div class="callout">
+        <span class="callout-label"
+          >Finding — tests are source-inspection, not rendered</span
+        >
+        <p>
+          <code>npm run test</code> runs Node's built-in test runner (<code
+            >node --test</code
+          >) against <code>test/*.test.mjs</code>. There is no jsdom or React
+          Testing Library installed. Existing tests (e.g.
+          <code>test/finance-dashboard.test.mjs</code>) read the raw
+          <code>.tsx</code>/<code>.ts</code> source with
+          <code>readFileSync</code> and assert with regex — they check that
+          certain strings, endpoints, and copy exist in the file, not that the
+          component renders correctly in a browser. Every prompt below tells
+          Claude Code to follow that exact convention.
+        </p>
+      </div>
+
+      <h2 id="own">
+        <span class="h2-index">02</span>What you own (two issues)
+      </h2>
+      <p>
+        Same split as your backend Sprint 6 slice — you're building the UI for
+        the same two use cases you already shipped the API for.
+      </p>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Issue</th>
+              <th>Title</th>
+              <th>Use case</th>
+              <th>Backend dependency</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="mono">#1</td>
+              <td>Quotation Generation UI</td>
+              <td>UC-03</td>
+              <td>
+                <code>POST /quotations</code>, <code>GET /quotations/:id</code>
+              </td>
+            </tr>
+            <tr>
+              <td class="mono">#2</td>
+              <td>Quotation Approval &amp; Project Conversion UI</td>
+              <td>UC-04</td>
+              <td><code>PATCH /quotations/:id/approve</code></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Not your job (don't let Claude Code wander into these)</h3>
+      <ul>
+        <li>
+          <strong>A full Leads list/detail UI</strong> (UC-02) — the Leads page
+          is a placeholder owned by whoever builds CRM. You only need a way to
+          pick a lead id (a lightweight lead picker, or a manual id field if no
+          leads endpoint is reachable yet) — do not build lead creation/editing.
+        </li>
+        <li>
+          <strong>A full Projects dashboard</strong> (UC-05 milestones/tasks) —
+          Issue #2 only needs to display the <code>projectId</code>/status the
+          approve response returns. The Projects list page stays a placeholder;
+          that's a separate, later issue.
+        </li>
+        <li>
+          <strong>Payments/invoices UI</strong> — already built in Finance;
+          don't touch it except to copy its pattern.
+        </li>
+        <li>
+          <strong>PDF rendering</strong> — you only open the
+          <code>pdfUrl</code> the backend already generated, the same way
+          <code>FinanceDashboardClient.tsx</code> opens invoice PDFs.
+        </li>
+      </ul>
+
+      <h2 id="orientation">
+        <span class="h2-index">03</span>Step 0 — orientation prompt
+      </h2>
+      <p>
+        Run this once at the start of your Claude Code session, before either
+        master prompt. It makes Claude Code re-confirm the current state of the
+        files I just described, in case anything has changed since this guide
+        was written.
+      </p>
+
+      <div class="block block--prompt">
+        <div class="block-bar">
+          <span class="dot"></span>Prompt — paste once at the start of the
+          session
+        </div>
+        <div class="block-body">
+          <pre>
+I'm working in the ConstructPro ERP frontend repo (Next.js 16 App Router,
+Redux Toolkit, Tailwind v4, apiClient wrapping axios). Before writing any
+feature code, explore and report back:
+
+1. Read src/lib/axios.ts and src/types/api.ts — confirm the apiClient
+   methods (get/post/patch/put/del) and the ApiResponse&lt;T&gt; envelope shape.
+2. Read src/components/dashboard/finance/FinanceDashboardClient.tsx and
+   financeUtils.ts in full — this is the pattern (state machine, preview
+   fallback, validation, apiClient calls) every new dashboard feature
+   should copy.
+3. Read src/app/dashboard/quotations/page.tsx and
+   src/app/dashboard/projects/page.tsx — confirm they still render
+   DashboardPlaceholderPage.
+4. Read src/types/auth.ts and src/store/slices/authSlice.ts — confirm the
+   current User.role type and how the logged-in user is read from Redux.
+5. Read one existing test, test/finance-dashboard.test.mjs, and confirm
+   npm run test still runs node's built-in test runner against
+   test/*.test.mjs using readFileSync + regex assertions (not
+   React Testing Library).
+6. Confirm whether a GET /quotations (list) or GET /projects (list)
+   endpoint has been added anywhere since this guide was written
+   (check any OpenAPI/Postman docs or README in the repo).
+
+Do NOT write feature code yet. Just report what you find and flag
+anything that's changed from what I described.</pre
+          >
+        </div>
+      </div>
+
+      <hr />
+
+      <h2 id="issue-1">
+        <span class="h2-index">04</span>Issue #1 — Quotation Generation UI
+      </h2>
+
+      <h3>GitHub issue — copy into a new issue</h3>
+      <p>
+        Adjust the title prefix to match whatever ticket convention your team
+        actually uses in this repo — I couldn't find a "[CP-N]" or "[DDP-N]"
+        style prefix in this repo's history the way the backend repo uses, so I
+        left it plain. Branch names in this repo are just
+        <code>feature/&lt;issue-number&gt;-&lt;slug&gt;</code> (confirmed from
+        <code>git branch -a</code>), so replace <code>#NN</code> below with the
+        real number GitHub assigns.
+      </p>
+
+      <div class="block block--issue">
+        <div class="block-bar"><span class="dot"></span>Issue body</div>
+        <div class="block-body">
+          <pre>
+Title: Quotation Generation UI (UC-03 / FR-003)
+
+Labels: epic:quotation, epic:frontend, feat
+Sprint: Sprint 6
+Estimate: 8 hours
+
+## User Story
+As a Sales Manager, I want to generate a priced quotation from a lead
+directly in the dashboard, so I don't need Postman to use the
+quotation-service the backend team built this sprint.
+
+## Background / Context
+- SRS Reference: FR-003 (Generate Quotations), UC-03
+- Backend dependency: quotation-service exposes POST /quotations and
+  GET /quotations/:id (Sprint 6 backend Issue #1). Confirm that branch
+  is merged/deployed to an environment this frontend can reach before
+  you start.
+- Pattern to copy: src/components/dashboard/finance/FinanceDashboardClient.tsx
+  and financeUtils.ts — same 5-state loading machine, same apiClient
+  usage, same preview-data fallback for when the API is unreachable.
+
+## Acceptance Criteria
+
+### AC1: Happy path
+Given a lead id and one or more line items (name, quantity, unit price)
+When the Sales Manager submits the quotation form
+Then POST /quotations fires with the raw items (no client-computed total)
+  and the response quotation renders with its server-computed totalAmount
+  and a PENDING_APPROVAL status badge
+  and a success banner confirms the quotation was created
+
+### AC2: Client-side validation
+Given the items list is empty or a required field is missing
+When the Sales Manager tries to submit
+Then the form shows inline field errors and does NOT call the API
+  (mirror validateFinancePaymentForm's approach in financeUtils.ts)
+
+### AC3: Server validation surfaces cleanly
+Given the backend still returns 400 VALIDATION_ERROR for some case the
+  client didn't catch
+When the response arrives
+Then the form shows a dismissible error banner with the backend message,
+  the form values are NOT cleared, and nothing crashes
+
+### AC4: Lead not found
+Given a leadId that the backend returns 404 LEAD_NOT_FOUND for
+When the Sales Manager submits
+Then a friendly "Lead not found" banner is shown and the form stays filled in
+
+### AC5: Loading / empty / unavailable states
+Given the quotation-service is unreachable
+When the page loads
+Then it shows a preview/mock fallback panel with a clear "not live" message,
+  exactly like FinanceDashboardClient's "unavailable" state — the page
+  must still be demoable if the backend is down
+
+### AC6: PDF link (best-effort)
+Given a returned quotation has a non-null pdfUrl
+When it renders
+Then a "View PDF" button opens it in a new tab; if pdfUrl is null, show
+  "Preparing PDF..." instead (no polling required this issue)
+
+## Technical Notes
+- New files: src/types/quotation.ts, src/components/dashboard/quotations/
+  QuotationsDashboardClient.tsx, src/components/dashboard/quotations/
+  quotationUtils.ts. Update src/app/dashboard/quotations/page.tsx to
+  render QuotationsDashboardClient instead of DashboardPlaceholderPage
+  (drop the DashboardPlaceholderPage import entirely — a test checks for
+  its absence, the same way test/finance-dashboard.test.mjs does for
+  Finance).
+- Use apiClient from @/lib/axios exclusively — never call axios directly,
+  never hardcode a base URL.
+- No GET /quotations (list) endpoint exists yet. Do not invent one. Keep
+  a "quotations created this session" list in local component state for
+  the results panel, and note in the PR description that a real list
+  endpoint is a backend fast-follow ask.
+- No confirmed GET /leads endpoint either (Leads page is still a
+  placeholder). Use a simple lead-id text input for this issue unless a
+  leads endpoint is already reachable — don't block on building lead
+  search.
+- Money formatting: mirror the Intl.NumberFormat helper style in
+  financeUtils.ts (formatCurrency), never string-concatenate totals.
+- RBAC: this is the first client-side role-gated action in the repo.
+  Keep it minimal — a single canCreateQuotation(user) helper in
+  quotationUtils.ts, checked via useSelector on the auth slice. Confirm
+  the real JWT role string with your backend teammate first (see the
+  callout in the build guide) rather than guessing.
+
+## Definition of Done
+- [ ] All AC verified true
+- [ ] npm run lint, npm run format:check, npm run test, npm run build all green
+- [ ] No hardcoded API URLs or secrets
+- [ ] PR raised against develop; at least 1 peer review; CI green
+- [ ] CHANGELOG.md updated under [Unreleased]
+- [ ] Issue linked in commit (Closes #&lt;this-issue&gt;)
+
+## Estimate
+8 hours
+
+## Dependencies
+Blocked by: backend Sprint 6 Issue #1 (POST /quotations, GET /quotations/:id)
+reachable from this frontend's NEXT_PUBLIC_API_URL.</pre
+          >
+        </div>
+      </div>
+
+      <h3>Branch</h3>
+      <div class="block block--terminal">
+        <div class="block-bar"><span class="dot"></span>Terminal</div>
+        <div class="block-body">
+          <pre>
+git checkout develop
+git pull origin develop
+git checkout -b feature/NN-quotation-generation-ui</pre
+          >
+        </div>
+      </div>
+
+      <h3>Claude Code master prompt</h3>
+      <p>
+        Paste this after the orientation prompt has finished and you've replaced
+        <code>#NN</code>/branch name if needed.
+      </p>
+
+      <div class="block block--prompt">
+        <div class="block-bar">
+          <span class="dot"></span>Prompt — build Issue #1
+        </div>
+        <div class="block-body">
+          <pre>
+We are implementing GitHub issue #NN "Quotation Generation UI" (UC-03,
+FR-003) in the ConstructPro ERP frontend (Next.js 16 App Router). Work in
+small steps and STOP after each for my review. Mirror the existing Finance
+dashboard pattern exactly — do not invent a different state machine,
+folder layout, or styling approach.
+
+Branch: feature/NN-quotation-generation-ui (already checked out).
+
+Step 1 - Types
+- Read src/types/finance.ts as a style reference, then create
+  src/types/quotation.ts with:
+  - QuotationStatus = "DRAFT" | "PENDING_APPROVAL" | "APPROVED" | "REJECTED"
+    | "CONVERTED"
+  - QuotationItemInput { itemName: string; quantity: number; unitPrice: number }
+  - QuotationItem extends QuotationItemInput with { id: string; amount: number }
+  - Quotation { id; leadId; quotationDate; status: QuotationStatus;
+    totalAmount: number; pdfUrl: string | null; notes: string | null;
+    projectId: string | null; items: QuotationItem[] }
+  - QuotationFormValues { leadId: string; notes: string;
+    items: QuotationItemInput[] }
+  - QuotationFormErrors matching the shape validateFinancePaymentForm uses
+- Show me the file and STOP.
+
+Step 2 - quotationUtils.ts
+- Create src/components/dashboard/quotations/quotationUtils.ts. Read
+  financeUtils.ts first and mirror its shape:
+  - createQuotationFormValues() -> empty form with one blank item row
+  - validateQuotationForm(values): returns field errors - leadId required,
+    at least 1 item, each item needs a non-empty itemName, quantity &gt; 0,
+    unitPrice &gt;= 0
+  - normalizeQuotations(payload): unknown -&gt; Quotation[] (defensive parsing,
+    same defensive style as normalizeInvoices)
+  - isQuotationUnavailableError(error): same shape as
+    isFinanceUnavailableError - detect network/5xx/404-on-missing-service
+    so we can fall back to preview data
+  - quotationPreviewList: Quotation[] - 2-3 realistic fake quotations for
+    the "service unavailable" demo state
+  - formatCurrency / formatDate - reuse the exact same Intl formatting
+    financeUtils.ts uses, do not reimplement differently
+  - canCreateQuotation(role: string | undefined): boolean - minimal RBAC
+    helper. For now, treat "ADMIN" and "MANAGER" (the two roles that exist
+    on User.role today) as allowed; add a code comment flagging that this
+    must be revisited once we confirm the real JWT role string with the
+    backend team (it may be SALES_MANAGER, not MANAGER).
+- Show me the file and STOP.
+
+Step 3 - QuotationsDashboardClient.tsx (list/create panel)
+- Read FinanceDashboardClient.tsx fully first, then create
+  src/components/dashboard/quotations/QuotationsDashboardClient.tsx
+  following the exact same shape:
+  - "use client" component with the same
+    loading | ready | empty | unavailable | error state union (adapted to
+    quotations instead of invoices)
+  - useEffect on mount: no list endpoint exists, so start in an "empty"
+    state with a clear message ("No quotations created in this session
+    yet - generate one below.") rather than calling a fake list endpoint
+  - A creation form (leadId input, notes textarea, dynamic item rows with
+    add/remove) using quotationUtils validation - on submit, call
+    apiClient.post&lt;Quotation&gt;("/quotations", { leadId, notes, items })
+  - On success: append the returned quotation to local state, show a
+    success banner, and call
+    apiClient.get&lt;Quotation&gt;(`/quotations/${id}`) to demonstrate the
+    read path is wired (store the refreshed copy)
+  - On failure: branch on ApiError.code - "VALIDATION_ERROR" -&gt; form
+    banner; "LEAD_NOT_FOUND" -&gt; form banner with that specific copy; use
+    isQuotationUnavailableError to decide whether to fall back to
+    quotationPreviewList with an "unavailable" banner, same UX as Finance
+  - Render each session-created quotation as a card: status badge,
+    totalAmount via formatCurrency, item table, and a "View PDF" button
+    that's disabled with "Preparing PDF..." copy when pdfUrl is null
+  - Gate the creation form behind canCreateQuotation(user?.role) - read
+    the current user via useSelector((state: RootState) =&gt; state.auth.user)
+    the same way you saw AuthProvider.tsx read auth state
+  - Use only Tailwind classes and the design tokens already used in
+    FinanceDashboardClient.tsx (on-background, surface-container-lowest,
+    primary, error, risk-low/medium, etc.) - do not introduce new colors
+- Show me the file and STOP.
+
+Step 4 - Wire the page
+- Update src/app/dashboard/quotations/page.tsx to render
+  QuotationsDashboardClient instead of DashboardPlaceholderPage. Remove
+  the DashboardPlaceholderPage import entirely. Keep the existing
+  metadata export.
+- Show me the diff and STOP.
+
+Step 5 - Sanity check
+- Run npm run lint, npm run format:check, and npm run build. Fix anything
+  red. Show me the results and STOP.
+
+Step 6 - Wrap up
+- Update CHANGELOG.md under [Unreleased].
+- Give me suggested Conventional Commit messages (with "Refs #NN" /
+  "Closes #NN"), but do NOT push - I will review first.</pre
+          >
+        </div>
+      </div>
+
+      <h3>Commit messages</h3>
+      <div class="block block--commit">
+        <div class="block-bar"><span class="dot"></span>Commit 1</div>
+        <div class="block-body">
+          <pre>
+git add src/types/quotation.ts src/components/dashboard/quotations/quotationUtils.ts
+
+git commit -m "feat(quotation): add quotation types and dashboard utils
+
+Adds Quotation/QuotationItem/QuotationFormValues types and
+quotationUtils.ts (validation, normalization, preview fallback,
+minimal role gate) mirroring the finance dashboard pattern.
+
+Refs #NN"</pre
+          >
+        </div>
+      </div>
+      <div class="block block--commit">
+        <div class="block-bar"><span class="dot"></span>Commit 2</div>
+        <div class="block-body">
+          <pre>
+git add src/components/dashboard/quotations/QuotationsDashboardClient.tsx src/app/dashboard/quotations/page.tsx
+
+git commit -m "feat(quotation): implement quotation generation UI (UC-03)
+
+Replaces the quotations placeholder with a live dashboard: create a
+quotation from a lead id and line items, view server-computed totals,
+handle validation/lead-not-found/unavailable states, and open the
+generated PDF once available.
+
+Closes #NN"</pre
+          >
+        </div>
+      </div>
+
+      <h3>Pull request</h3>
+      <div class="block block--terminal">
+        <div class="block-bar"><span class="dot"></span>Terminal</div>
+        <div class="block-body">
+          <pre>
+git push origin feature/NN-quotation-generation-ui
+# GitHub -&gt; Pull Requests -&gt; New pull request -&gt; base: develop</pre
+          >
+        </div>
+      </div>
+      <div class="block block--pr">
+        <div class="block-bar"><span class="dot"></span>PR description</div>
+        <div class="block-body">
+          <pre>
+## What this PR does
+Adds the Quotation Generation UI (UC-03, FR-003), replacing the
+quotations placeholder route with a working dashboard that calls the
+Sprint 6 quotation-service.
+
+## What was built
+- src/types/quotation.ts - Quotation/QuotationItem/form types
+- src/components/dashboard/quotations/quotationUtils.ts - validation,
+  normalization, preview fallback, formatCurrency/formatDate, a minimal
+  canCreateQuotation(role) gate
+- src/components/dashboard/quotations/QuotationsDashboardClient.tsx -
+  create-quotation form + session results list, following the Finance
+  dashboard's loading/ready/empty/unavailable/error pattern
+- src/app/dashboard/quotations/page.tsx now renders the client component
+
+## Known gaps (flagged, not hidden)
+- No GET /quotations list endpoint exists on the backend yet - this page
+  only shows quotations created during the current browser session.
+  Requesting a paginated list endpoint as a backend fast-follow.
+- No GET /leads endpoint confirmed reachable yet - lead selection is a
+  plain id input until the Leads UI/endpoint exists.
+- Role gate treats "ADMIN"/"MANAGER" as allowed; the real JWT role string
+  should be confirmed with the backend team (may be SALES_MANAGER).
+
+## How to verify
+1. Set NEXT_PUBLIC_API_URL to a running quotation-service
+2. npm run dev, open /dashboard/quotations
+3. Submit with empty items -&gt; inline validation, no network call
+4. Submit with a valid lead id + items -&gt; quotation card appears with
+   server-computed total and PENDING_APPROVAL badge
+5. Stop the backend -&gt; reload -&gt; unavailable-state preview appears
+
+## Checklist
+- [x] Lint, format check, build, and node --test all pass locally
+- [x] No hardcoded API URLs or secrets
+- [x] CHANGELOG.md updated under [Unreleased]
+
+Closes #NN</pre
+          >
+        </div>
+      </div>
+
+      <hr />
+
+      <h2 id="issue-2">
+        <span class="h2-index">05</span>Issue #2 — Quotation Approval &amp;
+        Project Conversion UI
+      </h2>
+
+      <div class="callout">
+        <span class="callout-label">Sequencing</span>
+        <p>
+          Branch this off Issue #1's branch if it isn't merged to
+          <code>develop</code> yet, the same way the backend guide told you to
+          branch #2 off #1 if needed. Don't rebuild the quotation card from
+          scratch — extend it.
+        </p>
+      </div>
+
+      <h3>GitHub issue — copy into a new issue</h3>
+      <div class="block block--issue">
+        <div class="block-bar"><span class="dot"></span>Issue body</div>
+        <div class="block-body">
+          <pre>
+Title: Quotation Approval &amp; Project Conversion UI (UC-04 / FR-004)
+
+Labels: epic:quotation, epic:frontend, feat
+Sprint: Sprint 6
+Estimate: 6 hours
+
+## User Story
+As a Manager, I want to approve a quotation and see the project it
+creates, right from the quotation card, so I don't have to switch to
+Postman to convert an approved quote into a project.
+
+## Background / Context
+- SRS Reference: FR-004 (Quotation converts into Project), UC-04,
+  Business Rule 10.2 (approval before conversion)
+- Backend dependency: PATCH /quotations/:id/approve (Sprint 6 backend
+  Issue #2). Confirm it's deployed and reachable before you start.
+- Builds directly on Issue #1's QuotationsDashboardClient.tsx - do not
+  create a separate page or duplicate the quotation card.
+
+## Acceptance Criteria
+
+### AC1: Happy path
+Given a quotation card with status PENDING_APPROVAL
+When the Manager clicks "Approve &amp; Convert to Project"
+Then PATCH /quotations/:id/approve fires
+  and on success the card's status updates to CONVERTED
+  and the returned projectId renders inline ("Project &lt;id&gt; created")
+  and a success banner confirms the conversion
+
+### AC2: Business Rule 10.2 - rejected quotations
+Given a quotation's status is REJECTED
+When the card renders
+Then the approve button is disabled/hidden with a tooltip or inline note
+  explaining why, matching the backend's 400 QUOTATION_REJECTED
+
+### AC3: Idempotency - no double conversion
+Given a quotation is already CONVERTED
+When the card renders
+Then the approve button is disabled/hidden (optimistic UI, no server
+  round-trip needed to know this)
+  and if a stale 409 ALREADY_CONVERTED still comes back from a race, it
+  is shown as an informational banner, not an error banner - the UI
+  must not tell the user something failed when the quotation was, in
+  fact, already converted successfully
+
+### AC4: Downstream failure is recoverable
+Given the PATCH call returns a 502 (project-service unavailable)
+When the Manager tries to convert
+Then a retryable error banner appears, the quotation card stays in its
+  pre-conversion visual state, and the Manager can click the button
+  again without side effects
+
+### AC5: RBAC
+Given the user's role is not one of the roles allowed to approve
+When the card renders
+Then the approve button is hidden entirely (not just disabled) - reuse
+  and extend the same minimal role-gate helper from Issue #1 rather
+  than writing a second one
+
+## Technical Notes
+- Extend QuotationsDashboardClient.tsx (or split out a
+  QuotationCard.tsx if the file is getting long - Claude Code's call,
+  confirm with me before splitting).
+- No GET /projects list endpoint exists. Do not build a Projects
+  dashboard in this issue - only render the projectId/status the PATCH
+  response already returns. The Projects page stays a placeholder.
+- Reuse quotationUtils.ts from Issue #1; add
+  canApproveQuotation(role) alongside canCreateQuotation(role) rather
+  than inventing a generic permissions framework.
+
+## Definition of Done
+- [ ] All AC verified true
+- [ ] npm run lint, npm run format:check, npm run test, npm run build all green
+- [ ] PR raised against develop; at least 1 peer review; CI green
+- [ ] CHANGELOG.md updated under [Unreleased]
+- [ ] Issue linked in commit (Closes #&lt;this-issue&gt;)
+
+## Estimate
+6 hours
+
+## Dependencies
+Blocked by: backend Sprint 6 Issue #2 (PATCH /quotations/:id/approve)
+reachable from this frontend.
+Blocked by: frontend Issue #1 (Quotation Generation UI) merged, or
+branched directly off its feature branch.</pre
+          >
+        </div>
+      </div>
+
+      <h3>Branch</h3>
+      <div class="block block--terminal">
+        <div class="block-bar"><span class="dot"></span>Terminal</div>
+        <div class="block-body">
+          <pre>
+# If Issue #1's branch is already merged to develop:
+git checkout develop
+git pull origin develop
+git checkout -b feature/NN-quotation-approval-ui
+
+# If Issue #1 is NOT merged yet, branch off it instead:
+git checkout feature/NN-quotation-generation-ui
+git pull origin feature/NN-quotation-generation-ui
+git checkout -b feature/NN-quotation-approval-ui</pre
+          >
+        </div>
+      </div>
+
+      <h3>Claude Code master prompt</h3>
+      <div class="block block--prompt">
+        <div class="block-bar">
+          <span class="dot"></span>Prompt — build Issue #2
+        </div>
+        <div class="block-body">
+          <pre>
+We are implementing GitHub issue #NN "Quotation Approval &amp; Project
+Conversion UI" (UC-04, FR-004, Business Rule 10.2) in the ConstructPro
+ERP frontend. This extends the QuotationsDashboardClient.tsx built in
+Issue #1. Work in small steps and STOP after each for my review.
+
+Step 1 - Utils
+- In src/components/dashboard/quotations/quotationUtils.ts, add
+  canApproveQuotation(role: string | undefined): boolean next to
+  canCreateQuotation - same minimal ADMIN/MANAGER check for now, same
+  "confirm the real JWT role string" comment.
+- Add a small helper isAlreadyConvertedError(error) that checks
+  ApiError.code === "ALREADY_CONVERTED" (or statusCode === 409) so the
+  component can treat it as informational, not an error.
+- Show me the diff and STOP.
+
+Step 2 - Approve action on the quotation card
+- In QuotationsDashboardClient.tsx (or a new QuotationCard.tsx if you
+  split it - ask me first), for each rendered quotation:
+  - Show "Approve &amp; Convert to Project" only when
+    canApproveQuotation(user?.role) is true AND status is
+    PENDING_APPROVAL or APPROVED (not REJECTED, not CONVERTED)
+  - On click: call
+    apiClient.patch&lt;Quotation&gt;(`/quotations/${id}/approve`)
+    with a per-card isApproving loading flag (disable the button, show
+    a spinner, same visual language as isSubmittingPayment in
+    FinanceDashboardClient.tsx)
+  - On success: replace that quotation in local state with the response
+    (status CONVERTED, projectId populated), show a success banner
+    with the projectId, e.g. "Project abc-123 created."
+  - On error:
+    - isAlreadyConvertedError -&gt; treat as success-adjacent: refresh the
+      card to show CONVERTED and an informational banner ("This
+      quotation was already converted."), NOT an error banner
+    - code === "QUOTATION_REJECTED" -&gt; error banner explaining the
+      quotation was rejected and cannot be converted
+    - anything else (e.g. 502) -&gt; retryable error banner, leave the
+      card's status untouched so the Manager can click Approve again
+  - When status is REJECTED, render a disabled button (or no button)
+    with inline copy explaining why, instead of just omitting it
+    silently
+- Show me the diff and STOP.
+
+Step 3 - Sanity check
+- Run npm run lint, npm run format:check, and npm run build. Fix
+  anything red. Show me the results and STOP.
+
+Step 4 - Wrap up
+- Update CHANGELOG.md under [Unreleased].
+- Give me suggested Conventional Commit messages (Closes #NN). Do NOT
+  push yet.</pre
+          >
+        </div>
+      </div>
+
+      <h3>Commit messages</h3>
+      <div class="block block--commit">
+        <div class="block-bar"><span class="dot"></span>Commit</div>
+        <div class="block-body">
+          <pre>
+git add src/components/dashboard/quotations/QuotationsDashboardClient.tsx src/components/dashboard/quotations/quotationUtils.ts
+
+git commit -m "feat(quotation): add approve and convert-to-project action (UC-04)
+
+Adds an Approve &amp; Convert to Project action to the quotation card.
+Handles the happy path (status -&gt; CONVERTED, projectId shown), the
+BR-10.2 rejected-quotation guard, the 409 already-converted case as an
+informational (not error) state, and a retryable banner for downstream
+502s from the project service.
+
+Closes #NN"</pre
+          >
+        </div>
+      </div>
+
+      <h3>Pull request</h3>
+      <div class="block block--terminal">
+        <div class="block-bar"><span class="dot"></span>Terminal</div>
+        <div class="block-body">
+          <pre>
+git push origin feature/NN-quotation-approval-ui
+# GitHub -&gt; Pull Requests -&gt; New pull request -&gt; base: develop</pre
+          >
+        </div>
+      </div>
+      <div class="block block--pr">
+        <div class="block-bar"><span class="dot"></span>PR description</div>
+        <div class="block-body">
+          <pre>
+## What this PR does
+Adds the Quotation Approval &amp; Project Conversion UI (UC-04, FR-004),
+extending the quotation card built in Issue #1 with an approve action
+wired to PATCH /quotations/:id/approve.
+
+## What was built
+- Approve &amp; Convert to Project button, gated by canApproveQuotation(role)
+  and only shown for PENDING_APPROVAL/APPROVED quotations
+- Success path shows CONVERTED status + the created projectId inline
+- BR-10.2: REJECTED quotations show a disabled state with an explanation
+- 409 ALREADY_CONVERTED is treated as informational, not an error, to
+  make double-clicks and retries safe
+- 502 (project-service down) shows a retryable banner without corrupting
+  the card's state
+
+## Known gaps (flagged, not hidden)
+- No Projects dashboard is built here - only the projectId/status from
+  the approve response is shown. Full Projects listing is separate scope.
+- Role gate is still the provisional ADMIN/MANAGER check from Issue #1;
+  needs revisiting once real JWT role strings are confirmed.
+
+## How to verify
+1. Create a quotation (Issue #1 flow) so it's PENDING_APPROVAL
+2. Click Approve &amp; Convert -&gt; status flips to CONVERTED, projectId shown
+3. Click Approve again on the same card -&gt; informational banner, not an
+   error, and no duplicate project is implied
+4. Stop the project-service (or point PROJECT_SERVICE_URL at nothing) -&gt;
+   click Approve -&gt; retryable error banner, card unchanged
+
+## Checklist
+- [x] Lint, format check, build, and node --test all pass locally
+- [x] BR-10.2 and idempotency behavior manually verified against a real
+      or stubbed quotation-service
+- [x] CHANGELOG.md updated under [Unreleased]
+
+Closes #NN</pre
+          >
+        </div>
+      </div>
+
+      <hr />
+
+      <h2 id="fixit"><span class="h2-index">06</span>Fix-it prompts</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>If this happens…</th>
+              <th>Paste this</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Approve button shows for the wrong role</td>
+              <td class="mono">
+                "Log the actual role string on res.data from GET /auth/me for my
+                test user, compare it against
+                canApproveQuotation/canCreateQuotation, and fix the check to
+                match exactly what the backend sends - don't guess."
+              </td>
+            </tr>
+            <tr>
+              <td>A 409 is being shown as a red error banner</td>
+              <td class="mono">
+                "The ALREADY_CONVERTED case is rendering as an error. Trace
+                where isAlreadyConvertedError is checked in the catch block and
+                fix the branch order so it's checked before the generic error
+                fallback."
+              </td>
+            </tr>
+            <tr>
+              <td>node --test fails after adding a new component</td>
+              <td class="mono">
+                "Run npm run test and show me the failure. These tests do
+                readFileSync + regex against source files, not real rendering -
+                tell me which string/pattern the test expected and reconcile the
+                component source with it."
+              </td>
+            </tr>
+            <tr>
+              <td>Claude Code invents a new color/spacing scale</td>
+              <td class="mono">
+                "This doesn't match FinanceDashboardClient.tsx's Tailwind
+                classes. Show me that file's className patterns again and
+                refactor to reuse the same tokens (on-background,
+                surface-container-lowest, primary, error, risk-low/medium)."
+              </td>
+            </tr>
+            <tr>
+              <td>Money renders as a raw float</td>
+              <td class="mono">
+                "Totals are printing as raw numbers. Use the same formatCurrency
+                (Intl.NumberFormat) helper style as financeUtils.ts, don't
+                format money any other way."
+              </td>
+            </tr>
+            <tr>
+              <td>Build fails on NEXT_PUBLIC_API_URL</td>
+              <td class="mono">
+                "npm run build is failing with: &lt;paste&gt;. Check .env.local
+                / .env.example for NEXT_PUBLIC_API_URL and tell me the safe fix
+                - do not hardcode a URL into the source."
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2 id="demo"><span class="h2-index">07</span>Demo script</h2>
+      <p>
+        A short walkthrough for sprint review, same idea as the backend guide's
+        demo script but for the browser instead of Postman.
+      </p>
+      <div class="block block--prompt">
+        <div class="block-bar">
+          <span class="dot"></span>Prompt — generate a run sheet
+        </div>
+        <div class="block-body">
+          <pre>
+Create a step-by-step demo run sheet for my Sprint Review proving both
+frontend issues end to end in the browser. For each step, tell me what
+to click, what role to be logged in as, and what to point at on screen
+(status badge, banner copy, the projectId appearing). Cover: submitting
+an invalid form, generating a valid quotation, viewing its PDF link,
+approving it into a project, and clicking approve a second time to show
+the idempotent 409 handling.</pre
+          >
+        </div>
+      </div>
+
+      <h2 id="dod">
+        <span class="h2-index">08</span>Final Definition-of-Done checklist
+      </h2>
+      <ul class="checklist">
+        <li>
+          Both GitHub issues created with real numbers, replacing every
+          <code>#NN</code>
+        </li>
+        <li>
+          Orientation prompt run and its findings reconciled with this guide
+          before either master prompt
+        </li>
+        <li>
+          <code>feature/NN-quotation-generation-ui</code> and
+          <code>feature/NN-quotation-approval-ui</code> branches created from
+          <code>develop</code>
+        </li>
+        <li>
+          Quotations page renders <code>QuotationsDashboardClient</code>, no
+          <code>DashboardPlaceholderPage</code> import remains
+        </li>
+        <li>
+          Approve action handles happy path, BR-10.2 rejection, 409 idempotency,
+          and 502 downstream failure
+        </li>
+        <li>
+          Role gate implemented, flagged in both PRs as provisional pending real
+          JWT role confirmation
+        </li>
+        <li>
+          <code>npm run lint</code>, <code>format:check</code>,
+          <code>test</code>, and <code>build</code> all green locally and in CI
+        </li>
+        <li>
+          Two PRs opened against <code>develop</code>, each with
+          <code>Closes #NN</code>
+        </li>
+        <li>At least 1 peer review per PR, all blocker comments resolved</li>
+        <li>
+          <code>CHANGELOG.md</code> updated under <code>[Unreleased]</code> for
+          both PRs
+        </li>
+      </ul>
+
+      <footer class="doc-footer">
+        ConstructPro ERP · Sprint 6 · frontend repo · Person 2 build guide —
+        companion to the Sprint 6 Frontend Testing Guide.
+      </footer>
+    </div>
+  </body>
+</html>

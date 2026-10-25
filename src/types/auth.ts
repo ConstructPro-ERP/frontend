@@ -1,0 +1,66 @@
+// src/types/auth.ts
+
+export interface User {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  role:
+    | "ADMIN"
+    | "MANAGEMENT"
+    | "MANAGER"
+    | "SALES_MANAGER"
+    | "PROJECT_MANAGER"
+    | "FINANCE"
+    | "ACCOUNTANT"
+    | "CLIENT"
+    | "CLIENT_PORTAL_USER"
+    | "user"
+    | null;
+  avatarUrl?: string;
+}
+
+export interface AuthTokens {
+  accessToken: string;
+  refreshToken: string;
+}
+
+export interface AuthState {
+  user: User | null;
+  isAuthenticated: boolean;
+  isLoading: boolean;
+  error: string | null;
+  sessionVersion: number;
+}
+
+export interface LoginCredentials {
+  email: string;
+  password: string;
+}
+
+export interface RegisterCredentials {
+  username: string;
+  email: string;
+  password: string;
+  roleId: string;
+}
+
+export interface ForgotPasswordPayload {
+  email: string;
+}
+
+export interface AuthResponse {
+  user: User;
+  accessToken: string;
+  refreshToken: string;
+}
+
+export interface LoginResponse {
+  user: {
+    id: string;
+    username: string;
+    email: string;
+  };
+  accessToken: string;
+  refreshToken: string;
+}
