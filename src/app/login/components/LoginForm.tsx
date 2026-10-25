@@ -19,9 +19,10 @@ import AuthInput from "@/components/ui/AuthInput";
 import AuthButton from "@/components/ui/AuthButton";
 import AuthCheckbox from "@/components/ui/AuthCheckbox";
 import apiClient from "@/lib/axios";
-import { setRefreshToken, setAccessToken } from "@/lib/token";
+import { clearTokens, setRefreshToken, setAccessToken } from "@/lib/token";
 import { homePathForRole } from "@/lib/portalAccess";
-import type { AuthResponse } from "@/types/auth";
+import { getVerifiedAuthUser } from "@/services/googleAuth";
+import type { LoginResponse } from "@/types/auth";
 
 const loginSchema = z.object({
   email: z
@@ -54,28 +55,37 @@ export default function LoginForm() {
   const onSubmit = async (data: LoginFormValues) => {
     setServerError(null);
     dispatch(loginStart());
+
     try {
-      const res = await apiClient.post<AuthResponse>("/auth/login", {
+      const res = await apiClient.post<LoginResponse>("/auth/login", {
         email: data.email,
         password: data.password,
       });
 
-      if (res.data.refreshToken) {
-        setRefreshToken(res.data.refreshToken);
-      }
-      if (res.data.accessToken) {
-        setAccessToken(res.data.accessToken);
+      if (!res.success || !res.data?.accessToken || !res.data?.refreshToken) {
+        throw new Error("Unable to start your session. Please try again.");
       }
 
-      dispatch(
-        loginSuccess({
-          user: res.data.user,
-        }),
-      );
-      router.push(homePathForRole(res.data.user?.role));
+      const user = await getVerifiedAuthUser(res.data.accessToken);
+
+      if (user.id !== res.data.user?.id) {
+        throw new Error(
+          "Your account could not be verified. Please try again.",
+        );
+      }
+
+      clearTokens();
+      setAccessToken(res.data.accessToken);
+      setRefreshToken(res.data.refreshToken);
+
+      dispatch(loginSuccess({ user }));
+      router.push(homePathForRole(user.role));
     } catch (err: unknown) {
+      clearTokens();
+
       const message =
         err instanceof Error ? err.message : "Invalid email or password.";
+
       dispatch(loginFailure(message));
       setServerError(message);
     }

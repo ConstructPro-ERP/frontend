@@ -83,6 +83,37 @@ test("callback verifies the new bearer token without refreshing the previous acc
   assert.equal(result.user.avatarUrl, "https://example.com/avatar.png");
 });
 
+test("Google OAuth retrieves the assigned role once before completing login", async () => {
+  let profileRequests = 0;
+
+  const { completeGoogleLogin } = google(async (url, config) => {
+    profileRequests++;
+
+    assert.equal(url, "/auth/me");
+    assert.equal(config.headers.Authorization, "Bearer oauth-access");
+    assert.equal(config.skipAuthRefresh, true);
+
+    return {
+      success: true,
+      data: {
+        id: "admin-1",
+        email: "admin@example.com",
+        fullName: "Admin User",
+        role: "ADMIN",
+      },
+    };
+  });
+
+  const result = await completeGoogleLogin(
+    "#token=oauth-access&refreshToken=oauth-refresh",
+  );
+
+  assert.equal(profileRequests, 1);
+  assert.equal(result.user.id, "admin-1");
+  assert.equal(result.user.firstName, "Admin");
+  assert.equal(result.user.role, "ADMIN");
+});
+
 test("callback fails on invalid profiles and rejected backend responses", async () => {
   for (const response of [{ success: false }, { success: true, data: {} }]) {
     await assert.rejects(

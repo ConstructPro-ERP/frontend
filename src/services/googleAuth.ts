@@ -31,6 +31,22 @@ const profileSchema = z.object({
   avatarUrl: z.string().nullable().optional(),
 });
 
+export async function getVerifiedAuthUser(accessToken: string): Promise<User> {
+  // Verify with the backend before storing credentials or accepting a user.
+  // Never refresh this request with a previous account's refresh token.
+  const response = await apiClient.get<unknown>("/auth/me", {
+    headers: { Authorization: `Bearer ${accessToken}` },
+    skipAuthRefresh: true,
+    timeout: 15000,
+  });
+
+  if (!response.success) {
+    throw new Error("Your account could not be verified. Please try again.");
+  }
+
+  return normalizeAuthUser(response.data);
+}
+
 export function normalizeAuthUser(value: unknown): User {
   const profile = profileSchema.parse(value);
   const names = (profile.fullName ?? profile.username ?? "")
@@ -64,21 +80,15 @@ export async function completeGoogleLogin(hash: string) {
   const accessToken = readGoogleCallbackToken(hash);
   const params = new URLSearchParams(hash.replace(/^#/, ""));
   const refreshTokens = params.getAll("refreshToken");
+
   if (refreshTokens.length !== 1 || !refreshTokens[0].trim()) {
     throw new Error(
       "Google sign-in did not return a refresh token. Please try again.",
     );
   }
+
   const refreshToken = refreshTokens[0];
-  // Verify with the backend before storing credentials or accepting a user.
-  // Never refresh this request with a previous account's refresh token.
-  const response = await apiClient.get<unknown>("/auth/me", {
-    headers: { Authorization: `Bearer ${accessToken}` },
-    skipAuthRefresh: true,
-    timeout: 15000,
-  });
-  if (!response.success) {
-    throw new Error("Google sign-in could not be verified. Please try again.");
-  }
-  return { accessToken, refreshToken, user: normalizeAuthUser(response.data) };
+  const user = await getVerifiedAuthUser(accessToken);
+
+  return { accessToken, refreshToken, user };
 }

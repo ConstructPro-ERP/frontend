@@ -54,3 +54,13 @@ export interface AuthResponse {
   accessToken: string;
   refreshToken: string;
 }
+
+export interface LoginResponse {
+  user: {
+    id: string;
+    username: string;
+    email: string;
+  };
+  accessToken: string;
+  refreshToken: string;
+}
