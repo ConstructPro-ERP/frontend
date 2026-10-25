@@ -17,7 +17,6 @@ import type { RootState } from "@/store";
 
 type DashboardHeaderProps = {
   onOpenSidebar: () => void;
-  isHome?: boolean;
 };
 
 function subscribeClock(listener: () => void) {
@@ -48,7 +47,6 @@ function getPageConfig(pathname: string) {
 
 export default function DashboardHeader({
   onOpenSidebar,
-  isHome,
 }: DashboardHeaderProps) {
   const pathname = usePathname();
   const pageConfig = getPageConfig(pathname);
@@ -65,6 +63,17 @@ export default function DashboardHeader({
     clockLabel,
     () => "Welcome",
   );
+
+  // Prefer the authenticated user's first name for a natural greeting.
+  // Fall back to another available identity instead of a hardcoded role.
+  const displayName =
+    user?.firstName?.trim() || user?.lastName?.trim() || user?.email || null;
+
+  // Only designated pages use the personalized greeting.
+  // Other pages continue displaying their configured description.
+  const subtitle = pageConfig.useGreeting
+    ? `${dateLabel}${displayName ? `, ${displayName}` : ""}`
+    : (pageConfig.description ?? "");
 
   const loadNotifications = useCallback(async () => {
     setNotificationsLoading(true);
@@ -118,11 +127,7 @@ export default function DashboardHeader({
             <h1 className="truncate text-[17px] font-bold tracking-[-0.3px] text-on-background">
               {pageConfig.title}
             </h1>
-            <p className="mt-0.5 text-xs text-on-surface-muted">
-              {isHome
-                ? `${dateLabel}${user?.firstName ? `, ${user.firstName}` : ""}`
-                : pageConfig.description}
-            </p>
+            <p className="mt-0.5 text-xs text-on-surface-muted">{subtitle}</p>
           </div>
         </div>
 
