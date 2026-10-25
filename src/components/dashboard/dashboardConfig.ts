@@ -118,7 +118,7 @@ export const dashboardPageConfigs: Record<string, DashboardPageConfig> = {
   },
   "/dashboard/finance": {
     title: "Invoices & Payments",
-    description: "LKR 6.8M outstanding · 5 overdue invoices",
+    description: "Track invoices, payments, and outstanding balances",
     breadcrumbs: [
       { label: "Dashboard", href: "/dashboard" },
       { label: "Finance" },
@@ -126,7 +126,7 @@ export const dashboardPageConfigs: Record<string, DashboardPageConfig> = {
   },
   "/dashboard/analytics": {
     title: "Analytics & AI Risk Prediction",
-    description: "Powered by RAG · LangChain · Last analysed 2 hours ago",
+    description: "Project performance and AI risk insights",
     breadcrumbs: [
       { label: "Dashboard", href: "/dashboard" },
       { label: "Analytics" },

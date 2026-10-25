@@ -76,3 +76,21 @@ export function useDashboardQuery<T>(
     setData,
   };
 }
+
+// Observe cached dashboard data without triggering another API request.
+export function useDashboardSnapshot<T>(name: string): QuerySnapshot<T> {
+  const user = useSelector((state: RootState) => state.auth.user);
+  const key = JSON.stringify([user?.id, user?.role, name]);
+
+  const subscribe = useCallback(
+    (listener: () => void) => dashboardQueryCache.subscribe(key, listener),
+    [key],
+  );
+
+  const getSnapshot = useCallback(
+    () => dashboardQueryCache.snapshot<T>(key),
+    [key],
+  );
+
+  return useSyncExternalStore(subscribe, getSnapshot, () => serverSnapshot);
+}

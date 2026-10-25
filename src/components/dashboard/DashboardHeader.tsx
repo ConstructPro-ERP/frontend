@@ -11,7 +11,16 @@ import {
 } from "react";
 import { useSelector } from "react-redux";
 import { dashboardPageConfigs } from "@/components/dashboard/dashboardConfig";
-import { getDashboardActivity } from "@/services/dashboardApi";
+import { formatAnalyticsCompactCurrency } from "@/components/dashboard/analytics/analyticsUtils";
+import {
+  useDashboardQuery,
+  useDashboardSnapshot,
+} from "@/hooks/useDashboardQuery";
+import { canAccessDashboardPath } from "@/lib/dashboardAccess";
+import {
+  getDashboardActivity,
+  getDashboardSummary,
+} from "@/services/dashboardApi";
 import type { DashboardActivity } from "@/types/dashboard";
 import type { RootState } from "@/store";
 
@@ -69,11 +78,63 @@ export default function DashboardHeader({
   const displayName =
     user?.firstName?.trim() || user?.lastName?.trim() || user?.email || null;
 
+  const isFinancePage = pathname === "/dashboard/finance";
+  const isAnalyticsPage = pathname === "/dashboard/analytics";
+
+  const canViewFinance =
+    Boolean(user) && canAccessDashboardPath(user?.role, pathname);
+
+  // Reuse the existing user-scoped dashboard summary cache.
+  const financeSummaryQuery = useDashboardQuery(
+    "home:summary",
+    getDashboardSummary,
+    isFinancePage && canViewFinance,
+  );
+
+  const latestAnalysis = useDashboardSnapshot<string>("analytics:latest-run");
+
   // Only designated pages use the personalized greeting.
   // Other pages continue displaying their configured description.
-  const subtitle = pageConfig.useGreeting
+  let subtitle = pageConfig.useGreeting
     ? `${dateLabel}${displayName ? `, ${displayName}` : ""}`
     : (pageConfig.description ?? "");
+
+  if (isFinancePage && canViewFinance) {
+    const summary = financeSummaryQuery.data;
+
+    if (summary) {
+      const outstanding = formatAnalyticsCompactCurrency(
+        summary.revenue.outstandingBalance,
+      );
+      const overdueCount = summary.invoices.overdueCount;
+
+      subtitle =
+        `${outstanding} outstanding · ` +
+        `${overdueCount} overdue ` +
+        `${overdueCount === 1 ? "invoice" : "invoices"}`;
+
+      if (financeSummaryQuery.error) {
+        subtitle += " · Data may be outdated";
+      }
+    } else if (financeSummaryQuery.error) {
+      subtitle = "Finance figures are temporarily unavailable";
+    } else {
+      subtitle = "Loading finance summary…";
+    }
+  }
+
+  if (isAnalyticsPage) {
+    const generatedAt = latestAnalysis.data;
+
+    if (generatedAt && Number.isFinite(Date.parse(generatedAt))) {
+      const analysedAt = new Intl.DateTimeFormat("en-LK", {
+        dateStyle: "medium",
+        timeStyle: "short",
+      }).format(new Date(generatedAt));
+
+      subtitle = `AI risk insights · Last analysed ${analysedAt}`;
+    }
+  }
 
   const loadNotifications = useCallback(async () => {
     setNotificationsLoading(true);

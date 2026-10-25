@@ -43,10 +43,9 @@ test("finance dashboard uses the shared API client and finance endpoints", () =>
     serviceSource,
     /apiClient\.get<FinanceInvoiceDto\[]>\("\/invoices"/,
   );
-  assert.match(
-    clientSource,
-    /apiClient\s*\.\s*get<unknown>\(\s*"\/analytics\/dashboard\/summary"/,
-  );
+  assert.match(clientSource, /dashboardQueryCache/);
+  assert.match(clientSource, /getDashboardSummary/);
+  assert.match(clientSource, /home:summary/);
   assert.match(clientSource, /recordFinancePayment\(paymentFormValues\)/);
   assert.match(
     serviceSource,
