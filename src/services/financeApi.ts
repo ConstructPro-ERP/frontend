@@ -2,6 +2,9 @@ import apiClient from "@/lib/axios";
 import { ApiError } from "@/lib/ApiError";
 import { dashboardQueryCache } from "@/lib/dashboardQueryCache";
 import type {
+  CreateFinanceInvoiceDto,
+  FinanceInvoiceCreationOptions,
+  FinanceInvoiceFormValues,
   CreateFinancePaymentDto,
   FinanceApiInvoiceStatus,
   FinanceInvoice,
@@ -12,6 +15,40 @@ import type {
   FinancePaymentMethod,
   RecordFinancePaymentResponseDto,
 } from "@/types/finance";
+
+export async function getInvoiceCreationOptions(): Promise<FinanceInvoiceCreationOptions> {
+  return (
+    await apiClient.get<FinanceInvoiceCreationOptions>(
+      "/invoices/creation-options",
+    )
+  ).data;
+}
+
+export function createInvoiceRequest(
+  values: FinanceInvoiceFormValues,
+): CreateFinanceInvoiceDto {
+  return {
+    projectId: values.projectId,
+    customerId: values.customerId,
+    invoiceDate: values.invoiceDate,
+    dueDate: values.dueDate || undefined,
+    totalAmount: Number(values.totalAmount),
+    notes: values.notes.trim() || undefined,
+    status: values.status,
+  };
+}
+
+export async function createFinanceInvoice(
+  values: FinanceInvoiceFormValues,
+): Promise<FinanceInvoiceDetails> {
+  const response = await apiClient.post<FinanceInvoiceDto>(
+    "/invoices",
+    createInvoiceRequest(values),
+    { skipNetworkRetry: true },
+  );
+  dashboardQueryCache.invalidate();
+  return mapInvoice(response.data);
+}
 
 const statusMap: Record<FinanceApiInvoiceStatus, FinanceInvoiceStatus> = {
   DRAFT: "DRAFT",

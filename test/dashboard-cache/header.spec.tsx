@@ -62,6 +62,11 @@ describe("Dynamic dashboard headers", () => {
       "/dashboard/quotations",
       "/dashboard/projects",
       "/dashboard/documents",
+      "/dashboard/users",
+      "/dashboard/leads",
+      "/dashboard/finance",
+      "/dashboard/analytics",
+      "/dashboard/projects/project-1",
     ];
 
     for (const pathname of paths) {
@@ -97,6 +102,23 @@ describe("Dynamic dashboard headers", () => {
     });
 
     expect(screen.getByText(/Good evening, Alice/)).toBeTruthy();
+  });
+
+  it("keeps the Projects title on project detail pages", () => {
+    navigation.pathname = "/dashboard/projects/project-1";
+    renderHeader();
+    expect(screen.getByRole("heading", { name: "Projects" })).toBeTruthy();
+  });
+
+  it("updates the date at midnight", () => {
+    vi.setSystemTime(new Date(2026, 9, 25, 23, 59));
+    renderHeader();
+    act(() => {
+      vi.advanceTimersByTime(60_000);
+    });
+    expect(
+      screen.getByText("Monday, 26 October 2026 · Good morning, Alice"),
+    ).toBeTruthy();
   });
 
   it("updates the greeting when the authenticated user changes", () => {

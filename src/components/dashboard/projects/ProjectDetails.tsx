@@ -18,6 +18,8 @@ import {
   isUuid,
 } from "@/lib/projectRules";
 import ProjectForm from "./ProjectForm";
+import CreateInvoiceForm from "../finance/CreateInvoiceForm";
+import { canCreateFinanceInvoice } from "../finance/financeUtils";
 import ProjectCalendarSection from "./ProjectCalendarSection";
 import MilestonesSection from "./MilestonesSection";
 import TasksSection from "./TasksSection";
@@ -80,6 +82,7 @@ function ProjectDetailsContent({
     "edit" | "manager" | "status" | "delete" | null
   >(null);
   const [feedback, setFeedback] = useState("");
+  const [creatingInvoice, setCreatingInvoice] = useState(false);
   const [refreshError, setRefreshError] = useState("");
   const project = updated ?? result.data;
   const permissions = projectPermissions(role, userId, project ?? undefined);
@@ -137,6 +140,15 @@ function ProjectDetailsContent({
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
+              {canCreateFinanceInvoice(role) && (
+                <button
+                  type="button"
+                  className={buttonClass}
+                  onClick={() => setCreatingInvoice(true)}
+                >
+                  Create Invoice
+                </button>
+              )}
               <button
                 aria-label="Refresh project"
                 className={buttonClass}
@@ -167,6 +179,16 @@ function ProjectDetailsContent({
             </div>
           </header>
           {feedback && <Notice>{feedback}</Notice>}
+          {creatingInvoice && (
+            <CreateInvoiceForm
+              projectId={project.id}
+              onClose={() => setCreatingInvoice(false)}
+              onCreated={(invoice) => {
+                setCreatingInvoice(false);
+                setFeedback(`${invoice.invoiceNumber} created successfully.`);
+              }}
+            />
+          )}
           {refreshError && <Notice error>{refreshError}</Notice>}
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <div className={panelClass + " p-5"}>

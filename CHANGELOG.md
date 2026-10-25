@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- Invoice creation from Finance and Project Details for Admin, Management, Finance, and Accountant roles, with project/customer selection, Draft/Issued status, date and amount validation, duplicate submission prevention, backend error feedback, and dashboard cache refresh.
+
 - **Client portal** ([#82](https://github.com/ConstructPro-ERP/frontend/issues/82))
   - Added a read-only `/portal` experience, separate from the staff dashboard, for `CLIENT_PORTAL_USER` accounts: overview, projects with milestones, quotations, and shared documents with signed downloads.
   - Uses only the client-scoped `/client-portal/*` gateway routes; ownership is enforced by the backend.
