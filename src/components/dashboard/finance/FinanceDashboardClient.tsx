@@ -17,6 +17,7 @@ import type {
   FinanceSummary,
 } from "@/types/finance";
 import {
+  canCreateFinanceInvoice,
   buildOutstandingBalances,
   createFinancePaymentFormValues,
   defaultFinancePaymentMethod,
@@ -37,6 +38,7 @@ import type { RootState } from "@/store";
 import { dashboardQueryCache } from "@/lib/dashboardQueryCache";
 import { getDashboardSummary } from "@/services/dashboardApi";
 import type { User } from "@/types/auth";
+import CreateInvoiceForm from "./CreateInvoiceForm";
 
 type FinanceState =
   | {
@@ -538,6 +540,15 @@ function FinancePaymentForm({
 
 export default function FinanceDashboardClient() {
   const user = useSelector((state: RootState) => state.auth.user);
+  if (!user) return <p role="status">Loading finance…</p>;
+  if (!canCreateFinanceInvoice(user.role))
+    return <p role="alert">You do not have access to finance.</p>;
+  return <FinanceDashboardContent key={`${user.id}:${user.role}`} />;
+}
+
+function FinanceDashboardContent() {
+  const user = useSelector((state: RootState) => state.auth.user);
+  const [creatingInvoice, setCreatingInvoice] = useState(false);
 
   const loadFinanceForUser = useCallback(() => loadFinanceData(user), [user]);
 
@@ -580,17 +591,6 @@ export default function FinanceDashboardClient() {
   const retryLoad = () => {
     void query.refresh();
   };
-
-  if (financeState.kind === "error") {
-    return (
-      <FinanceStateCard
-        title="Finance dashboard unavailable"
-        message={financeState.message}
-        actionLabel="Try again"
-        onAction={retryLoad}
-      />
-    );
-  }
 
   const invoices = financeState.kind === "ready" ? financeState.invoices : [];
   const summary =
@@ -772,8 +772,51 @@ export default function FinanceDashboardClient() {
     }
   };
 
+  const invoiceCreation = (
+    <>
+      <div className="flex justify-end">
+        <button
+          type="button"
+          onClick={() => setCreatingInvoice(true)}
+          className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-on-primary hover:bg-primary-hover"
+        >
+          <Plus size={16} /> Create Invoice
+        </button>
+      </div>
+      {creatingInvoice && (
+        <CreateInvoiceForm
+          onClose={() => setCreatingInvoice(false)}
+          onCreated={(invoice) => {
+            setCreatingInvoice(false);
+            setActiveFilter("ALL");
+            setFeedback({
+              tone: "success",
+              message: `${invoice.invoiceNumber} created successfully.`,
+            });
+          }}
+        />
+      )}
+      {feedback ? <FinanceFeedbackBanner feedback={feedback} /> : null}
+    </>
+  );
+
+  if (financeState.kind === "error") {
+    return (
+      <div className="space-y-5">
+        {invoiceCreation}
+        <FinanceStateCard
+          title="Finance dashboard unavailable"
+          message={financeState.message}
+          actionLabel="Try again"
+          onAction={retryLoad}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-5">
+      {invoiceCreation}
       {query.error ? (
         <FinanceFeedbackBanner
           feedback={{
@@ -806,7 +849,6 @@ export default function FinanceDashboardClient() {
           Retry invoice details
         </button>
       ) : null}
-      {feedback ? <FinanceFeedbackBanner feedback={feedback} /> : null}
       {isLoadingDetails ? (
         <section
           className="space-y-3 rounded-xl border border-outline-variant bg-surface-container-lowest p-5"

@@ -1,5 +1,7 @@
 import { ApiError } from "@/lib/ApiError";
 import type {
+  FinanceInvoiceFormValues,
+  FinanceInvoiceFormErrors,
   FinanceInvoice,
   FinanceInvoiceFilter,
   FinancePaymentFormErrors,
@@ -8,6 +10,70 @@ import type {
   FinanceOutstandingItem,
   FinanceSummary,
 } from "@/types/finance";
+
+export function canCreateFinanceInvoice(role: string | null | undefined) {
+  return (
+    !!role && ["ADMIN", "MANAGEMENT", "FINANCE", "ACCOUNTANT"].includes(role)
+  );
+}
+
+export function createFinanceInvoiceFormValues(
+  projectId = "",
+): FinanceInvoiceFormValues {
+  return {
+    projectId,
+    customerId: "",
+    invoiceDate: formatLocalDateForApi(new Date()),
+    dueDate: "",
+    totalAmount: "",
+    notes: "",
+    status: "DRAFT",
+  };
+}
+
+function isInvoiceDate(value: string) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const parsed = new Date(`${value}T00:00:00Z`);
+  return (
+    Number.isFinite(parsed.getTime()) &&
+    parsed.toISOString().slice(0, 10) === value &&
+    parsed.getUTCFullYear() > 0
+  );
+}
+
+export function validateFinanceInvoiceForm(
+  values: FinanceInvoiceFormValues,
+): FinanceInvoiceFormErrors {
+  const errors: FinanceInvoiceFormErrors = {};
+  if (!values.projectId.trim())
+    errors.projectId = "Project selection is required.";
+  if (!values.customerId.trim())
+    errors.customerId = "Customer selection is required.";
+  if (!isInvoiceDate(values.invoiceDate))
+    errors.invoiceDate = "Enter a valid invoice date.";
+  if (values.dueDate && !isInvoiceDate(values.dueDate))
+    errors.dueDate = "Enter a valid due date.";
+  else if (
+    values.dueDate &&
+    !errors.invoiceDate &&
+    values.dueDate < values.invoiceDate
+  )
+    errors.dueDate = "The due date cannot be before the invoice date.";
+  if (
+    !/^\d+(\.\d{1,2})?$/.test(values.totalAmount.trim()) ||
+    !Number.isFinite(Number(values.totalAmount)) ||
+    Number(values.totalAmount) <= 0
+  )
+    errors.totalAmount =
+      "Enter a positive amount with at most two decimal places.";
+  else if (Number(values.totalAmount) > 9_999_999_999.99)
+    errors.totalAmount = "Amount must not exceed LKR 9,999,999,999.99.";
+  if (values.notes.length > 2000)
+    errors.notes = "Notes must be 2000 characters or fewer.";
+  if (!["DRAFT", "ISSUED"].includes(values.status))
+    errors.status = "Select Draft or Issued.";
+  return errors;
+}
 
 export const financeFilterTabs: Array<{
   label: string;

@@ -46,7 +46,14 @@ function clockLabel() {
 
 function getPageConfig(pathname: string) {
   return (
-    dashboardPageConfigs[pathname] ?? {
+    dashboardPageConfigs[pathname] ??
+    dashboardPageConfigs[
+      Object.keys(dashboardPageConfigs)
+        .filter(
+          (path) => path !== "/dashboard" && pathname.startsWith(`${path}/`),
+        )
+        .sort((a, b) => b.length - a.length)[0]
+    ] ?? {
       title: "Dashboard",
       description: "Shared ConstructPro workspace.",
       breadcrumbs: [{ label: "Dashboard", href: "/dashboard" }],
@@ -93,11 +100,8 @@ export default function DashboardHeader({
 
   const latestAnalysis = useDashboardSnapshot<string>("analytics:latest-run");
 
-  // Only designated pages use the personalized greeting.
-  // Other pages continue displaying their configured description.
-  let subtitle = pageConfig.useGreeting
-    ? `${dateLabel}${displayName ? `, ${displayName}` : ""}`
-    : (pageConfig.description ?? "");
+  const greeting = `${dateLabel}${displayName ? `, ${displayName}` : ""}`;
+  let subtitle = pageConfig.description ?? "";
 
   if (isFinancePage && canViewFinance) {
     const summary = financeSummaryQuery.data;
@@ -173,7 +177,7 @@ export default function DashboardHeader({
 
   return (
     <header className="sticky top-0 z-30 border-b border-outline-variant bg-surface-container-lowest">
-      <div className="flex h-16 items-center gap-3 px-4 sm:px-6">
+      <div className="flex min-h-16 items-center gap-3 px-4 py-3 sm:px-6">
         <button
           type="button"
           aria-label="Open sidebar"
@@ -188,7 +192,7 @@ export default function DashboardHeader({
             <h1 className="truncate text-[17px] font-bold tracking-[-0.3px] text-on-background">
               {pageConfig.title}
             </h1>
-            <p className="mt-0.5 text-xs text-on-surface-muted">{subtitle}</p>
+            <p className="mt-0.5 text-xs text-on-surface-muted">{greeting}</p>
           </div>
         </div>
 

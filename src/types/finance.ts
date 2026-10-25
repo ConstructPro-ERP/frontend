@@ -6,6 +6,35 @@ export type FinanceInvoiceStatus =
   | "PARTIAL"
   | "CANCELLED";
 
+export interface FinanceInvoiceFormValues {
+  projectId: string;
+  customerId: string;
+  invoiceDate: string;
+  dueDate: string;
+  totalAmount: string;
+  notes: string;
+  status: "DRAFT" | "ISSUED";
+}
+
+export type FinanceInvoiceFormErrors = Partial<
+  Record<keyof FinanceInvoiceFormValues, string>
+>;
+
+export interface CreateFinanceInvoiceDto {
+  projectId: string;
+  customerId: string;
+  invoiceDate: string;
+  dueDate?: string;
+  totalAmount: number;
+  notes?: string;
+  status: "DRAFT" | "ISSUED";
+}
+
+export interface FinanceInvoiceCreationOptions {
+  projects: { id: string; projectName: string; customerIds: string[] }[];
+  customers: { id: string; fullName: string }[];
+}
+
 export type FinanceApiInvoiceStatus =
   | "DRAFT"
   | "ISSUED"
