@@ -30,6 +30,7 @@ export interface AuthState {
   isAuthenticated: boolean;
   isLoading: boolean;
   error: string | null;
+  sessionVersion: number;
 }
 
 export interface LoginCredentials {

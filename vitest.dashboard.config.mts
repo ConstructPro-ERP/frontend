@@ -6,7 +6,10 @@ export default defineConfig({
   test: {
     pool: "threads",
     environment: "jsdom",
-    include: ["test/dashboard-cache/**/*.spec.{ts,tsx}"],
+    include: [
+      "test/dashboard-cache/**/*.spec.{ts,tsx}",
+      "test/auth/**/*.spec.{ts,tsx}",
+    ],
     setupFiles: ["test/quotation-quality/setup.ts"],
   },
 });
